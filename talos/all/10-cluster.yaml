@@ -1,0 +1,12 @@
+# Disable built-in CNI to use Cilium
+cluster:
+  network:
+    cni:
+      name: none
+    podSubnets: ["172.20.128.0/18"]
+    serviceSubnets: ["172.20.64.0/19"]
+machine:
+  certSANs:
+    - "127.0.0.1"
+    - "172.20.17.133"
+    - "k8s.garage.neo-tix.com"
