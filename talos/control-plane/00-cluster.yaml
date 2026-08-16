@@ -5,7 +5,7 @@ cluster:
       $patch: delete
     certSANs:
       - "127.0.0.1"
-      - "172.20.17.133"
+      - "172.20.17.138"
       - "k8s.garage.neo-tix.com"
     extraArgs:
       # https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/

@@ -1,6 +1,6 @@
 ---
 clusterName: kubernetes
-clusterEndpoint: https://172.20.17.133:6443
+clusterEndpoint: https://172.20.17.138:6443
 
 # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
 talosVersion: v1.13.7
