@@ -26,6 +26,7 @@ spec:
                 spec:
                   httpGet:
                     path: /
+                    port: 80
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
@@ -35,6 +36,7 @@ spec:
                 spec:
                   httpGet:
                     path: /
+                    port: 80
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
