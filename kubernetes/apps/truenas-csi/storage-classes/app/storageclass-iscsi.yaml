@@ -1,0 +1,16 @@
+---
+# iSCSI StorageClass - ReadWriteOnce (RWO), efficient block storage
+# Best for: databases, single-writer workloads requiring low latency
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: truenas-iscsi
+provisioner: csi.truenas.io
+parameters:
+  protocol: "iscsi"
+  datasetPath: "k8s/iscsi"
+  compression: "LZ4"
+  volblocksize: "16K"
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
