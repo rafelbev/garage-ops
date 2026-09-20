@@ -1,5 +1,8 @@
 # iSCSI Support Analysis for Talos Nodes
 
+> **Location**: `docs/talos/iscsi-support-analysis.md`
+> **Related**: [Implementation Guide](iscsi-support-implementation.md)
+
 ## Current State
 
 The cluster is a 3-node Talos Linux (v1.14.1) + Kubernetes (v1.37.0) setup using TOPF for configuration management. The `truenas-csi` Flux Kustomization is already defined with:

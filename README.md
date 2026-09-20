@@ -273,6 +273,11 @@ just talos reset
 
 ## 🛠️ Talos and Kubernetes Maintenance
 
+### 📚 Talos Documentation
+
+- [Talos Schematic Specification](docs/talos/iscsi-support-analysis.md) - Custom schematic requirements including iSCSI kernel modules
+- [iSCSI Support Implementation](docs/talos/iscsi-support-implementation.md) - Implementation guide for iSCSI storage support
+
 ### ⚙️ Updating Talos node configuration
 
 > [!TIP]

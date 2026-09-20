@@ -1,5 +1,8 @@
 # iSCSI Implementation Summary
 
+> **Location**: `docs/talos/iscsi-support-implementation.md`
+> **Related**: [Analysis](iscsi-support-analysis.md)
+
 ## Completed
 
 ### 1. TOPF Configuration Updated
