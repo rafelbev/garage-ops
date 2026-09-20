@@ -1,0 +1,41 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: truenas-csi
+spec:
+  chart:
+    spec:
+      chart: truenas-csi
+      sourceRef:
+        kind: HelmRepository
+        name: truenas-csi
+      version: "1.3.0"
+  interval: 1h
+  values:
+    truenas:
+      url: wss://fileserver.intranet.neo-tix.com/api/current
+      defaultPool: storage
+      insecureSkipTLS: true
+      # API key is injected from the sops secret via existingSecret
+      existingSecret: truenas-csi-secret
+      existingSecretKey: api-key
+    driverName: csi.truenas.io
+    logLevel: 4
+    controller:
+      replicas: 1
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 200m
+    node:
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 200m
