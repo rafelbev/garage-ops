@@ -20,7 +20,11 @@ nodes:
       macAddr: "bc:24:11:17:c6:79"
       mtu: 1500
       encryptDisk: false
-      kernelModules: []
+      kernelModules:
+        - iscsi_tcp
+        - libiscsi
+        - libiscsi_tcp
+        - scsi_transport_iscsi
   - host: "cluster-1"
     ip: "172.20.17.194"
     role: control-plane
@@ -31,7 +35,11 @@ nodes:
       macAddr: "bc:24:11:dd:78:ed"
       mtu: 1500
       encryptDisk: false
-      kernelModules: []
+      kernelModules:
+        - iscsi_tcp
+        - libiscsi
+        - libiscsi_tcp
+        - scsi_transport_iscsi
   - host: "cluster-2"
     ip: "172.20.17.195"
     role: control-plane
@@ -42,4 +50,8 @@ nodes:
       macAddr: "bc:24:11:d1:9e:a0"
       mtu: 1500
       encryptDisk: false
-      kernelModules: []
+      kernelModules:
+        - iscsi_tcp
+        - libiscsi
+        - libiscsi_tcp
+        - scsi_transport_iscsi

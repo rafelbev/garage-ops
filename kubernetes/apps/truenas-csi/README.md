@@ -56,7 +56,16 @@ Ensure the following ports are open from Kubernetes nodes to TrueNAS:
 
 ### For iSCSI volumes
 
-The `open-iscsi` package must be installed on all worker nodes. On Talos Linux, this is included by default.
+The `open-iscsi` package and iSCSI kernel modules must be available on all nodes.
+
+**Talos Linux**: The default Talos schematic does NOT include iSCSI support. A custom schematic must be created at [factory.talos.dev](https://factory.talos.dev) with the following kernel modules:
+
+- `iscsi_tcp`
+- `libiscsi`
+- `libiscsi_tcp`
+- `scsi_transport_iscsi`
+
+See `talos/SPECIFICATION.md` for the complete schematic specification.
 
 ### For NFS volumes
 
