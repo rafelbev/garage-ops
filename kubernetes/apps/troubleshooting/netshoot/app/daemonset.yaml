@@ -15,8 +15,6 @@ spec:
       labels:
         app: netshoot
     spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: netshoot
           image: docker.io/nicolaka/netshoot:latest
@@ -28,8 +26,6 @@ spec:
             limits:
               cpu: 100m
               memory: 128Mi
-          securityContext:
-            privileged: true
       tolerations:
         - operator: Exists
       terminationGracePeriodSeconds: 5
