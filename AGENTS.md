@@ -27,6 +27,47 @@ For Opencode, reference this AGENTS.md file as the primary context document. Inc
 - **Test in a non-production environment** when possible
 - **Document changes** in commit messages and PR descriptions
 
+## Pull Request Guidelines
+
+### Branching
+
+- **Never create or push changes directly to `main`**
+- Always work on a feature/fix branch: `git checkout -b <type>/<description>`
+    - Examples: `fix/upgrade-k8s-1.37.0`, `feat/add-storage-support`, `chore/update-dns`
+- Push your branch and create a PR against `main`
+
+### Documentation Requirements
+
+Before opening a PR, you **must** include documentation with your findings so that future agents and humans don't have to rediscover the architecture, requirements, configuration, and pitfalls.
+
+**For fixes:**
+
+- Amend existing documentation to reflect the fix
+- Update any outdated procedures or warnings
+- Document the root cause and the solution
+
+**For features:**
+
+- Add new documentation sections as needed
+- Update existing documentation to reference the new feature
+- Include configuration examples and usage instructions
+
+**Consolidation over duplication:**
+
+- If documentation already exists for the area you're working on, **consolidate** rather than creating new conflicting documents
+- Fix: amend the existing doc
+- Feature: add to the existing doc
+- Avoid creating multiple docs that cover the same topic
+
+### PR Checklist
+
+- [ ] Changes are on a feature/fix branch (not `main`)
+- [ ] Existing documentation has been reviewed and consolidated
+- [ ] New documentation includes architecture, requirements, configuration, and pitfalls
+- [ ] Documentation is consistent with existing docs (no contradictions)
+- [ ] Flux status checked before and after changes
+- [ ] Changes tested in non-production environment when possible
+
 ## Project Overview
 
 A single Kubernetes cluster running on **Talos Linux** (v1.14.1) with **Kubernetes** (v1.37.0), managed via:
