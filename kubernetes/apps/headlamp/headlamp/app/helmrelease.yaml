@@ -54,9 +54,9 @@ spec:
                 cpu: 10m
               limits:
                 memory: 1Gi
-            volumeMounts:
-              - name: tmp
-                mountPath: /tmp
+            env:
+              - name: HEADLAMP_CONFIG
+                value: /config
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -64,9 +64,6 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
-      volumes:
-        - name: tmp
-          emptyDir: {}
     persistence:
       headlamp-config:
         accessMode: ReadWriteOnce
