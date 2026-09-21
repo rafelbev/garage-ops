@@ -43,3 +43,20 @@ spec:
         limits:
           memory: 256Mi
           cpu: 200m
+    storageClasses:
+      - name: truenas-iscsi
+        isDefault: true
+        reclaimPolicy: Delete
+        allowVolumeExpansion: true
+        volumeBindingMode: Immediate
+        mountOptions: []
+        parameters:
+          protocol: iscsi
+      - name: truenas-nfs
+        isDefault: false
+        reclaimPolicy: Delete
+        allowVolumeExpansion: true
+        volumeBindingMode: Immediate
+        mountOptions: []
+        parameters:
+          protocol: nfs
