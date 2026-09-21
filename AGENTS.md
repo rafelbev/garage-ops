@@ -340,7 +340,77 @@ kubectl get all,cm,secret,pvc,ingress -n <namespace> -o yaml > app-export.yaml
 - **Network policies**: Cilium network policies may differ between clusters.
 - **RBAC**: Service accounts and RBAC may need adjustment.
 
-## SOPS and Secrets Management
+## Testing and Previewing Changes
+
+Before merging a PR, preview the changes that will be applied to the cluster.
+
+### Preview Flux Kustomization Changes
+
+Use `flux diff kustomization` to preview local changes as they would be applied:
+
+```bash
+# Preview changes for a specific kustomization
+flux diff kustomization <name> --path ./kubernetes/apps/<app>/<app>/app
+
+# Preview with local sources (for testing branch changes)
+flux diff kustomization <name> \
+  --path ./kubernetes/apps/<app>/<app>/app \
+  --local-sources GitRepository/flux-system/flux-system=.
+
+# Recursive diff for all kustomizations
+flux diff kustomization <name> --path ./kubernetes/apps --recursive
+```
+
+### Preview Helm Chart Changes
+
+```bash
+# Render Helm chart templates locally
+helm template <release-name> <chart-path> -f values.yaml
+
+# Compare rendered manifests with cluster state
+helm template <release-name> <chart-path> -f values.yaml | kubectl diff -f -
+```
+
+### Preview Talos Configuration Changes
+
+```bash
+# Show pending Talos config changes without applying
+just talos diff
+
+# Render Talos configs to inspect
+just talos render
+```
+
+### Testing Workflow for PRs
+
+1. **Check out the PR branch**:
+
+    ```bash
+    git checkout <pr-branch>
+    ```
+
+2. **Preview the changes**:
+
+    ```bash
+    # For application changes
+    flux diff kustomization <app-name> --path ./kubernetes/apps/<app>/<app>/app
+
+    # For Talos changes
+    just talos diff
+    ```
+
+3. **Review the diff output**:
+    - Check for unexpected resource changes
+    - Verify no resources are being deleted unintentionally
+    - Confirm configuration values are correct
+
+4. **Apply to staging** (if available) or merge with caution
+
+### PR Review Checklist Addition
+
+- [ ] Changes previewed with `flux diff kustomization` or `just talos diff`
+- [ ] Diff output reviewed for unexpected changes
+- [ ] No unintended resource deletions
 
 ### Encryption Rules
 
