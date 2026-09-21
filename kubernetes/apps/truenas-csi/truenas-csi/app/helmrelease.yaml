@@ -14,7 +14,7 @@ spec:
   interval: 1h
   values:
     truenas:
-      url: wss://fileserver.intranet.neo-tix.com/api/current
+      url: wss://fileserver.intranet.neo-tix.com:444/api/current
       defaultPool: storage
       insecureSkipTLS: true
       # API key is injected from the sops secret via existingSecret
