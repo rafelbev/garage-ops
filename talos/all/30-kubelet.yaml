@@ -8,6 +8,20 @@ machine:
       serializeImagePulls: false
       shutdownGracePeriod: 90s
       shutdownGracePeriodCriticalPods: 60s
+    extraMounts:
+      # iSCSI initiator data directory
+      - destination: /etc/iscsi
+        type: bind
+        source: /etc/iscsi
+        options:
+          - bind
+          - rshared
+      - destination: /var/lib/iscsi
+        type: bind
+        source: /var/lib/iscsi
+        options:
+          - bind
+          - rshared
     nodeIP:
       validSubnets:
         - 172.20.17.128/25
