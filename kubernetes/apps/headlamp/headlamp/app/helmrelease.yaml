@@ -54,6 +54,9 @@ spec:
                 cpu: 10m
               limits:
                 memory: 1Gi
+            volumeMounts:
+              - name: tmp
+                mountPath: /tmp
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -61,6 +64,16 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+      volumes:
+        - name: tmp
+          emptyDir: {}
+    persistence:
+      headlamp-config:
+        accessMode: ReadWriteOnce
+        size: 1Gi
+        storageClass: truenas-iscsi
+        globalMounts:
+          - path: /config
     service:
       app:
         ports:
@@ -71,5 +84,5 @@ spec:
         hostnames:
           - "{{ .Release.Name }}.${SECRET_DOMAIN}"
         parentRefs:
-          - name: envoy-internal
+          - name: envoy-external
             namespace: network
