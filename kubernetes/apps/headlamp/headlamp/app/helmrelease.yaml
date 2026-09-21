@@ -31,12 +31,6 @@ spec:
         containers:
           app:
             args: ["--in-cluster", "--password", "$(HEADLAMP_PASSWORD)"]
-            env:
-              - name: HEADLAMP_PASSWORD
-                valueFrom:
-                  secretKeyRef:
-                    name: headlamp-password
-                    key: password
             image:
               repository: ghcr.io/headlamp-k8s/headlamp
               tag: v0.45.0@sha256:db3f0e0fc58d358d41daa3fe7fc852437552c7ee873c3645470f7b86a8e0db49
@@ -76,6 +70,11 @@ spec:
               limits:
                 memory: 1Gi
             env:
+              - name: HEADLAMP_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: headlamp-password
+                    key: password
               - name: HEADLAMP_CONFIG
                 value: /config
               - name: HEADLAMP_PLUGINS
