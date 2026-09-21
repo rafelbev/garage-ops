@@ -20,6 +20,9 @@ spec:
       # API key is injected from the sops secret via existingSecret
       existingSecret: truenas-csi-secret
       existingSecretKey: api-key
+      nfsServer: fileserver.intranet.neo-tix.com
+      iscsiPortal: 172.20.17.17:3260
+      iscsiIQNBase: iqn.2005-10.org.freenas.ctl
     driverName: csi.truenas.io
     logLevel: 4
     controller:
