@@ -14,6 +14,16 @@ spec:
       headlamp:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          init-config:
+            image:
+              repository: ghcr.io/headlamp-k8s/headlamp
+              tag: v0.45.0@sha256:db3f0e0fc58d358d41daa3fe7fc852437552c7ee873c3645470f7b86a8e0db49
+            command: ["sh", "-c", "mkdir -p /config/plugins /config/tmp"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
         containers:
           app:
             image:
@@ -26,7 +36,7 @@ spec:
                 spec:
                   httpGet:
                     path: /
-                    port: 80
+                    port: 4466
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
@@ -36,7 +46,7 @@ spec:
                 spec:
                   httpGet:
                     path: /
-                    port: 80
+                    port: 4466
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
@@ -57,6 +67,12 @@ spec:
             env:
               - name: HEADLAMP_CONFIG
                 value: /config
+              - name: HEADLAMP_PLUGINS
+                value: /config/plugins
+              - name: HEADLAMP_STATIC
+                value: /config/static
+              - name: TMPDIR
+                value: /config/tmp
     defaultPodOptions:
       securityContext:
         runAsNonRoot: true
@@ -75,7 +91,7 @@ spec:
       app:
         ports:
           http:
-            port: 80
+            port: 4466
     route:
       app:
         hostnames:
