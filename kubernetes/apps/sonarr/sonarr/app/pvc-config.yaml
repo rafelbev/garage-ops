@@ -1,5 +1,5 @@
 ---
-# Dynamic PVC for Sonarr config (fresh install)
+# Dynamic PVC for Sonarr config (iSCSI for single-writer performance)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -8,7 +8,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: truenas-nfs
+  storageClassName: truenas-iscsi
   resources:
     requests:
       storage: 1Gi
