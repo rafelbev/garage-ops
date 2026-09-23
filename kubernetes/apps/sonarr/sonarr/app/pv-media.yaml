@@ -11,7 +11,7 @@ spec:
   accessModes:
     - ReadWriteMany
   nfs:
-    server: 172.20.0.10
+    server: 172.20.17.150
     path: /mnt/storage/media
   mountOptions:
     - hard
