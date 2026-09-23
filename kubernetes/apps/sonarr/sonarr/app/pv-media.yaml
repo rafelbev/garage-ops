@@ -1,0 +1,22 @@
+---
+# Static PersistentVolume for Sonarr media library
+# Points to existing TrueNAS NFS export with TV library
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sonarr-media-pv
+spec:
+  capacity:
+    storage: 4Ti
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 172.20.0.10
+    path: /mnt/storage/media
+  mountOptions:
+    - hard
+    - nfsvers=4
+    - sync
+    - noac
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""

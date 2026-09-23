@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Sonarr config (fresh install)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarr-config
+  namespace: sonarr
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-nfs
+  resources:
+    requests:
+      storage: 1Gi
