@@ -47,7 +47,7 @@ spec:
   containers:
     - name: exporter
       image: alpine:3.20
-      command: ["/bin/sh", "-c", "tar czf /export/sonarr-config.tar.gz -C /config . && sleep 3600"]
+      command: ["/bin/sh", "-c", "tar czf /export/sonarr-config.tar.gz -C /config . && touch /export/done && sleep 3600"]
       volumeMounts:
         - name: config
           mountPath: /config
@@ -63,7 +63,16 @@ EOF
 
 kubectl --context "$OLD_CONTEXT" -n "$NAMESPACE" apply -f "$TMP_DIR/export-pod.yaml"
 kubectl --context "$OLD_CONTEXT" -n "$NAMESPACE" wait --for=condition=Ready pod/sonarr-config-export --timeout=120s
-sleep 10  # Give it time to tar
+
+# Wait for tar to complete
+echo "Waiting for export to complete..."
+for i in $(seq 1 60); do
+  if kubectl --context "$OLD_CONTEXT" -n "$NAMESPACE" exec sonarr-config-export -- test -f /export/done 2>/dev/null; then
+    echo "Export complete."
+    break
+  fi
+  sleep 1
+done
 
 # Step 3: Copy the tar file from old cluster
 echo ""
@@ -90,7 +99,7 @@ spec:
   containers:
     - name: importer
       image: alpine:3.20
-      command: ["/bin/sh", "-c", "tar xzf /import/sonarr-config.tar.gz -C /config && sleep 3600"]
+      command: ["/bin/sh", "-c", "while [ ! -f /import/sonarr-config.tar.gz ]; do sleep 1; done; tar xzf /import/sonarr-config.tar.gz -C /config && sleep 3600"]
       volumeMounts:
         - name: config
           mountPath: /config
