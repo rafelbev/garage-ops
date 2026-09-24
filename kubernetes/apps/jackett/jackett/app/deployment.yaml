@@ -21,7 +21,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: jackett
-          image: linuxserver/jackett:latest
+          image: linuxserver/jackett:amd64-latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9117
@@ -43,18 +43,23 @@ spec:
             limits:
               memory: 512Mi
               cpu: 250m
+          startupProbe:
+            tcpSocket:
+              port: http
+            failureThreshold: 600
+            periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /api/v2.0/system/status
+            tcpSocket:
               port: http
             initialDelaySeconds: 60
-            periodSeconds: 30
-          readinessProbe:
-            httpGet:
-              path: /api/v2.0/system/status
-              port: http
-            initialDelaySeconds: 30
             periodSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 5
       volumes:
         - name: config
           persistentVolumeClaim:
