@@ -1,0 +1,7 @@
+machine:
+  files:
+    - op: create
+      path: /etc/iscsi/initiatorname.iscsi
+      content: |
+        InitiatorName=iqn.2024-01.com.garage:cluster-1
+      permissions: 0o644

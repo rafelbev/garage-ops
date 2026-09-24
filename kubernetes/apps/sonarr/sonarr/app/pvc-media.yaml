@@ -1,0 +1,15 @@
+---
+# Static PersistentVolumeClaim for Sonarr media library
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarr-media
+  namespace: sonarr
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 4Ti
+  volumeName: sonarr-media-pv

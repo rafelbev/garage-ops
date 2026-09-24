@@ -13,33 +13,45 @@ nodes:
   - host: "cluster-0"
     ip: "172.20.17.193"
     role: control-plane
-    schematicId: "ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515"
+    schematicId: "c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac"
     data:
       installDisk: "/dev/sda"
       installDiskSerial: ""
       macAddr: "bc:24:11:17:c6:79"
       mtu: 1500
       encryptDisk: false
-      kernelModules: []
+      kernelModules:
+        - iscsi_tcp
+        - libiscsi
+        - libiscsi_tcp
+        - scsi_transport_iscsi
   - host: "cluster-1"
     ip: "172.20.17.194"
     role: control-plane
-    schematicId: "ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515"
+    schematicId: "c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac"
     data:
       installDisk: "/dev/sda"
       installDiskSerial: ""
       macAddr: "bc:24:11:dd:78:ed"
       mtu: 1500
       encryptDisk: false
-      kernelModules: []
+      kernelModules:
+        - iscsi_tcp
+        - libiscsi
+        - libiscsi_tcp
+        - scsi_transport_iscsi
   - host: "cluster-2"
     ip: "172.20.17.195"
     role: control-plane
-    schematicId: "ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515"
+    schematicId: "c9078f9419961640c712a8bf2bb9174933dfcf1da383fd8ea2b7dc21493f8bac"
     data:
       installDisk: "/dev/sda"
       installDiskSerial: ""
       macAddr: "bc:24:11:d1:9e:a0"
       mtu: 1500
       encryptDisk: false
-      kernelModules: []
+      kernelModules:
+        - iscsi_tcp
+        - libiscsi
+        - libiscsi_tcp
+        - scsi_transport_iscsi

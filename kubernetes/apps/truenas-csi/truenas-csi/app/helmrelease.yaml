@@ -14,12 +14,15 @@ spec:
   interval: 1h
   values:
     truenas:
-      url: wss://fileserver.intranet.neo-tix.com/api/current
+      url: wss://fileserver.intranet.neo-tix.com:444/api/current
       defaultPool: storage
       insecureSkipTLS: true
       # API key is injected from the sops secret via existingSecret
       existingSecret: truenas-csi-secret
       existingSecretKey: api-key
+      nfsServer: fileserver.intranet.neo-tix.com
+      iscsiPortal: 172.20.17.17:3260
+      iscsiIQNBase: iqn.2005-10.org.freenas.ctl
     driverName: csi.truenas.io
     logLevel: 4
     controller:
@@ -32,6 +35,7 @@ spec:
           memory: 256Mi
           cpu: 200m
     node:
+      privileged: true
       resources:
         requests:
           memory: 128Mi
@@ -39,3 +43,20 @@ spec:
         limits:
           memory: 256Mi
           cpu: 200m
+    storageClasses:
+      - name: truenas-iscsi
+        isDefault: true
+        reclaimPolicy: Delete
+        allowVolumeExpansion: true
+        volumeBindingMode: Immediate
+        mountOptions: []
+        parameters:
+          protocol: iscsi
+      - name: truenas-nfs
+        isDefault: false
+        reclaimPolicy: Delete
+        allowVolumeExpansion: true
+        volumeBindingMode: Immediate
+        mountOptions: []
+        parameters:
+          protocol: nfs

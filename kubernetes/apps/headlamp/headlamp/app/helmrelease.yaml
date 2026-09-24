@@ -14,8 +14,23 @@ spec:
       headlamp:
         annotations:
           reloader.stakater.com/auto: "true"
+        initContainers:
+          init-config:
+            image:
+              repository: ghcr.io/headlamp-k8s/headlamp
+              tag: v0.45.0@sha256:db3f0e0fc58d358d41daa3fe7fc852437552c7ee873c3645470f7b86a8e0db49
+            command: ["sh", "-c", "mkdir -p /config/plugins /config/tmp"]
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: true
+              capabilities: { drop: ["ALL"] }
+        serviceAccount:
+          name: headlamp
+          annotations:
+            reloader.stakater.com/auto: "true"
         containers:
           app:
+            args: ["--in-cluster"]
             image:
               repository: ghcr.io/headlamp-k8s/headlamp
               tag: v0.45.0@sha256:db3f0e0fc58d358d41daa3fe7fc852437552c7ee873c3645470f7b86a8e0db49
@@ -26,7 +41,7 @@ spec:
                 spec:
                   httpGet:
                     path: /
-                    port: 80
+                    port: 4466
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
@@ -36,7 +51,7 @@ spec:
                 spec:
                   httpGet:
                     path: /
-                    port: 80
+                    port: 4466
                   periodSeconds: 10
                   timeoutSeconds: 1
                   failureThreshold: 3
@@ -54,22 +69,39 @@ spec:
                 cpu: 10m
               limits:
                 memory: 1Gi
+            env:
+              - name: HEADLAMP_CONFIG
+                value: /config
+              - name: HEADLAMP_PLUGINS
+                value: /config/plugins
+              - name: HEADLAMP_STATIC
+                value: /config/static
+              - name: TMPDIR
+                value: /config/tmp
     defaultPodOptions:
+      automountServiceAccountToken: true
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
+    persistence:
+      headlamp-config:
+        accessMode: ReadWriteOnce
+        size: 1Gi
+        storageClass: truenas-iscsi
+        globalMounts:
+          - path: /config
     service:
       app:
         ports:
           http:
-            port: 80
+            port: 4466
     route:
       app:
         hostnames:
-          - "{{ .Release.Name }}.${SECRET_DOMAIN}"
+          - "headlamp.garage.neo-tix.com"
         parentRefs:
-          - name: envoy-internal
+          - name: envoy-external
             namespace: network
