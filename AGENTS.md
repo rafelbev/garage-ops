@@ -26,6 +26,7 @@ For Opencode, reference this AGENTS.md file as the primary context document. Inc
 - **Preview changes** before applying to the cluster
 - **Test in a non-production environment** when possible
 - **Document changes** in commit messages and PR descriptions
+- **Worktree files**: Uncommitted files (age key, talosconfig, etc.) live in the main worktree, not in task-specific worktrees. Check there first when files are missing.
 
 ## Agent Division of Labor
 
