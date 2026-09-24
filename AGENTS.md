@@ -401,6 +401,13 @@ This use case covers migrating an application from an existing cluster (e.g., k3
     ```
 - **Rollback**: Keep the old deployment scaled down (not deleted) until the new one is verified working.
 
+### Key Learnings from Jackett Migration
+
+- **Strict image tags for dependabot**: Use specific version tags (e.g., `linuxserver/jackett:amd64-0.24.2663`) instead of `latest` or `amd64-latest`. This allows dependabot/renovate to track and propose upgrades. Check Docker Hub or the upstream GitHub releases for the latest stable version.
+- **Storage class mapping**: k3s used `truenas-nfs-dynamic` for dynamic PVCs. On Talos, use `truenas-iscsi` for single-writer config PVCs (better performance) or `truenas-nfs` for shared/read-many data.
+- **Authelia not used on Talos**: Do not add auth annotations (e.g., `http-auth` or similar) to HTTPRoute or Ingress resources. Authentication is handled differently on the Talos cluster.
+- **No node pinning**: Talos deployments should not use `nodeSelector` to pin to specific nodes. Let the scheduler place pods optimally.
+
 ### Migration Script Template
 
 See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:
