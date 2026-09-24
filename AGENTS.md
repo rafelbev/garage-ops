@@ -313,32 +313,135 @@ When migrating from Docker Compose to Kubernetes/Helm:
 
 ## Use Case 5: Migrating an Application from Another Kubernetes Cluster
 
-1. **Export the application manifests** from the source cluster:
+This use case covers migrating an application from an existing cluster (e.g., k3s) to the Talos cluster. The process was refined through the Sonarr migration (PR #50, #51).
+
+### Migration Process (k3s → Talos)
+
+1. **Assess the source deployment**:
+
+    ```bash
+    # Identify the app's pod, namespace, and resources
+    kubectl get pods -n <namespace> -o wide
+    kubectl get pvc -n <namespace>
+    kubectl get ingress -n <namespace> -o yaml
+    ```
+
+2. **Create the target deployment manifests** following Use Case 3 pattern:
+    - Use `truenas-iscsi` StorageClass for single-writer config PVCs
+    - Use `truenas-nfs` StorageClass or static NFS PV for shared/read-many data
+    - Set explicit resource requests and limits
+    - Set PUID=0, PGID=0 for linuxserver images
+    - Set TZ=Europe/Malta
+    - Do NOT pin to specific nodes (unlike k3s which may have been pinned)
+    - Use the same image tag as the source for compatibility
+
+3. **Create a migration script** for config transfer:
+    - Scale down the new deployment (0 replicas)
+    - Export config from old PVC via tar in a pod
+    - Download tar to local machine
+    - Upload tar to new PVC via import pod
+    - Scale up the new deployment
+    - Verify the app is working
+    - Scale down the old deployment (keep for rollback)
+
+4. **Handle race conditions in migration scripts**:
+    - Export pod should create a done marker file when finished
+    - Script should poll for the done marker before proceeding
+    - Import pod should wait for the tar file to exist before extracting
+
+5. **Create Gateway API HTTPRoute** (not Ingress):
+
+    ```yaml
+    apiVersion: gateway.networking.k8s.io/v1
+    kind: HTTPRoute
+    metadata:
+        name: <app-name>
+        namespace: <app-name>
+    spec:
+        hostnames:
+            - <app-name>.garage.neo-tix.com
+        parentRefs:
+            - group: gateway.networking.k8s.io
+              kind: Gateway
+              name: envoy-external
+              namespace: network
+        rules:
+            - backendRefs:
+                  - group: ""
+                    kind: Service
+                    name: <app-name>
+                    namespace: <app-name>
+                    port: 80
+                    weight: 1
+              matches:
+                  - path:
+                        type: PathPrefix
+                        value: /
+    ```
+
+6. **Push to git** — Flux will deploy everything automatically
+
+7. **Verify**:
+    - Check pod is running on Talos
+    - Check HTTPRoute is accepted by gateway
+    - Test the URL in a browser
+    - Verify data migrated correctly
+
+### Key Learnings from Sonarr Migration
+
+- **NFS server IP**: Talos cluster uses `172.20.17.150` for TrueNAS NFS (not `172.20.0.10` used by k3s). Verify port 2049 is open.
+- **Media data**: If media is on TrueNAS NFS, no data migration needed — just point the new PVC/PV to the same NFS export.
+- **Config data**: Must be migrated via tar export/import. Use `truenas-iscsi` PVC for config.
+- **Domain change**: k3s used `cloud.neo-tix.com`, Talos uses `garage.neo-tix.com`.
+- **Ingress → HTTPRoute**: k3s used Ingress resources, Talos uses Gateway API HTTPRoute.
+- **Node pinning**: k3s deployments were pinned to specific nodes (e.g., `coreos-vm3`). Talos deployments should not be pinned.
+- **Flux reconciliation**: If Flux doesn't pick up changes, force reconcile:
+    ```bash
+    kubectl annotate kustomization <name> -n <namespace> reconcile.fluxcd.io/requestedat="$(date +%s)" --overwrite
+    ```
+- **Rollback**: Keep the old deployment scaled down (not deleted) until the new one is verified working.
+
+### Migration Script Template
+
+See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:
 
 ```bash
-kubectl get all,cm,secret,pvc,ingress -n <namespace> -o yaml > app-export.yaml
+# Scale down new deployment
+kubectl --context <new> scale deployment/<app> -n <ns> --replicas=0
+
+# Export from old cluster
+kubectl --context <old> run <app>-config-export -n <ns> --rm -i \
+  --image=alpine:3.20 --restart=Never -- \
+  sh -c "cd /config && tar czf /export/sonarr-config.tar.gz . && touch /export/done" \
+  --volume=pvc:<app>-config:/config:ro --volume=tmp:/export
+
+# Wait for export to complete
+kubectl --context <old> wait --for=jsonpath='{.metadata.name}' --timeout=300s pod/<app>-config-export -n <ns>
+
+# Download tar
+kubectl --context <old> cp <ns>/<app>-config-export:/export/sonarr-config.tar.gz /tmp/sonarr-config.tar.gz
+
+# Upload to new cluster
+kubectl --context <new> cp /tmp/sonarr-config.tar.gz <ns>/<app>-config-import:/config/sonarr-config.tar.gz
+
+# Import on new cluster
+kubectl --context <new> exec <app>-config-import -n <ns> -- \
+  sh -c "cd /config && tar xzf sonarr-config.tar.gz && rm sonarr-config.tar.gz"
+
+# Scale up new deployment
+kubectl --context <new> scale deployment/<app> -n <ns> --replicas=1
 ```
 
-2. **Review and adapt the manifests**:
-    - Remove cluster-specific fields (UIDs, resource versions, status)
-    - Update image pull secrets if needed
-    - Update storage classes to match this cluster's StorageClasses
-    - Update ingress annotations to use this cluster's ingress controller
+### Post-Migration Documentation
 
-3. **Templating with GitOps**:
-    - Move hardcoded values to `cluster-secrets.sops.yaml` or Helm values
-    - Use Flux's `postBuild.substituteFrom` for secret substitution
-    - Parameterize environment-specific settings
+After each migration, update this document with:
 
-4. **Deploy using Use Case 3 pattern**
+- New learnings or pitfalls discovered
+- Any deviations from the standard process
+- Updated storage class or network configurations
+- New domain patterns or ingress changes
 
-**Pitfalls**:
-
-- **Storage classes**: The source cluster's StorageClasses may not exist here. Map to `truenas-nfs` or `truenas-iscsi`.
-- **Ingress controller**: This cluster uses Envoy Gateway. Adapt ingress resources accordingly.
-- **Secrets**: Do not copy secrets directly. Re-create them using SOPS encryption.
-- **Network policies**: Cilium network policies may differ between clusters.
-- **RBAC**: Service accounts and RBAC may need adjustment.
+This ensures future migrations benefit from the experience gained.
 
 ## Testing and Previewing Changes
 
