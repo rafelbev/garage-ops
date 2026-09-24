@@ -26,6 +26,67 @@ For Opencode, reference this AGENTS.md file as the primary context document. Inc
 - **Preview changes** before applying to the cluster
 - **Test in a non-production environment** when possible
 - **Document changes** in commit messages and PR descriptions
+- **Worktree files**: Uncommitted files (age key, talosconfig, etc.) live in the main worktree, not in task-specific worktrees. Check there first when files are missing.
+
+## Agent Division of Labor
+
+This project uses two AI agents with distinct responsibilities. Use the right agent for the right task.
+
+### Use Hermes (linus) for:
+
+| Task                             | Example                                             |
+| -------------------------------- | --------------------------------------------------- |
+| Cluster inspection               | `kubectl get pods -n <app> -o wide` on k3s or Talos |
+| Planning and task breakdown      | Assessing a migration, identifying gaps             |
+| Communication with both clusters | kubectl, talosctl, just commands                    |
+| Migration execution              | Running migration scripts, transferring config      |
+| Flux status and debugging        | `flux get ks -A`, checking pod logs, events         |
+| PR management                    | Creating PRs, updating descriptions, merging        |
+| Architectural decisions          | Storage class choices, domain patterns              |
+| Reviewing Goose's work           | Inspecting git diff, verifying constraints          |
+| Documentation updates            | Amending AGENTS.md with learnings                   |
+
+### Use Goose for:
+
+| Task                     | Example                                                |
+| ------------------------ | ------------------------------------------------------ |
+| Writing manifests        | Creating deployment.yaml, service.yaml, httproute.yaml |
+| Editing existing files   | Patching values, updating configurations               |
+| Running pre-commit hooks | format-yaml, format-markdown, etc.                     |
+| Local commits            | `git add` and `git commit` on the feature branch       |
+| Code implementation      | Translating a clear spec into working code             |
+
+### Workflow: Hermes Orchestrates, Goose Codes
+
+For tasks like cluster migrations:
+
+1. **Hermes inspects** the source deployment on k3s
+2. **Hermes plans** the migration and identifies constraints
+3. **Hermes delegates** to Goose with specific instructions
+4. **Goose writes** the manifests and commits locally
+5. **Hermes reviews** the changes (git diff, file inspection)
+6. **Hermes pushes** and manages the PR
+7. **Hermes executes** the migration (config transfer)
+8. **Hermes verifies** the result on Talos
+
+### Communication with Goose
+
+```bash
+# Find the Goose terminal
+orca terminal list --json
+# Look for agentIdentity: "goose", note the handle
+
+# Send a task
+orca terminal send --terminal <handle> --text "Your task" --enter
+
+# Wait for completion
+orca terminal wait --terminal <handle> --for tui-idle --timeout-ms 300000
+
+# Read the result
+orca terminal read --terminal <handle> --screen --limit 50
+```
+
+**Note:** Avoid backticks in messages to Goose — they are interpreted as shell commands.
 
 ## Agent Division of Labor
 
