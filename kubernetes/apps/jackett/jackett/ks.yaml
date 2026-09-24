@@ -1,0 +1,23 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: jackett
+spec:
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: jackett
+      namespace: jackett
+  interval: 1h
+  path: ./kubernetes/apps/jackett/jackett/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: jackett
