@@ -508,6 +508,12 @@ This use case covers migrating an application from an existing cluster (e.g., k3
     - Test the URL in a browser
     - Verify data migrated correctly
 
+8. **Verify all services are present**:
+    - Compare services on source and target: `kubectl get svc -n <namespace>` on both clusters
+    - If the source had a LoadBalancer service (for direct peer connections, port forwarding, or external access), recreate it on Talos
+    - For LoadBalancer services, allocate a static IP via Cilium's `lbipam.cilium.io/ips` annotation — verify the IP is not already in use before allocating
+    - Example: qBittorrent requires a LoadBalancer service for the bittorrent port (6881) in addition to the ClusterIP service for the web UI
+
 ### Key Learnings from Sonarr Migration
 
 - **NFS server IP**: Talos cluster uses `172.20.17.150` for TrueNAS NFS (not `172.20.0.10` used by k3s). Verify port 2049 is open.
