@@ -1,0 +1,15 @@
+---
+# Static PersistentVolumeClaim for Radarr media library
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: radarr-media
+  namespace: radarr
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 4Ti
+  volumeName: radarr-media-pv

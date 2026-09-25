@@ -1,0 +1,22 @@
+---
+# Static PersistentVolume for Radarr media library
+# Points to existing TrueNAS NFS export with movie library
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: radarr-media-pv
+spec:
+  capacity:
+    storage: 4Ti
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 172.20.17.150
+    path: /mnt/storage/media
+  mountOptions:
+    - hard
+    - nfsvers=4
+    - sync
+    - noac
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
