@@ -1,0 +1,15 @@
+---
+# Static PersistentVolumeClaim for qBittorrent media library
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-media
+  namespace: qbittorrent
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 4Ti
+  volumeName: qbittorrent-media-pv

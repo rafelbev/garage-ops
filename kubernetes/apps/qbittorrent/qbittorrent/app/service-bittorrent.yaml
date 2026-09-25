@@ -1,0 +1,23 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-bittorrent
+  namespace: qbittorrent
+  labels:
+    app: qbittorrent
+  annotations:
+    lbipam.cilium.io/ips: "172.20.17.138"
+spec:
+  type: LoadBalancer
+  selector:
+    app: qbittorrent
+  ports:
+    - name: bittorrent
+      port: 6881
+      targetPort: bittorrent
+      protocol: TCP
+    - name: bittorrent-udp
+      port: 6881
+      targetPort: bittorrent-udp
+      protocol: UDP
