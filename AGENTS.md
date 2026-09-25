@@ -468,6 +468,12 @@ This use case covers migrating an application from an existing cluster (e.g., k3
 - **Authelia not used on Talos**: Do not add auth annotations (e.g., `http-auth` or similar) to HTTPRoute or Ingress resources. Authentication is handled differently on the Talos cluster.
 - **No node pinning**: Talos deployments should not use `nodeSelector` to pin to specific nodes. Let the scheduler place pods optimally.
 
+### Key Learnings from qBittorrent Migration
+
+- **Peer-to-peer apps need a LoadBalancer service**: Applications that require direct inbound connections from external peers (like bittorrent on port 6881) need an additional LoadBalancer service beyond the ClusterIP service used for the web UI. The web UI service is only for browser access via the gateway; peers connect directly to the pod's bittorrent port.
+- **Verify LoadBalancer IP availability**: When allocating a static IP for a LoadBalancer service (via Cilium's `lbipam.cilium.io/ips` annotation), verify the IP is not already in use by another service or host. Check existing LoadBalancer services across all namespaces and ping the IP before allocating.
+- **UDP port forwarding**: For bittorrent, expose both TCP and UDP on the bittorrent port (6881) via separate port entries in the LoadBalancer service.
+
 ### Migration Script Template
 
 See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:
