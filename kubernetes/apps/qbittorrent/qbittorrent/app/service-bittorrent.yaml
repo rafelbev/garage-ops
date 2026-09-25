@@ -7,7 +7,7 @@ metadata:
   labels:
     app: qbittorrent
   annotations:
-    lbipam.cilium.io/ips: "172.20.17.138"
+    lbipam.cilium.io/ips: "172.20.17.139"
 spec:
   type: LoadBalancer
   selector:
