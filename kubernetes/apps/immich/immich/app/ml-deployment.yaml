@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-machine-learning
+  labels:
+    app.kubernetes.io/name: immich-machine-learning
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: immich-machine-learning
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: immich-machine-learning
+    spec:
+      containers:
+        - name: ml
+          image: ghcr.io/immich-app/immich-machine-learning:v2.7.5
+          ports:
+            - containerPort: 3003
+              name: http
+          env:
+            - name: TZ
+              value: Europe/Malta
+            - name: TRANSFORMERS_CACHE
+              value: /cache
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+      volumes:
+        - name: cache
+          emptyDir: {}

@@ -4,6 +4,11 @@ kind: Kustomization
 metadata:
   name: headlamp
 spec:
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: headlamp
+      namespace: headlamp
   interval: 1h
   path: ./kubernetes/apps/headlamp/headlamp/app
   postBuild:
@@ -16,4 +21,3 @@ spec:
     name: flux-system
     namespace: flux-system
   targetNamespace: headlamp
-  wait: false

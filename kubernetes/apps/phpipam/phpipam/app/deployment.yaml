@@ -1,0 +1,70 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phpipam
+  namespace: phpipam
+  labels:
+    app: phpipam
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: phpipam
+  template:
+    metadata:
+      labels:
+        app: phpipam
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: phpipam
+          image: phpipam/phpipam:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: DB_HOST
+              value: "172.20.0.121"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "phpipam"
+            - name: DB_USER
+              value: "phpipam"
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: phpipam-secrets
+                  key: db-password
+            - name: TZ
+              value: "Europe/Malta"
+          volumeMounts:
+            - name: config
+              mountPath: /var/www/html
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 500m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: phpipam-config

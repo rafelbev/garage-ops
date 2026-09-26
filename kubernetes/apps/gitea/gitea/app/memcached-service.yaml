@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea-memcached
+  namespace: gitea
+  labels:
+    app: gitea-memcached
+spec:
+  type: ClusterIP
+  selector:
+    app: gitea-memcached
+  ports:
+    - name: memcached
+      port: 11211
+      targetPort: memcached
+      protocol: TCP

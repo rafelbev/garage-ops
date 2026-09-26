@@ -1,0 +1,14 @@
+---
+# Media PVC for Lidarr (NFS for shared music library access)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lidarr-media
+  namespace: lidarr
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: truenas-nfs
+  resources:
+    requests:
+      storage: 4Ti
