@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Home Assistant HACS config (iSCSI for single-writer performance)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: home-assistant-hacs-config
+  namespace: home-assistant-hacs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 1Gi

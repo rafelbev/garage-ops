@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for phpIPAM config (iSCSI for single-writer performance)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: phpipam-config
+  namespace: phpipam
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Readarr media (NFS for shared access)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: readarr-media
+  namespace: readarr
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: truenas-nfs
+  resources:
+    requests:
+      storage: 4Ti
