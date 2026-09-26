@@ -40,7 +40,7 @@ spec:
             - name: TZ
               value: "Europe/Malta"
             - name: UMASK
-              value: "18"
+              value: "022"
           volumeMounts:
             - name: config
               mountPath: /config
