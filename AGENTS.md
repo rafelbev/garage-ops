@@ -447,6 +447,12 @@ This use case covers migrating an application from an existing cluster (e.g., k3
     - Test the URL in a browser
     - Verify data migrated correctly
 
+### Key Learnings from Radarr Migration
+
+- **Size iSCSI config PVCs generously**: The Radarr config directory was 1.6GB after compression (including media covers and database). A 1Gi PVC was too small; 2Gi was needed. Always estimate the source config size before creating the target PVC. Check with `du -sh` on the source PVC contents.
+- **Verify tar integrity after transfer**: Large tarballs transferred via `kubectl cp` can be corrupted. Verify with `tar -tzf` on both source and destination before attempting extraction.
+- **Config import can fail silently**: The import pod may fail due to "No space left on device" without obvious error messages. Check pod logs and PVC capacity.
+
 ### Key Learnings from Sonarr Migration
 
 - **NFS server IP**: Talos cluster uses `172.20.17.150` for TrueNAS NFS (not `172.20.0.10` used by k3s). Verify port 2049 is open.
