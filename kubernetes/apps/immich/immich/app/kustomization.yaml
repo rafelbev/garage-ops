@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: immich
+resources:
+  - pvc-postgres.yaml
+  - pvc-media.yaml
+  - pvc-sync.yaml
+  - pvc-documents.yaml
+  - postgres-deployment.yaml
+  - postgres-service.yaml
+  - redis-deployment.yaml
+  - redis-service.yaml
+  - server-deployment.yaml
+  - server-service.yaml
+  - ml-deployment.yaml
+  - ml-service.yaml
+  - httproute.yaml
