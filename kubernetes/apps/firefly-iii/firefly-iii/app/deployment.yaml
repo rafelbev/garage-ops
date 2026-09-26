@@ -1,0 +1,78 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firefly-iii
+  namespace: firefly-iii
+  labels:
+    app: firefly-iii
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: firefly-iii
+  template:
+    metadata:
+      labels:
+        app: firefly-iii
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: firefly-iii
+          image: docker.io/fireflyiii/core:version-6.4.9
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: DB_CONNECTION
+              value: "pgsql"
+            - name: DB_DATABASE
+              value: "firefly"
+            - name: DB_HOST
+              value: "172.20.0.121"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USERNAME
+              value: "firefly"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: firefly-iii-secrets
+                  key: db-password
+            - name: DEFAULT_LANGUAGE
+              value: "en_US"
+            - name: DEFAULT_LOCALE
+              value: "equal"
+            - name: TRUSTED_PROXIES
+              value: "**"
+            - name: TZ
+              value: "Europe/Malta"
+          volumeMounts:
+            - name: config
+              mountPath: /var/www/html/storage
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 200m
+            limits:
+              memory: 2Gi
+              cpu: 1000m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: firefly-iii-config

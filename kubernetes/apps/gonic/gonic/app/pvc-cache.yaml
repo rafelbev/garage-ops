@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Gonic cache (iSCSI for single-writer performance)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gonic-cache
+  namespace: gonic
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 256Mi

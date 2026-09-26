@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-memcached
+  namespace: gitea
+  labels:
+    app: gitea-memcached
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gitea-memcached
+  template:
+    metadata:
+      labels:
+        app: gitea-memcached
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: memcached
+          image: docker.io/bitnami/memcached:1.6.33
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 11211
+              name: memcached
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          livenessProbe:
+            tcpSocket:
+              port: memcached
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: memcached
+            initialDelaySeconds: 10
+            periodSeconds: 10
