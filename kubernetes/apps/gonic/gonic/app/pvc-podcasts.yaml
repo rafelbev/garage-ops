@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Gonic podcasts (NFS for shared access)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gonic-podcasts
+  namespace: gonic
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: truenas-nfs
+  resources:
+    requests:
+      storage: 256Mi

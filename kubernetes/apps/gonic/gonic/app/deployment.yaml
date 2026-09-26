@@ -1,0 +1,72 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gonic
+  namespace: gonic
+  labels:
+    app: gonic
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gonic
+  template:
+    metadata:
+      labels:
+        app: gonic
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: gonic
+          image: sentriz/gonic:v0.22.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+            - name: data
+              mountPath: /data
+            - name: podcasts
+              mountPath: /podcasts
+            - name: media
+              mountPath: /media
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 500m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: gonic-cache
+        - name: data
+          persistentVolumeClaim:
+            claimName: gonic-data
+        - name: podcasts
+          persistentVolumeClaim:
+            claimName: gonic-podcasts
+        - name: media
+          persistentVolumeClaim:
+            claimName: gonic-media
