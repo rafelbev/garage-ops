@@ -2,29 +2,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: netbootxyz
-  namespace: netbootxyz
+  name: home-assistant-hacs
+  namespace: home-assistant-hacs
   labels:
-    app: netbootxyz
+    app: home-assistant-hacs
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: netbootxyz
+      app: home-assistant-hacs
   template:
     metadata:
       labels:
-        app: netbootxyz
+        app: home-assistant-hacs
     spec:
       restartPolicy: Always
       containers:
-        - name: netbootxyz
-          image: netbootxyz/ipxe-server:v6.1.1
+        - name: home-assistant-hacs
+          image: ghcr.io/hacs/home-assistant-hacs:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           env:
             - name: TZ
@@ -54,4 +54,4 @@ spec:
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: netbootxyz-config
+            claimName: home-assistant-hacs-config

@@ -2,29 +2,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: netbootxyz
-  namespace: netbootxyz
+  name: file-browser
+  namespace: file-browser
   labels:
-    app: netbootxyz
+    app: file-browser
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: netbootxyz
+      app: file-browser
   template:
     metadata:
       labels:
-        app: netbootxyz
+        app: file-browser
     spec:
       restartPolicy: Always
       containers:
-        - name: netbootxyz
-          image: netbootxyz/ipxe-server:v6.1.1
+        - name: file-browser
+          image: filebrowser/file-browser:2.32.5
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           env:
             - name: TZ
@@ -54,4 +54,4 @@ spec:
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: netbootxyz-config
+            claimName: file-browser-config

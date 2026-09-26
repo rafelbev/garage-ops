@@ -2,29 +2,29 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: netbootxyz
-  namespace: netbootxyz
+  name: authelia
+  namespace: authelia
   labels:
-    app: netbootxyz
+    app: authelia
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: netbootxyz
+      app: authelia
   template:
     metadata:
       labels:
-        app: netbootxyz
+        app: authelia
     spec:
       restartPolicy: Always
       containers:
-        - name: netbootxyz
-          image: netbootxyz/ipxe-server:v6.1.1
+        - name: authelia
+          image: authelia/authelia:4.51.7
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
+            - containerPort: 9091
               name: http
           env:
             - name: TZ
@@ -41,17 +41,17 @@ spec:
               cpu: 500m
           livenessProbe:
             httpGet:
-              path: /
+              path: /health
               port: http
             initialDelaySeconds: 30
             periodSeconds: 30
           readinessProbe:
             httpGet:
-              path: /
+              path: /health
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: netbootxyz-config
+            claimName: authelia-config

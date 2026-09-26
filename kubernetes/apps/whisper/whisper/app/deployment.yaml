@@ -2,56 +2,56 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: netbootxyz
-  namespace: netbootxyz
+  name: whisper
+  namespace: whisper
   labels:
-    app: netbootxyz
+    app: whisper
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app: netbootxyz
+      app: whisper
   template:
     metadata:
       labels:
-        app: netbootxyz
+        app: whisper
     spec:
       restartPolicy: Always
       containers:
-        - name: netbootxyz
-          image: netbootxyz/ipxe-server:v6.1.1
+        - name: whisper
+          image: jasonrleslie/whisper-asr-server:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           env:
             - name: TZ
               value: "Europe/Malta"
           volumeMounts:
             - name: config
-              mountPath: /config
+              mountPath: /data
           resources:
             requests:
-              memory: 256Mi
-              cpu: 100m
-            limits:
-              memory: 1Gi
+              memory: 2Gi
               cpu: 500m
+            limits:
+              memory: 8Gi
+              cpu: 2000m
           livenessProbe:
             httpGet:
               path: /
               port: http
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 10
       volumes:
         - name: config
           persistentVolumeClaim:
-            claimName: netbootxyz-config
+            claimName: whisper-config
