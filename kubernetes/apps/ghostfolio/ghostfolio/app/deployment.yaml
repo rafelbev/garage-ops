@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghostfolio
+  namespace: ghostfolio
+  labels:
+    app: ghostfolio
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ghostfolio
+  template:
+    metadata:
+      labels:
+        app: ghostfolio
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: ghostfolio
+          image: ghostfolio/ghostfolio:2.174.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3333
+              name: http
+          env:
+            - name: DB_HOST
+              value: "172.20.0.121"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "ghostfolio"
+            - name: DB_USERNAME
+              value: "ghostfolio"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ghostfolio-secrets
+                  key: db-password
+            - name: TZ
+              value: "Europe/Malta"
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: 500m
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
