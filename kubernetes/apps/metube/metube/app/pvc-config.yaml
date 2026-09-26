@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Metube config (iSCSI for single-writer performance)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: metube-config
+  namespace: metube
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 100Mi
