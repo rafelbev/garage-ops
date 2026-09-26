@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Jellyfin media (NFS for shared access)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-media
+  namespace: jellyfin
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: truenas-nfs
+  resources:
+    requests:
+      storage: 4Ti
