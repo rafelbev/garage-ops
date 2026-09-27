@@ -156,6 +156,7 @@ orca terminal read --terminal <handle> --screen --limit 50
 - Always work on a feature/fix branch: `git checkout -b <type>/<description>`
     - Examples: `fix/upgrade-k8s-1.37.0`, `feat/add-storage-support`, `chore/update-dns`
 - Push your branch and create a PR against `main`
+- **Squash merge awareness**: When a PR is squash-merged, the original branch is no longer a valid base for follow-up PRs (it will have merge conflicts). Before pushing follow-up changes, check if the previous PR was squash-merged. If so, create a new branch from `main` for the new PR instead of reusing the old branch.
 
 ### Documentation Requirements
 
@@ -534,6 +535,13 @@ This use case covers migrating an application from an existing cluster (e.g., k3
 - **Storage class mapping**: k3s used `truenas-nfs-dynamic` for dynamic PVCs. On Talos, use `truenas-iscsi` for single-writer config PVCs (better performance) or `truenas-nfs` for shared/read-many data.
 - **Authelia not used on Talos**: Do not add auth annotations (e.g., `http-auth` or similar) to HTTPRoute or Ingress resources. Authentication is handled differently on the Talos cluster.
 - **No node pinning**: Talos deployments should not use `nodeSelector` to pin to specific nodes. Let the scheduler place pods optimally.
+
+### Key Learnings from Radarr Migration
+
+- **Size iSCSI config PVCs generously**: The Radarr config directory was 1.6GB after compression (including media covers and database). A 1Gi PVC was too small; 2Gi was needed. Always estimate the source config size before creating the target PVC. Check with `du -sh` on the source PVC contents.
+- **Verify tar integrity after transfer**: Large tarballs transferred via `kubectl cp` can be corrupted. Verify with `tar -tzf` on both source and destination before attempting extraction.
+- **Config import can fail silently**: The import pod may fail due to "No space left on device" without obvious error messages. Check pod logs and PVC capacity.
+- **Squash merge awareness**: When a PR is squash-merged, subsequent PRs based on the original branch will have merge conflicts. Always check if the previous PR was squash-merged before pushing follow-up changes. If so, create a new branch from `main` for the new PR.
 
 ### Migration Script Template
 
