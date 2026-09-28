@@ -769,3 +769,5 @@ talosctl get services
 3. Review the relevant just recipes
 4. Consult the Talos and Flux documentation
 5. If all else fails, check the GitHub repository's Discussions and Issues
+
+<!-- Bot identity test commit -->
