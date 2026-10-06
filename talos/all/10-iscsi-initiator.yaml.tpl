@@ -3,5 +3,5 @@ machine:
     - op: create
       path: /etc/iscsi/initiatorname.iscsi
       content: |
-        InitiatorName=iqn.2024-01.com.garage:cluster-0
+        InitiatorName={{ .Data.iscsiInitiatorPrefix }}:{{ .Node.Host }}
       permissions: 0o644
