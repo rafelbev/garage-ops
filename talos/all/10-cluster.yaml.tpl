@@ -9,5 +9,5 @@ serviceSubnets:
 machine:
   certSANs:
     - "127.0.0.1"
-    - "172.20.17.138"
-    - "k8s.garage.neo-tix.com"
+    - "{{ .Data.clusterVip }}"
+    - "{{ .Data.apiServerDomain }}"

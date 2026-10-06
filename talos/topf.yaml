@@ -2,6 +2,13 @@
 clusterName: kubernetes
 clusterEndpoint: https://172.20.17.138:6443
 
+data:
+  clusterVip: "172.20.17.138"
+  apiServerDomain: "k8s.garage.neo-tix.com"
+  networkGateway: "172.20.17.129"
+  etcdSubnet: "172.20.17.128/25"
+  iscsiInitiatorPrefix: "iqn.2024-01.com.garage"
+
 # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
 talosVersion: v1.14.1
 # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet

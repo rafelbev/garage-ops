@@ -4,7 +4,7 @@ cluster:
     extraArgs:
       listen-metrics-urls: http://0.0.0.0:2381
     advertisedSubnets:
-      - 172.20.17.128/25
+      - "{{ .Data.etcdSubnet }}"
 ---
 apiVersion: v1alpha1
 kind: KubeAPIServerConfig
@@ -12,8 +12,8 @@ extraArgs:
   enable-aggregator-routing: "true"
 certExtraSANs:
   - "127.0.0.1"
-  - "172.20.17.138"
-  - "k8s.garage.neo-tix.com"
+  - "{{ .Data.clusterVip }}"
+  - "{{ .Data.apiServerDomain }}"
 ---
 apiVersion: v1alpha1
 kind: KubeControllerManagerConfig
