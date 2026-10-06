@@ -2,9 +2,9 @@ apiVersion: v1alpha1
 kind: KubeNetworkConfig
 dnsDomain: cluster.local
 podSubnets:
-  - "172.20.128.0/18"
+  - "{{ .Data.podSubnet }}"
 serviceSubnets:
-  - "172.20.64.0/19"
+  - "{{ .Data.serviceSubnet }}"
 ---
 machine:
   certSANs:

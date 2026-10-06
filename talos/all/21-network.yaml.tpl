@@ -4,6 +4,8 @@ hostDNS:
   enabled: true
   forwardKubeDNSToHost: true
 nameservers:
-  - address: 172.20.0.3
+  {{- range .Data.upstreamDNS }}
+  - address: {{ . }}
+  {{- end }}
 searchDomains:
   disableDefault: true
