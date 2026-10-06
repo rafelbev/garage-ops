@@ -287,6 +287,55 @@ bootstrap/
 2. Update `schematicId` in `topf.yaml` for all nodes
 3. Run `just talos upgrade`
 
+## Use Case 1b: Rejoining a Reset Control-Plane Node
+
+A CP node that was reset (especially a full/PERSISTENT reset) comes back with a
+**regenerated machine identity and CA**. The stale etcd member must be removed
+first, then the node re-applies its config and rejoins the raft group. Recovered
+from the cluster-1 reset incident (2026-10).
+
+### Procedure
+
+1. **Remove the stale etcd member** from a healthy node (never from the broken one):
+    ```bash
+    talosctl etcd remove-member <stale-member-id> -n <healthy-node>
+    ```
+    Confirm the raft group has N-1 live members: `talosctl etcd members -n <healthy-node>`.
+2. **Take a safety etcd snapshot** before any join work (rollback path).
+3. **Render the node config** with `just talos render` (v1.14 document-based schema).
+4. **Apply + reboot** (NOT another reset):
+    ```bash
+    talosctl apply-config --talosconfig <cfg> --nodes <ip> -f <rendered>
+    talosctl reboot --nodes <ip>
+    ```
+    On a configured node, mTLS with the existing talosconfig works even after a full
+    reset (the rejoining node presents the cluster CA) — `--insecure` is only for
+    maintenance-mode nodes.
+5. **Watch the boot** — a fresh boot takes a few minutes; kubelet/etcd/trustd not
+   running yet is normal. Check forward progress:
+    ```bash
+    talosctl get machinestatus --nodes <ip> -o yaml   # stage, ready, created/updated
+    ```
+    `updated` frozen for many minutes at `stage: booting` = stuck, not "still booting".
+6. **Verify the join**:
+    ```bash
+    kubectl get nodes                        # node Ready
+    talosctl etcd members -n <healthy-node>  # 3 members, new ID for the rejoined node
+    ```
+
+### Pitfalls
+
+- **`machine.files` can only write to `/var` in v1.14.** A `files` entry targeting
+  `/etc/...` (PERSISTENT partition) fails the `writeUserFiles` boot task with
+  `create operation not allowed outside of /var`. That failure blocks the entire
+  boot: `unattended install` never finishes → CRI/sandboxd never register →
+  kubelet/etcd/trustd never start → node stuck at `stage: booting` with
+  `Kubelet: Unhealthy` while `apid` is healthy. Fix: drop the `/etc` file entries
+  and re-apply + reboot. (The `/etc/iscsi/initiatorname.iscsi` file is created by
+  the iSCSI system extension at boot, not by `files`.)
+- **Don't pile on resets.** A second full reset regenerates the CA again and you
+  lose observability. Only EPHEMERAL wipes if truly needed.
+
 ## Use Case 2: Upgrading Kubernetes
 
 1. Update `kubernetesVersion` in `talos/topf.yaml`
@@ -413,6 +462,40 @@ spec:
 - **Health checks**: Include health checks in the Kustomization to ensure Flux waits for the app to be ready before proceeding.
 - **Remediation**: The cluster-level `ks.yaml` (`kubernetes/flux/cluster/ks.yaml`) adds default remediation strategies to all HelmReleases. Do not override unless necessary.
 - **Namespace conflicts**: Ensure the namespace doesn't already exist or is managed elsewhere.
+- **Chart-hardcoded fields need `spec.postRenderers`**: If a Helm chart hardcodes a
+  field you must override (e.g. `truenas-csi` hardcodes the `iscsi-dir` hostPath as
+  `type: Directory`, which fails on Talos because `/etc/iscsi` is created late by
+  the iSCSI system container — the CSI node pod gets stuck in ContainerCreating),
+  add a Kustomize strategic-merge patch to the HelmRelease. A live
+  `kubectl patch` is reverted by Flux on the next reconciliation (1h); a
+  `postRenderers` patch is durable:
+
+    ```yaml
+    spec:
+        postRenderers:
+            - kustomize:
+                  patches:
+                      - target:
+                            kind: DaemonSet
+                            name: truenas-csi-node
+                        patch: |
+                            apiVersion: apps/v1
+                            kind: DaemonSet
+                            metadata:
+                              name: truenas-csi-node
+                            spec:
+                              template:
+                                spec:
+                                  volumes:
+                                    - name: iscsi-dir
+                                      hostPath:
+                                        path: /etc/iscsi
+                                        type: DirectoryOrCreate
+    ```
+
+    Verify locally before committing: `helm template` the chart, then run the
+    patch through `kustomize build` and confirm the rendered field changed
+    (see `kubernetes/apps/truenas-csi` for the working example).
 
 ## Use Case 4: Installing an Application from Docker Compose
 
@@ -743,6 +826,50 @@ talosctl kubelet logs
 
 # Check system services
 talosctl get services
+```
+
+### Diagnosing a stuck boot (the dependency chain)
+
+When a node is stuck at `stage: booting` with `Kubelet: Unhealthy`, read the
+**kernel boot log** — it shows the full service dependency chain and the exact
+failing task:
+
+```bash
+talosctl logs kernel --nodes <ip> --tail 200
+```
+
+The boot gates everything on a chain: `writeUserFiles` / `unattended install` →
+`cri` (waiting for `sandboxd` to register) → `kubelet` / `etcd` / `trustd`. If
+`writeUserFiles` fails, the whole chain stalls while `apid` stays healthy
+(port 5000 open). The kernel log names the failing task verbatim, e.g.
+`task writeUserFiles (1/1): writeUserFiles failed ... create operation not
+allowed outside of /var`.
+
+### v1.14 resource names (for `talosctl get`)
+
+The v1.14 API uses resource types that differ from older versions. The full list
+is `talosctl get rd --nodes <ip>`. Commonly used:
+
+| Resource                  | What it tells you                                                  |
+| ------------------------- | ------------------------------------------------------------------ |
+| `machinestatus`           | `stage` (booting/running), `ready`, `created`/`updated` timestamps |
+| `containerinstancestatus` | Which system containers (kubelet/etcd/trustd) are actually running |
+| `containerspec`           | Which containers machined is _supposed_ to create                  |
+| `machineconfig`           | The exact config stored on the node (compare to rendered)          |
+| `etcdmember`              | The node's etcd member ID (changes after rejoin)                   |
+
+`containerinstancestatus` empty + `machinestatus` stuck = machined isn't
+spawning system containers; read the kernel log to find why.
+
+### Log access
+
+```bash
+# List available log sources
+talosctl logs --nodes <ip>
+
+# Read a specific service log
+talosctl logs <service> --nodes <ip> --tail 100
+# services: kernel, apid, machined, containerd, kubelet, etcd, trustd, ...
 ```
 
 ## Renovate and Dependency Management

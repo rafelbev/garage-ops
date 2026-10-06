@@ -1,8 +1,11 @@
 machine:
-  install:
-    {{- if .Node.Data.installDisk }}
-    disk: "{{ .Node.Data.installDisk }}"
-    {{- else }}
+  install: null
+---
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+installer:
+    image: "factory.talos.dev/metal-installer/{{ .SchematicID }}:{{ .TalosVersion }}"
+provisioning:
     diskSelector:
-      serial: "{{ .Node.Data.installDiskSerial }}"
-    {{- end }}
+        match: "disk.dev_path == \"{{ .Node.Data.installDisk }}\""
+    wipe: false

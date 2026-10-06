@@ -1,0 +1,45 @@
+# etcd stays in v1alpha1 (not moved out in v1.14)
+cluster:
+  etcd:
+    extraArgs:
+      listen-metrics-urls: http://0.0.0.0:2381
+    advertisedSubnets:
+      - "{{ .Data.etcdSubnet }}"
+---
+apiVersion: v1alpha1
+kind: KubeAPIServerConfig
+extraArgs:
+  enable-aggregator-routing: "true"
+certExtraSANs:
+  - "127.0.0.1"
+  - "{{ .Data.clusterVip }}"
+  - "{{ .Data.apiServerDomain }}"
+---
+apiVersion: v1alpha1
+kind: KubeControllerManagerConfig
+extraArgs:
+  bind-address: 0.0.0.0
+---
+apiVersion: v1alpha1
+kind: KubeSchedulerConfig
+extraArgs:
+  bind-address: 0.0.0.0
+config:
+  profiles:
+    - schedulerName: default-scheduler
+      pluginConfig:
+        - name: PodTopologySpread
+          args:
+            defaultingType: List
+            defaultConstraints:
+              - maxSkew: 1
+                topologyKey: kubernetes.io/hostname
+                whenUnsatisfiable: ScheduleAnyway
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false
+---
+apiVersion: v1alpha1
+kind: KubeCoreDNSConfig
+enabled: false

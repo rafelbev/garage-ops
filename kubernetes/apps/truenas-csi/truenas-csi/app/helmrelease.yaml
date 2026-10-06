@@ -60,3 +60,28 @@ spec:
         mountOptions: []
         parameters:
           protocol: nfs
+  # The truenas-csi chart hardcodes the iscsi-dir hostPath as type "Directory".
+  # On Talos, /etc/iscsi is created late by the ext-iscsid system container;
+  # a strict "Directory" check fails the hostPath type check and the CSI node
+  # pod gets stuck in ContainerCreating (reproducible after a node reset).
+  # "DirectoryOrCreate" matches the sibling iscsi-lib volume in the same chart
+  # and lets the pod start as soon as the directory appears.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: DaemonSet
+              name: truenas-csi-node
+            patch: |
+              apiVersion: apps/v1
+              kind: DaemonSet
+              metadata:
+                name: truenas-csi-node
+              spec:
+                template:
+                  spec:
+                    volumes:
+                      - name: iscsi-dir
+                        hostPath:
+                          path: /etc/iscsi
+                          type: DirectoryOrCreate
