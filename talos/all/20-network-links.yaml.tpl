@@ -15,11 +15,11 @@ mtu: {{ .Node.Data.mtu }}
 addresses:
   - address: "{{ .Node.IP }}/25"
 routes:
-  - gateway: "172.20.17.129"
+  - gateway: "{{ .Data.networkGateway }}"
 {{- if eq .Node.Role "control-plane" }}
 ---
 apiVersion: v1alpha1
 kind: Layer2VIPConfig
 link: bond0
-name: "172.20.17.138"
+name: "{{ .Data.clusterVip }}"
 {{- end }}

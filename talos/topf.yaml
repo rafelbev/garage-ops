@@ -55,3 +55,18 @@ nodes:
         - libiscsi
         - libiscsi_tcp
         - scsi_transport_iscsi
+  - host: "cluster-3"
+    ip: "172.20.17.196"
+    role: worker
+    schematicId: "dc7b152cb3ea99b821fcb7340ce7168313ce393d663740b791c36f6e95fc8586"
+    data:
+      installDisk: "/dev/sda"
+      installDiskSerial: ""
+      macAddr: "bc:24:11:63:48:b9"
+      mtu: 1500
+      encryptDisk: false
+      kernelModules:
+        - iscsi_tcp
+        - libiscsi
+        - libiscsi_tcp
+        - scsi_transport_iscsi

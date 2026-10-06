@@ -1,5 +1,9 @@
-machine:
-  network:
-    disableSearchDomain: true
-    nameservers:
-      - 172.20.0.3
+apiVersion: v1alpha1
+kind: ResolverConfig
+hostDNS:
+  enabled: true
+  forwardKubeDNSToHost: true
+nameservers:
+  - address: 172.20.0.3
+searchDomains:
+  disableDefault: true
