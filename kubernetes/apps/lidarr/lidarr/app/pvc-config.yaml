@@ -1,0 +1,15 @@
+---
+# Dynamic PVC for Lidarr config (iSCSI for single-writer performance)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lidarr-config
+  namespace: lidarr
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      # k3s source config measures 10.7G; 27Gi ≈ 151% greater (live PVC already at 27Gi; PVCs cannot shrink)
+      storage: 27Gi

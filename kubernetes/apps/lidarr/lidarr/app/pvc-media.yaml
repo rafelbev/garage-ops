@@ -1,0 +1,15 @@
+---
+# Static PersistentVolumeClaim for Lidarr media library
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lidarr-media
+  namespace: lidarr
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 4Ti
+  volumeName: lidarr-media-pv
