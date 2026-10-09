@@ -1,0 +1,16 @@
+---
+# Dynamic PVC for Home Assistant config (iSCSI for single-writer performance)
+# Sized 2Gi: source config was ~245M (db + wal + backups + tts cache), with generous
+# headroom for the SQLite database and backup files that grow over time.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: home-assistant-config
+  namespace: home-assistant
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 2Gi
