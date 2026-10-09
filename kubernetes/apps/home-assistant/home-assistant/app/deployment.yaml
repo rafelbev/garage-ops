@@ -1,0 +1,68 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-assistant
+  namespace: home-assistant
+  labels:
+    app: home-assistant
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: home-assistant
+  template:
+    metadata:
+      labels:
+        app: home-assistant
+    spec:
+      restartPolicy: Always
+      # Home Assistant relies on host networking for mDNS/SSDP/Chromecast
+      # discovery of devices on the LAN. This is why the k3s source ran with
+      # hostNetwork: true — dropping it silently breaks device discovery.
+      hostNetwork: true
+      containers:
+        - name: home-assistant
+          image: homeassistant/home-assistant:2026.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8123
+              name: http
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 250m
+            limits:
+              memory: 2Gi
+              cpu: "1"
+          # HA takes a while to boot (db migrations, plugin load). Match the
+          # source's generous startup window with a tcp probe on 8123.
+          startupProbe:
+            tcpSocket:
+              port: http
+            failureThreshold: 300
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: home-assistant-config
