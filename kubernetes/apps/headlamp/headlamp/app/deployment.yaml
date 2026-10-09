@@ -24,8 +24,8 @@ spec:
           image: ghcr.io/headlamp-k8s/headlamp:v0.42.0
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8443
-              name: https
+            - containerPort: 4466
+              name: http
           env:
             - name: TZ
               value: "Europe/Malta"
@@ -38,11 +38,11 @@ spec:
               cpu: 200m
           livenessProbe:
             tcpSocket:
-              port: https
+              port: http
             initialDelaySeconds: 30
             periodSeconds: 30
           readinessProbe:
             tcpSocket:
-              port: https
+              port: http
             initialDelaySeconds: 10
             periodSeconds: 10

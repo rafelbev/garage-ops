@@ -11,7 +11,7 @@ spec:
   selector:
     app: headlamp
   ports:
-    - name: https
+    - name: http
       port: 80
-      targetPort: https
+      targetPort: http
       protocol: TCP
