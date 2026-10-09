@@ -30,7 +30,7 @@ spec:
             - name: TZ
               value: "Europe/Malta"
             - name: SEARXNG_REDIS_URL
-              value: "redis://valkey:6379"
+              value: "redis://localhost:6379"
           resources:
             requests:
               memory: 128Mi
