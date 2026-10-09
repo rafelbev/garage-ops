@@ -29,6 +29,10 @@ spec:
           env:
             - name: TZ
               value: "Europe/Malta"
+            - name: PUID
+              value: "0"
+            - name: PGID
+              value: "0"
           volumeMounts:
             - name: config
               mountPath: /config
