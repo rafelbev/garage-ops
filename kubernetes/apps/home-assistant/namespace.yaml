@@ -3,3 +3,14 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: home-assistant
+  # Home Assistant runs with hostNetwork: true so it can do mDNS/SSDP/
+  # Chromecast discovery of devices on the LAN. The cluster default PSA
+  # level (baseline) forbids host networking, so this namespace is exempted,
+  # matching the truenas-csi pattern.
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/warn-version: latest
