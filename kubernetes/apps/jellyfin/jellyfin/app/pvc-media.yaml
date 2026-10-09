@@ -1,0 +1,15 @@
+---
+# Static PersistentVolumeClaim for Jellyfin media library
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-media
+  namespace: jellyfin
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 4Ti
+  volumeName: jellyfin-media-pv
