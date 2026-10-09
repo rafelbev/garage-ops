@@ -21,7 +21,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: netbootxyz
-          image: netbootxyz/kicksecure:latest
+          image: netbootxyz/netbootxyz:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
