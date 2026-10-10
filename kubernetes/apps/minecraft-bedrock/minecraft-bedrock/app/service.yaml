@@ -1,5 +1,8 @@
 ---
-# Expose the Bedrock server (UDP 19132) to the LAN/Internet.
+# Expose the Bedrock server to the LAN/Internet.
+# NetherNet (BDS 1.26.50+): TCP 19132 is the HTTP signaling handshake; each client
+# then plays over its own UDP port from the 19140-19155 range. UDP 7551 is LAN
+# discovery (same-subnet broadcast only). The server does NOT listen on UDP 19132.
 # Cilium LoadBalancerIPAM pins the external IP (see qbittorrent-bittorrent for the pattern).
 apiVersion: v1
 kind: Service
@@ -18,4 +21,72 @@ spec:
     - name: bedrock
       port: 19132
       targetPort: bedrock
+      protocol: TCP
+    - name: bedrock-udp
+      port: 19140
+      targetPort: bedrock-udp
+      protocol: UDP
+    - name: bedrock-udp-1
+      port: 19141
+      targetPort: bedrock-udp-1
+      protocol: UDP
+    - name: bedrock-udp-2
+      port: 19142
+      targetPort: bedrock-udp-2
+      protocol: UDP
+    - name: bedrock-udp-3
+      port: 19143
+      targetPort: bedrock-udp-3
+      protocol: UDP
+    - name: bedrock-udp-4
+      port: 19144
+      targetPort: bedrock-udp-4
+      protocol: UDP
+    - name: bedrock-udp-5
+      port: 19145
+      targetPort: bedrock-udp-5
+      protocol: UDP
+    - name: bedrock-udp-6
+      port: 19146
+      targetPort: bedrock-udp-6
+      protocol: UDP
+    - name: bedrock-udp-7
+      port: 19147
+      targetPort: bedrock-udp-7
+      protocol: UDP
+    - name: bedrock-udp-8
+      port: 19148
+      targetPort: bedrock-udp-8
+      protocol: UDP
+    - name: bedrock-udp-9
+      port: 19149
+      targetPort: bedrock-udp-9
+      protocol: UDP
+    - name: bedrock-udp-10
+      port: 19150
+      targetPort: bedrock-udp-10
+      protocol: UDP
+    - name: bedrock-udp-11
+      port: 19151
+      targetPort: bedrock-udp-11
+      protocol: UDP
+    - name: bedrock-udp-12
+      port: 19152
+      targetPort: bedrock-udp-12
+      protocol: UDP
+    - name: bedrock-udp-13
+      port: 19153
+      targetPort: bedrock-udp-13
+      protocol: UDP
+    - name: bedrock-udp-14
+      port: 19154
+      targetPort: bedrock-udp-14
+      protocol: UDP
+    - name: bedrock-udp-15
+      port: 19155
+      targetPort: bedrock-udp-15
+      protocol: UDP
+    - name: lan-discovery
+      port: 7551
+      targetPort: lan-discovery
       protocol: UDP
