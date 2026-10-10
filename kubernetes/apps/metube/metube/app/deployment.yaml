@@ -18,6 +18,10 @@ spec:
       labels:
         app: metube
     spec:
+      securityContext:
+        fsGroup: 568
+        supplementalGroups:
+          - 568
       restartPolicy: Always
       containers:
         - name: metube
@@ -48,6 +52,16 @@ spec:
               mountPath: /downloads
             - name: config
               mountPath: /config
+            - name: devshm
+              mountPath: /dev/shm
+            - name: shared
+              mountPath: /shared
+            - name: tmp
+              mountPath: /tmp
+            - name: varlogs
+              mountPath: /var/logs
+            - name: varrun
+              mountPath: /var/run
           resources:
             requests:
               memory: 256Mi
@@ -74,3 +88,15 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: metube-config
+        - name: devshm
+          emptyDir:
+            medium: Memory
+        - name: shared
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: varlogs
+          emptyDir: {}
+        - name: varrun
+          emptyDir:
+            medium: Memory
