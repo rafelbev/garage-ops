@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Audiobookshelf metadata (NFS for shared access)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: audiobookshelf-metadata
+  namespace: audiobookshelf
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: truenas-nfs
+  resources:
+    requests:
+      storage: 1Gi

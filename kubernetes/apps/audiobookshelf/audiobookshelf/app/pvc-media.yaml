@@ -1,0 +1,17 @@
+---
+# Static PersistentVolumeClaim for Audiobookshelf shared (downloaded podcasts)
+# Binds to the shared TrueNAS media NFS export; podcasts live in the
+# 'podcasts' subfolder, the same path Gonic uses
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: audiobookshelf-media
+  namespace: audiobookshelf
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 4Ti
+  volumeName: audiobookshelf-media-pv
