@@ -1,0 +1,69 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whisper
+  namespace: whisper
+  labels:
+    app: whisper
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: whisper
+  template:
+    metadata:
+      labels:
+        app: whisper
+    spec:
+      restartPolicy: Always
+      # Wyoming TCP protocol on the node's host network. Consumers (e.g. Home
+      # Assistant) reach it via <node-ip>:10300, so the pod must stay on one
+      # node — pinned to the dedicated worker node.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/hostname: cluster-3
+      containers:
+        - name: whisper
+          image: rhasspy/wyoming-whisper:3.8.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --debug
+            - --model
+            - Systran/faster-distil-whisper-small.en
+            - --language
+            - en
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+          ports:
+            - name: wyoming
+              containerPort: 10300
+              hostPort: 10300
+              protocol: TCP
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 100m
+            limits:
+              memory: 2Gi
+              cpu: "2"
+          # Model load takes a while; give startup 2.5 min before liveness kicks in.
+          startupProbe:
+            tcpSocket:
+              port: 10300
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            tcpSocket:
+              port: 10300
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 10300
+            periodSeconds: 10
+            failureThreshold: 3
