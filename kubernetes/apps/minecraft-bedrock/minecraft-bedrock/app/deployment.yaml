@@ -24,8 +24,62 @@ spec:
           image: itzg/minecraft-bedrock-server:2026.9.2
           imagePullPolicy: IfNotPresent
           ports:
+            # NetherNet (BDS 1.26.50+): TCP signaling handshake
             - containerPort: 19132
               name: bedrock
+              protocol: TCP
+            # NetherNet per-client UDP gameplay ports
+            - containerPort: 19140
+              name: bedrock-udp
+              protocol: UDP
+            - containerPort: 19141
+              name: bedrock-udp-1
+              protocol: UDP
+            - containerPort: 19142
+              name: bedrock-udp-2
+              protocol: UDP
+            - containerPort: 19143
+              name: bedrock-udp-3
+              protocol: UDP
+            - containerPort: 19144
+              name: bedrock-udp-4
+              protocol: UDP
+            - containerPort: 19145
+              name: bedrock-udp-5
+              protocol: UDP
+            - containerPort: 19146
+              name: bedrock-udp-6
+              protocol: UDP
+            - containerPort: 19147
+              name: bedrock-udp-7
+              protocol: UDP
+            - containerPort: 19148
+              name: bedrock-udp-8
+              protocol: UDP
+            - containerPort: 19149
+              name: bedrock-udp-9
+              protocol: UDP
+            - containerPort: 19150
+              name: bedrock-udp-10
+              protocol: UDP
+            - containerPort: 19151
+              name: bedrock-udp-11
+              protocol: UDP
+            - containerPort: 19152
+              name: bedrock-udp-12
+              protocol: UDP
+            - containerPort: 19153
+              name: bedrock-udp-13
+              protocol: UDP
+            - containerPort: 19154
+              name: bedrock-udp-14
+              protocol: UDP
+            - containerPort: 19155
+              name: bedrock-udp-15
+              protocol: UDP
+            # LAN discovery (broadcast, same-subnet only)
+            - containerPort: 7551
+              name: lan-discovery
               protocol: UDP
           env:
             - name: TZ
@@ -39,6 +93,11 @@ spec:
               value: "garage"
             - name: SERVER_PORT
               value: "19132"
+            # NetherNet (BDS 1.26.50+): fixed UDP range for per-client gameplay ports.
+            # Advertised address = the pinned LB IP (172.20.17.140), since the pod
+            # IP is behind the Cilium LoadBalancer. One port per concurrent player.
+            - name: SERVER_UDP_PORTS
+              value: "172.20.17.140:19140-19155:19140-19155"
             - name: GAMEMODE
               value: "survival"
             - name: DIFFICULTY
@@ -48,10 +107,24 @@ spec:
             # Allow Java (PC) clients via their built-in Bedrock crossplay support
             - name: ONLINE_MODE
               value: "true"
-            # Pre-registered players (XUIDs resolved on first join)
+            # Allowlist: who is permitted to join. BDS has allow-list=true by
+            # default, so this must stay populated or the server refuses everyone.
+            # Name-only entries are matched by name; "name:xuid" pins the XUID.
             - name: ALLOW_LIST_USERS
               value: |
-                hanks toes4861
+                Hanks Toes#4861
+                Max233444
+                Bxnk1325
+            # Permission ranks (written to permissions.json):
+            # OPS = operators, MEMBERS = members, VISITORS = visitors.
+            # Accept XUIDs or gamertags (gamertags are resolved to XUIDs at
+            # startup via the MCProfile API). A player must also be in the
+            # allowlist above to be able to join.
+            - name: OPS
+              value: |
+                Hanks Toes#4861
+            - name: MEMBERS
+              value: |
                 Max233444
                 Bxnk1325
           resources:
