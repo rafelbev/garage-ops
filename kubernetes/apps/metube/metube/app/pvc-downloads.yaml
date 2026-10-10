@@ -1,5 +1,6 @@
 ---
-# Dynamic PVC for Metube downloads (NFS for shared access)
+# Static PersistentVolumeClaim for Metube downloads
+# Binds to the shared TrueNAS media NFS export
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -8,7 +9,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: truenas-nfs
+  storageClassName: ""
   resources:
     requests:
-      storage: 100Gi
+      storage: 4Ti
+  volumeName: metube-media-pv

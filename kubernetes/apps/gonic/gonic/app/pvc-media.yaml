@@ -1,5 +1,6 @@
 ---
-# Dynamic PVC for Gonic media (NFS for shared access)
+# Static PersistentVolumeClaim for Gonic media library
+# Binds to the shared TrueNAS media NFS export
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -8,7 +9,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: truenas-nfs
+  storageClassName: ""
   resources:
     requests:
-      storage: 10Gi
+      storage: 4Ti
+  volumeName: gonic-media-pv
