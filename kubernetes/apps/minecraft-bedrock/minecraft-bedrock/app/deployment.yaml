@@ -107,10 +107,24 @@ spec:
             # Allow Java (PC) clients via their built-in Bedrock crossplay support
             - name: ONLINE_MODE
               value: "true"
-            # Pre-registered players (XUIDs resolved on first join)
+            # Allowlist: who is permitted to join. BDS has allow-list=true by
+            # default, so this must stay populated or the server refuses everyone.
+            # Name-only entries are matched by name; "name:xuid" pins the XUID.
             - name: ALLOW_LIST_USERS
               value: |
-                hanks toes4861
+                Hanks Toes#4861
+                Max233444
+                Bxnk1325
+            # Permission ranks (written to permissions.json):
+            # OPS = operators, MEMBERS = members, VISITORS = visitors.
+            # Accept XUIDs or gamertags (gamertags are resolved to XUIDs at
+            # startup via the MCProfile API). A player must also be in the
+            # allowlist above to be able to join.
+            - name: OPS
+              value: |
+                Hanks Toes#4861
+            - name: MEMBERS
+              value: |
                 Max233444
                 Bxnk1325
           resources:

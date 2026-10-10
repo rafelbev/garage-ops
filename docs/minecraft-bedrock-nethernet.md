@@ -38,6 +38,32 @@ nothing reaches the server.
 - Liveness/readiness probes use `tcpSocket` on the `bedrock` port (TCP 19132), which
   is the correct port under NetherNet.
 
+## Allowlist & Permissions
+
+Two separate mechanisms, both driven by env vars in `deployment.yaml`:
+
+- **`ALLOW_LIST_USERS`** → written to `allowlist.json`. Controls **who may
+  join**. BDS ships with `allow-list=true`, so if this list is empty the server
+  refuses _everyone_ ("You're not invited to play on this server"). It accepts
+  `name` (name-only, matched by name) or `name:xuid` (pins the XUID) entries,
+  comma- or newline-separated.
+- **`OPS` / `MEMBERS` / `VISITORS`** → written to `permissions.json`. Controls
+  the **permission rank** of each allowed player. Each accepts XUIDs or
+  gamertags (gamertags are resolved to XUIDs at startup via the MCProfile API).
+  A player must appear in the allowlist _and_ in a permission group.
+
+Current mapping:
+
+| Player            | Allowlist | Permission |
+| ----------------- | --------- | ---------- |
+| `Hanks Toes#4861` | ✓         | **OP**     |
+| `Max233444`       | ✓         | Member     |
+| `Bxnk1325`        | ✓         | Member     |
+
+> **Gamertag format matters.** `Hanks Toes#4861` must keep its `#4861` suffix —
+> the bare `hanks toes4861` form does not resolve and the player is left with no
+> rank.
+
 ## Pitfalls
 
 - **UDP 19132 is dead under NetherNet.** Don't expose it. The server binds TCP
