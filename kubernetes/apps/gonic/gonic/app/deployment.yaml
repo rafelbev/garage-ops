@@ -29,6 +29,10 @@ spec:
           env:
             - name: TZ
               value: "Europe/Malta"
+            - name: GONIC_MUSIC_PATH
+              value: /media/Music/
+            - name: GONIC_PLAYLISTS_PATH
+              value: /media/Music/Playlists/
           volumeMounts:
             - name: cache
               mountPath: /cache
