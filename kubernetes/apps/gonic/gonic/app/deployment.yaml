@@ -34,10 +34,10 @@ spec:
               mountPath: /cache
             - name: data
               mountPath: /data
-            - name: podcasts
-              mountPath: /podcasts
             - name: media
               mountPath: /media
+            - name: podcasts
+              mountPath: /podcasts
           resources:
             requests:
               memory: 256Mi
@@ -64,9 +64,10 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: gonic-data
-        - name: podcasts
-          persistentVolumeClaim:
-            claimName: gonic-podcasts
         - name: media
           persistentVolumeClaim:
             claimName: gonic-media
+        - name: podcasts
+          persistentVolumeClaim:
+            claimName: gonic-media
+            subPath: podcasts

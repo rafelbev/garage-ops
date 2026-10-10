@@ -5,7 +5,6 @@ resources:
   - ./pv-media.yaml
   - ./pvc-cache.yaml
   - ./pvc-data.yaml
-  - ./pvc-podcasts.yaml
   - ./pvc-media.yaml
   - ./deployment.yaml
   - ./service.yaml

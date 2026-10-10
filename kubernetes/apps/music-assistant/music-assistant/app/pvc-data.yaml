@@ -1,6 +1,5 @@
 ---
-# Static PersistentVolumeClaim for Music Assistant data
-# Binds to the shared TrueNAS media NFS export
+# Dynamic PVC for Music Assistant data (iSCSI for single-writer performance)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -8,9 +7,8 @@ metadata:
   namespace: music-assistant
 spec:
   accessModes:
-    - ReadWriteMany
-  storageClassName: ""
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
   resources:
     requests:
-      storage: 4Ti
-  volumeName: music-assistant-media-pv
+      storage: 1Gi
