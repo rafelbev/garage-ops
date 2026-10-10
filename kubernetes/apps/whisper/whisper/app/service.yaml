@@ -6,8 +6,10 @@ metadata:
   namespace: whisper
   labels:
     app: whisper
+  annotations:
+    lbipam.cilium.io/ips: "172.20.17.138"
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app: whisper
   ports:

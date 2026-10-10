@@ -8,8 +8,6 @@ metadata:
     app: whisper
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: whisper
@@ -19,13 +17,6 @@ spec:
         app: whisper
     spec:
       restartPolicy: Always
-      # Wyoming TCP protocol on the node's host network. Consumers (e.g. Home
-      # Assistant) reach it via <node-ip>:10300, so the pod must stay on one
-      # node — pinned to the dedicated worker node.
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
-      nodeSelector:
-        kubernetes.io/hostname: cluster-3
       containers:
         - name: whisper
           image: rhasspy/wyoming-whisper:3.8.1
@@ -42,7 +33,6 @@ spec:
           ports:
             - name: wyoming
               containerPort: 10300
-              hostPort: 10300
               protocol: TCP
           resources:
             requests:
