@@ -29,6 +29,20 @@ spec:
           env:
             - name: TZ
               value: "Europe/Malta"
+            - name: UMASK
+              value: "0022"
+            - name: UMASK_SET
+              value: "0022"
+            - name: S6_READ_ONLY_ROOT
+              value: "1"
+            - name: DOWNLOAD_DIR
+              value: /downloads
+            - name: OUTPUT_TEMPLATE
+              value: "%(title)s.%(ext)s"
+            - name: STATE_DIR
+              value: /config
+            - name: YTDL_OPTIONS
+              value: "{}"
           volumeMounts:
             - name: downloads
               mountPath: /downloads
