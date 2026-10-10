@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whisper
+  namespace: whisper
+  labels:
+    app: whisper
+  annotations:
+    lbipam.cilium.io/ips: "172.20.17.141"
+spec:
+  type: LoadBalancer
+  selector:
+    app: whisper
+  ports:
+    - name: wyoming
+      port: 10300
+      targetPort: wyoming
+      protocol: TCP
