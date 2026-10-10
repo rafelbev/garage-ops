@@ -19,6 +19,12 @@ spec:
         app: metube
     spec:
       restartPolicy: Always
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 568
+        fsGroupChangePolicy: OnRootMismatch
+        supplementalGroups:
+          - 568
       containers:
         - name: metube
           image: ghcr.io/alexta69/metube:2026.08.28
@@ -26,6 +32,7 @@ spec:
           ports:
             - containerPort: 8081
               name: http
+              protocol: TCP
           env:
             - name: TZ
               value: "Europe/Malta"
@@ -43,34 +50,82 @@ spec:
               value: /config
             - name: YTDL_OPTIONS
               value: "{}"
-          volumeMounts:
-            - name: downloads
-              mountPath: /downloads
-            - name: config
-              mountPath: /config
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 568
+            runAsNonRoot: true
+            runAsUser: 568
+            seccompProfile:
+              type: RuntimeDefault
           resources:
             requests:
-              memory: 256Mi
-              cpu: 100m
+              memory: 50Mi
+              cpu: 10m
             limits:
-              memory: 1Gi
-              cpu: 500m
+              memory: 8Gi
+              cpu: "4"
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            failureThreshold: 600
+            successThreshold: 1
+            timeoutSeconds: 2
           livenessProbe:
             httpGet:
               path: /
               port: http
-            initialDelaySeconds: 30
-            periodSeconds: 30
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 5
+            successThreshold: 1
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+            failureThreshold: 5
+            successThreshold: 2
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: devshm
+              mountPath: /dev/shm
+            - name: downloads
+              mountPath: /downloads
+            - name: shared
+              mountPath: /shared
+            - name: tmp
+              mountPath: /tmp
+            - name: varlogs
+              mountPath: /var/logs
+            - name: varrun
+              mountPath: /var/run
       volumes:
-        - name: downloads
-          persistentVolumeClaim:
-            claimName: metube-downloads
         - name: config
           persistentVolumeClaim:
             claimName: metube-config
+        - name: devshm
+          emptyDir:
+            medium: Memory
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: metube-downloads
+        - name: shared
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: varlogs
+          emptyDir: {}
+        - name: varrun
+          emptyDir:
+            medium: Memory
