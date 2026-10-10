@@ -48,6 +48,12 @@ spec:
             # Allow Java (PC) clients via their built-in Bedrock crossplay support
             - name: ONLINE_MODE
               value: "true"
+            # Pre-registered players (XUIDs resolved on first join)
+            - name: ALLOW_LIST_USERS
+              value: |
+                hanks toes4861
+                Max233444
+                Bxnk1325
           resources:
             requests:
               memory: 1Gi
