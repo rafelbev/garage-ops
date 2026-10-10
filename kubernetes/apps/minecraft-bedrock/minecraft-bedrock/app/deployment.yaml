@@ -1,0 +1,74 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minecraft-bedrock
+  namespace: minecraft-bedrock
+  labels:
+    app: minecraft-bedrock
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: minecraft-bedrock
+  template:
+    metadata:
+      labels:
+        app: minecraft-bedrock
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: minecraft-bedrock
+          image: itzg/minecraft-bedrock-server:2026.9.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 19132
+              name: bedrock
+              protocol: UDP
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+            # Accept the Minecraft EULA
+            - name: EULA
+              value: "TRUE"
+            - name: VERSION
+              value: "LATEST"
+            - name: SERVER_NAME
+              value: "garage"
+            - name: SERVER_PORT
+              value: "19132"
+            - name: GAMEMODE
+              value: "survival"
+            - name: DIFFICULTY
+              value: "normal"
+            - name: MAX_PLAYERS
+              value: "10"
+            # Allow Java (PC) clients via their built-in Bedrock crossplay support
+            - name: ONLINE_MODE
+              value: "true"
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 500m
+            limits:
+              memory: 2Gi
+              cpu: "2"
+          livenessProbe:
+            tcpSocket:
+              port: bedrock
+            initialDelaySeconds: 180
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: bedrock
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          volumeMounts:
+            - name: config
+              mountPath: /data
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: minecraft-bedrock-config
