@@ -25,6 +25,18 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
         supplementalGroups:
           - 568
+      initContainers:
+        - name: fix-ownership
+          image: ghcr.io/alexta69/metube:2026.08.28
+          command:
+            - /bin/sh
+            - -c
+            - "chown -R 568:568 /config; [ -d /downloads/.metube ] && chown -R 568:568 /downloads/.metube; true"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
       containers:
         - name: metube
           image: ghcr.io/alexta69/metube:2026.08.28
