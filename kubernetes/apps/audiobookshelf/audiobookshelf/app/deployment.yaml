@@ -61,7 +61,8 @@ spec:
             claimName: audiobookshelf-config
         - name: shared
           persistentVolumeClaim:
-            claimName: audiobookshelf-shared
+            claimName: audiobookshelf-media
+            subPath: podcasts
         - name: metadata
           persistentVolumeClaim:
             claimName: audiobookshelf-metadata
