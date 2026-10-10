@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Minecraft Bedrock server world/config (iSCSI for single-writer performance)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minecraft-bedrock-config
+  namespace: minecraft-bedrock
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 20Gi

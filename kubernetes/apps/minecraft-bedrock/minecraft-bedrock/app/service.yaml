@@ -1,0 +1,21 @@
+---
+# Expose the Bedrock server (UDP 19132) to the LAN/Internet.
+# Cilium LoadBalancerIPAM pins the external IP (see qbittorrent-bittorrent for the pattern).
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft-bedrock
+  namespace: minecraft-bedrock
+  labels:
+    app: minecraft-bedrock
+  annotations:
+    lbipam.cilium.io/ips: "172.20.17.140"
+spec:
+  type: LoadBalancer
+  selector:
+    app: minecraft-bedrock
+  ports:
+    - name: bedrock
+      port: 19132
+      targetPort: bedrock
+      protocol: UDP
