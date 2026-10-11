@@ -21,7 +21,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: readarr
-          image: ghcr.io/faustvii/readarr:0.9.1
+          image: ghcr.io/faustvii/readarr:0.10.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8787
