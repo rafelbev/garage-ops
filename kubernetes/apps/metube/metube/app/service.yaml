@@ -15,3 +15,8 @@ spec:
       port: 80
       targetPort: http
       protocol: TCP
+      # Tells the Envoy Gateway this port speaks WebSocket-over-HTTP so it
+      # negotiates the HTTP/1.1 "101 Switching Protocols" upgrade for the
+      # socket.io traffic the web UI depends on. Without it Envoy blocks the
+      # upgrade and the UI is stuck on "Connecting to server...".
+      appProtocol: kubernetes.io/ws
