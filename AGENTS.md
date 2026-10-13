@@ -680,12 +680,12 @@ entirely through Flux + SOPS in `kubernetes/apps/github-runners/`.
   `github-runners` namespace. It watches `AutoscalingRunnerSet` CRs in all
   namespaces and also creates/manages one **listener** Deployment per scale
   set.
-- **One `AutoscalingRunnerSet` per repo** (32 repos), each created by a
+- One `AutoscalingRunnerSet` per repo, each created by a
   `gha-runner-scale-set` HelmRelease (`kubernetes/apps/github-runners/github-runners/app/scale-set-<repo>.yaml`).
   The runner label equals `runnerScaleSetName` (the repo name, lowercased).
 
 **No webhook and no Cloudflare Tunnel are required.** The scale-set listener
-holds a persistent *outbound* message session (WebSocket) to the GitHub
+holds a persistent _outbound_ message session (WebSocket) to the GitHub
 Actions backend — scaling events flow over that connection, so a NATed
 homelab cluster needs no public ingress. (This differs from the legacy
 `actions.summerwind.net` ARC model, which needed a webhook server reachable
@@ -741,9 +741,9 @@ flux get hr -n github-runners
   (`gha-runner-scale-set-controller-gha-rs-controller` in `github-runners`).
 - The controller chart and scale-set chart versions are released in lockstep
   (`0.15.0`); bump both together.
-- The `gha-credentials` Secret must exist before runners can register; until
-  it is committed (encrypted), the scale sets stay in a failed/degraded state
-  and retry on each reconciliation.
+- The `gha-credentials` Secret must exist in the cluster before runners can
+  register — until it is present, the scale sets stay in a failed/degraded
+  state and retry on each reconciliation.
 
 ## Testing and Previewing Changes
 
