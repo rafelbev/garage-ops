@@ -8,6 +8,7 @@
 /deploy.key
 /deploy.key.pub
 /flux-webhook-token.txt
+/github-push-token.txt
 # Template config files
 /cluster.toml
 # Kubernetes

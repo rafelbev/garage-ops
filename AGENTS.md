@@ -745,6 +745,44 @@ flux get hr -n github-runners
   register — until it is present, the scale sets stay in a failed/degraded
   state and retry on each reconciliation.
 
+## GitHub Actions CI (Workflows)
+
+Workflows live in `.github/workflows/` and are linted by **zizmor** in two
+places: locally as a lefthook pre-commit (`.lefthook.toml` → `zizmor --offline
+{staged_files}`) and in CI (`.github/workflows/zizmor.yaml`), so PRs that
+bypass local hooks (force-push, external contributors, bot PRs) are still
+audited.
+
+### Workflows
+
+- **Flate** (`.github/workflows/flate.yaml`) — runs `flate test all` on PRs to
+  `main`, only when `kubernetes/**` changes. GitOps sanity check.
+- **Label Sync** (`.github/workflows/label-sync.yaml`) — syncs repo labels from
+  `.github/labels.yaml` on push to `main` / `workflow_dispatch`.
+- **Zizmor** (`.github/workflows/zizmor.yaml`) — CI security lint of all
+  workflow files. Runs on PRs + push to `main`.
+
+### Best-practice conventions
+
+- **SHA-pin every action** (with a `# vX.Y.Z` comment); Renovate keeps them
+  current via the `github-actions` manager group.
+- **Least-privilege permissions**: `contents: read` by default; grant write
+  only at the job level that needs it (workflow-level `permissions: {}`).
+- **`actions/checkout` with `persist-credentials: false`** everywhere.
+- **Concurrency** groups keyed on workflow + PR/ref with
+  `cancel-in-progress: true` for re-runnable jobs.
+
+### Pitfalls
+
+- **Never commit secrets.** A plaintext `github-push-token.txt` was found
+  tracked in git and has been removed from tracking + gitignored. Any
+  token/credential file must be gitignored; cluster-bound secrets go in
+  SOPS-encrypted `.sops.yaml` files only. A secret that has already been
+  pushed to git history must be **rotated**, not just removed.
+- The **zizmor CI** job uses `runs-on: ubuntu-latest` (the `zizmor-action`
+  release in use is incompatible with `ubuntu-slim`) and sets
+  `advanced-security: false` (private repo, no GitHub Advanced Security).
+
 ## Testing and Previewing Changes
 
 Before merging a PR, preview the changes that will be applied to the cluster.
