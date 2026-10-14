@@ -3,6 +3,7 @@
 *.key
 *.decrypted~*.yaml
 /age.key
+/pat.txt
 /cloudflare-tunnel.json
 /deploy.key
 /deploy.key.pub
