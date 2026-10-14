@@ -1,0 +1,9 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: gha-runner-charts
+spec:
+  interval: 1h
+  type: oci
+  url: https://ghcr.io/actions/actions-runner-controller-charts
