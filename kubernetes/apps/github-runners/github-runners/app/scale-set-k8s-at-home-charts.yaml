@@ -1,0 +1,30 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gha-k8s-at-home-charts
+spec:
+  chart:
+    spec:
+      chart: oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+      version: "0.15.0"
+  interval: 1h
+  values:
+    controllerServiceAccount:
+      name: gha-runner-scale-set-controller-gha-rs-controller
+      namespace: github-runners
+    runnerScaleSetName: k8s-at-home-charts
+    githubConfigUrl: https://github.com/rafelbev/k8s-at-home-charts
+    githubConfigSecret: gha-credentials
+    minRunners: 0
+    maxRunners: 2
+    template:
+      spec:
+        containers:
+          - name: runner
+            resources:
+              requests:
+                cpu: 250m
+                memory: 512Mi
+              limits:
+                memory: 8Gi

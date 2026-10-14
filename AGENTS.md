@@ -668,6 +668,83 @@ After each migration, update this document with:
 
 This ensures future migrations benefit from the experience gained.
 
+## Use Case 6: Self-Hosted GitHub Runners (ARC Scale Sets)
+
+Self-hosted GitHub Actions runners for all repos are deployed via the
+`gha-runner-scale-set` model of the Actions Runner Controller (ARC), managed
+entirely through Flux + SOPS in `kubernetes/apps/github-runners/`.
+
+### Architecture
+
+- **One controller** (`gha-runner-scale-set-controller` HelmRelease) in the
+  `github-runners` namespace. It watches `AutoscalingRunnerSet` CRs in all
+  namespaces and also creates/manages one **listener** Deployment per scale
+  set.
+- One `AutoscalingRunnerSet` per repo, each created by a
+  `gha-runner-scale-set` HelmRelease (`kubernetes/apps/github-runners/github-runners/app/scale-set-<repo>.yaml`).
+  The runner label equals `runnerScaleSetName` (the repo name, lowercased).
+
+**No webhook and no Cloudflare Tunnel are required.** The scale-set listener
+holds a persistent _outbound_ message session (WebSocket) to the GitHub
+Actions backend — scaling events flow over that connection, so a NATed
+homelab cluster needs no public ingress. (This differs from the legacy
+`actions.summerwind.net` ARC model, which needed a webhook server reachable
+from GitHub.)
+
+### Authentication
+
+- A single sops-encrypted Secret `gha-credentials` (key `github_token`) in
+  `github-runners` feeds both the controller (`GITHUB_TOKEN` env) and every
+  scale set (`githubConfigSecret`).
+- The token must belong to the **repo owner**: on user-owned repos,
+  collaborator accounts (even with `write`) cannot create runner registration
+  tokens (`POST /repos/{owner}/{repo}/actions/runners/registration-token`
+  requires admin, and user repos have no admin role for collaborators). The
+  bot account `rafelbev-linus-bot` is therefore a `write` collaborator on all
+  repos for PR/CI work, but runner registration uses the owner's PAT.
+- **Secret rotation**: requires the age key (see Encryption Rules). Encrypt
+  the new value with `sops --encrypt --in-place`, commit, push — Flux
+  reconciles.
+
+### Adding a Repo
+
+1. Create `kubernetes/apps/github-runners/github-runners/app/scale-set-<name>.yaml`
+   (copy an existing one; set `runnerScaleSetName` = repo name lowercased,
+   `githubConfigUrl` = `https://github.com/rafelbev/<Repo>`).
+2. Add the file to `github-runners/app/kustomization.yaml`.
+3. Push — Flux deploys the scale set.
+4. In workflows: `runs-on: <name>` (lowercased repo name).
+
+### Operations
+
+```bash
+# Scale sets (one row per repo)
+kubectl -n github-runners get ars
+
+# Runners (ephemeral pods scale with pending jobs)
+kubectl -n github-runners get pods -l actions.github.com/scale-set
+
+# Controller / listener health
+kubectl -n github-runners get deploy
+flux get hr -n github-runners
+```
+
+### Pitfalls
+
+- `minRunners: 0` / `maxRunners: 2` per repo — idle cost is only the
+  listener pods; concurrent job capacity is bounded by cluster resources.
+- `runnerScaleSetName` must be a valid K8s object name: repo names with
+  uppercase letters are lowercased (e.g. `Chocolatey-Packages` →
+  `chocolatey-packages`), which is also the `runs-on` label.
+- The scale-set chart fails offline rendering without
+  `controllerServiceAccount` set — it is set explicitly in every HR
+  (`gha-runner-scale-set-controller-gha-rs-controller` in `github-runners`).
+- The controller chart and scale-set chart versions are released in lockstep
+  (`0.15.0`); bump both together.
+- The `gha-credentials` Secret must exist in the cluster before runners can
+  register — until it is present, the scale sets stay in a failed/degraded
+  state and retry on each reconciliation.
+
 ## Testing and Previewing Changes
 
 Before merging a PR, preview the changes that will be applied to the cluster.

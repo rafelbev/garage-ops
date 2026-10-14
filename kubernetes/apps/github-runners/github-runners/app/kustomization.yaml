@@ -1,0 +1,38 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./controller-helmrelease.yaml
+  - ./secret.sops.yaml
+  - ./scale-set-address-book.yaml
+  - ./scale-set-charts.yaml
+  - ./scale-set-chocolatey-packages.yaml
+  - ./scale-set-coros-sync.yaml
+  - ./scale-set-cordova-browser.yaml
+  - ./scale-set-cordova-plugin-ipad-multitasking.yaml
+  - ./scale-set-emberjs.yaml
+  - ./scale-set-emberjs-data.yaml
+  - ./scale-set-fileopener.yaml
+  - ./scale-set-garage-ops.yaml
+  - ./scale-set-garage-ops-old.yaml
+  - ./scale-set-gitea.yaml
+  - ./scale-set-gitea-idea-plugin.yaml
+  - ./scale-set-holidays.yaml
+  - ./scale-set-home-cluster.yaml
+  - ./scale-set-home-ops.yaml
+  - ./scale-set-intellij-mattermost-plugin.yaml
+  - ./scale-set-justgage.yaml
+  - ./scale-set-jx-gitops.yaml
+  - ./scale-set-k8s-at-home-charts.yaml
+  - ./scale-set-logback-mattermost-appender.yaml
+  - ./scale-set-metube.yaml
+  - ./scale-set-netty-collector.yaml
+  - ./scale-set-openclaw.yaml
+  - ./scale-set-phonegap-googlemaps-plugin.yaml
+  - ./scale-set-phonegap-plugin-loading-spinner.yaml
+  - ./scale-set-python-holidays.yaml
+  - ./scale-set-recommendation-service.yaml
+  - ./scale-set-sandbox.yaml
+  - ./scale-set-soul.md.yaml
+  - ./scale-set-spring-data-mongodb.yaml
+  - ./scale-set-vyos-documentation.yaml
