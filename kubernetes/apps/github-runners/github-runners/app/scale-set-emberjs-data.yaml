@@ -6,7 +6,10 @@ metadata:
 spec:
   chart:
     spec:
-      chart: oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+      chart: actions/actions-runner-controller-charts/gha-runner-scale-set
+      sourceRef:
+        kind: HelmRepository
+        name: gha-runner-charts
       version: "0.15.0"
   interval: 1h
   values:
