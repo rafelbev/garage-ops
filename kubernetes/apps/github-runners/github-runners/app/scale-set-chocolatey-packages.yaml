@@ -4,6 +4,8 @@ kind: HelmRelease
 metadata:
   name: gha-chocolatey-packages
 spec:
+  dependsOn:
+    - name: gha-runner-scale-set-controller
   chart:
     spec:
       chart: actions/actions-runner-controller-charts/gha-runner-scale-set
