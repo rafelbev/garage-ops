@@ -6,7 +6,7 @@
     enabled: true,
     schedule: ["before 3am on the first day of the month"],
     commitMessageExtra: "({{manager}})",
-    additionalBranchPrefix: "{{manager}}-"
+    additionalBranchPrefix: "{{manager}}-",
   },
   packageRules: [
     {
@@ -69,6 +69,18 @@
     {
       matchDatasources: ["github-releases"],
       addLabels: ["renovate/github-release"],
+    },
+    {
+      description: "Low-risk auto-merge: minor/patch/digest/pin updates that are not pre-1.0 and not flagged breaking in the changelog/release notes. Branch-merged (no PR) once CI is green — automergeType is inherited from the :automergeBranch preset. Majors and 0.x are deliberately excluded (they can break at any time).",
+      matchUpdateTypes: ["minor", "patch", "digest", "pin"],
+      matchJsonata: ["isBreaking != true"],
+      matchCurrentVersion: "!/^0/",
+      automerge: true,
+    },
+    {
+      description: "Never auto-merge updates Renovate flags as breaking from the changelog/release notes — these require a human to read the release notes before merging.",
+      matchIsBreaking: true,
+      automerge: false,
     },
   ],
 }

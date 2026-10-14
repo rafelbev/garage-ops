@@ -994,6 +994,52 @@ talosctl logs <service> --nodes <ip> --tail 100
 - By default, Renovate is active on weekends
 - Merging a Renovate PR typically triggers Flux to apply the update
 
+### Low-risk auto-merge
+
+Renovate **auto-merges only low-risk updates** and leaves everything else for a
+human. An update is "low risk" when **both** of these hold:
+
+1. **Not a breaking major change** — the update type is `minor`, `patch`,
+   `digest`, or `pin` (never `major`), and it is not a pre-1.0 (`0.x`) package,
+   which may break at any time under SemVer.
+2. **No manual intervention required** — Renovate has not flagged the update as
+   breaking (`isBreaking != true`) based on the upstream changelog / release
+   notes.
+
+These are encoded in `.renovaterc.json5`:
+
+```json5
+{
+  matchUpdateTypes: ["minor", "patch", "digest", "pin"],
+  matchJsonata: ["isBreaking != true"],
+  matchCurrentVersion: "!/^0/",
+  automerge: true,
+},
+{
+  matchIsBreaking: true,
+  automerge: false,
+}
+```
+
+- The inherited `:automergeBranch` preset supplies `automergeType: "branch"`, so
+  a low-risk update is **pushed straight to the base branch** (no PR to click)
+  once CI is green. `config:recommended` / `config:base` do **not** enable
+  `automerge`, so nothing auto-merges unless a rule explicitly sets it.
+- `isBreaking` is decided independently of the update type from release-notes /
+  changelog analysis, so a `minor` bump whose notes describe a breaking change is
+  held for a human (the second `packageRule` re-asserts `automerge: false` to stay
+  safe even if a future default changes).
+- **Majors, `0.x` bumps, rollbacks, replacements, and breaking updates are never
+  auto-merged** — they always get a PR for review. CI staying green is the
+  backstop for everything that does auto-merge.
+
+**Validating a config change** (the `renovate` CLI needs a GitHub token and a
+Node v24; the validator binary is the clean path):
+
+```bash
+npx -y renovate@44.158.2-config-validator .renovaterc.json5 --strict
+```
+
 **Pitfalls**:
 
 - **Major version bumps**: Major version bumps may include breaking changes. Review the PR carefully before merging.
