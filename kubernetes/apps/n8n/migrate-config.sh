@@ -81,7 +81,7 @@ for _ in $(seq 1 60); do
     sleep 5
 done
 "${K3S[@]}" -n "$NAMESPACE" exec n8n-config-export -- test -f /export/done
-SOURCE_SIZE=$("${K3S[@]}" -n "$NAMESPACE" exec n8n-config-export -- wc -c < "/export/$TARBALL" | tr -d ' ')
+SOURCE_SIZE=$("${K3S[@]}" -n "$NAMESPACE" exec n8n-config-export -- wc -c "/export/$TARBALL" | awk '{print $1}')
 echo "Export complete: $SOURCE_SIZE bytes"
 
 # Step 4: Pull the tarball to local and verify integrity.
@@ -129,7 +129,7 @@ EOF
 echo ""
 echo "Step 6: Importing config on Talos..."
 "${TALOS[@]}" -n "$NAMESPACE" cp "$TMP_DIR/$TARBALL" "n8n-config-import:/tmp/$TARBALL"
-LANDED_SIZE=$("${TALOS[@]}" -n "$NAMESPACE" exec n8n-config-import -- wc -c < "/tmp/$TARBALL" | tr -d ' ')
+LANDED_SIZE=$("${TALOS[@]}" -n "$NAMESPACE" exec n8n-config-import -- wc -c "/tmp/$TARBALL" | awk '{print $1}')
 if [ "$LANDED_SIZE" != "$LOCAL_SIZE" ]; then
     echo "ERROR: byte count mismatch (local $LOCAL_SIZE, target $LANDED_SIZE)" >&2
     exit 1
