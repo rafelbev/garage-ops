@@ -11,6 +11,7 @@ spec:
   values:
     fullnameOverride: *app
     provider: cloudflare
+    logLevel: debug
     env:
       - name: CF_API_TOKEN
         valueFrom:
@@ -28,7 +29,7 @@ spec:
     sources: ["crd", "gateway-httproute"]
     txtPrefix: k8s.
     txtOwnerId: default
-    domainFilters: ["${SECRET_DOMAIN}"]
+    domainFilters: ["${SECRET_ZONE}"]
     serviceMonitor:
       enabled: true
     podAnnotations:
