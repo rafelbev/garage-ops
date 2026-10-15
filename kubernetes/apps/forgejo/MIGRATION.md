@@ -43,8 +43,11 @@ below).
    plan a DB move before that happens.
 2. **Cache adapter `lru`** — the memcached dependency is dropped; app.ini's
    `[cache]` section is rewritten in place on the data volume.
-3. **Runs as uid/gid 1000** (source ran as root with `fsGroup: 1000`). The data
-   volume is chowned to 1000 by the `fix-ownership` init container on every
+3. **Runs as root, like the source** (the image's s6-overlay `/init` chdirs
+   to `/` before exec'ing s6-svscan, whose lock file is CWD-relative —
+   `/.s6-svscan/lock` on the rootfs — so a non-root container cannot start
+   s6-svscan; a `runAsNonRoot` pod crash-loops on the lock). The data volume
+   is still chowned to 1000 by the `fix-ownership` init container on every
    start — this also repairs the source's root-owned `ssh` directory
    (root:root 0700).
 4. **`/tmp` is a plain emptyDir** (source mounted it at `/tmp/gitea`).
