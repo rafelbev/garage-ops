@@ -93,6 +93,13 @@ spec:
               mountPath: /data
             - name: tmp
               mountPath: /tmp
+            # s6-overlay (the image's init system) creates its svscan lock
+            # under /var/run; as a non-root pod that path on the rootfs is
+            # root-owned and unwritable, so s6-svscan falls back to the CWD
+            # and dies with "unable to open .s6-svscan/lock". A tmpfs
+            # emptyDir (the normal s6 /var/run) fixes it.
+            - name: var-run
+              mountPath: /var/run
           resources:
             requests:
               memory: 512Mi
@@ -121,4 +128,6 @@ spec:
           persistentVolumeClaim:
             claimName: forgejo-data
         - name: tmp
+          emptyDir: {}
+        - name: var-run
           emptyDir: {}
