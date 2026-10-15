@@ -88,6 +88,12 @@ spec:
             runAsUser: 1000
             runAsGroup: 1000
             runAsNonRoot: true
+          # s6-svscan creates its lock at <CWD>/.s6-svscan/lock; the image's
+          # WORKDIR is on the rootfs (root-owned, unwritable as uid 1000),
+          # which crash-loops the pod with "unable to open
+          # .s6-svscan/lock: Permission denied". Point CWD at the /tmp
+          # emptyDir so the lock lands on tmpfs.
+          workingDir: /tmp
           volumeMounts:
             - name: data
               mountPath: /data
