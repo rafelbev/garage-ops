@@ -3,8 +3,6 @@
 # code.forgejo.org/forgejo/forgejo:14.0.2 — same tag as the source).
 #
 # Differences from the source pod spec (deliberate):
-# - Runs as uid/gid 1000 (the source ran as root with fsGroup 1000); the data
-#   volume is chowned to 1000 by the init container on every start.
 # - The memcached sidecar dependency is dropped: app.ini's [cache] adapter is
 #   switched to `lru`. The source memcached pod had been Pending for weeks and
 #   was the cause of the source's crash loop.
@@ -84,10 +82,12 @@ spec:
               value: "22"
             - name: SSH_PORT
               value: "22"
-          securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
-            runAsNonRoot: true
+          # Runs as root, like the source pod (no container securityContext,
+          # pod fsGroup 1000): s6-overlay's /init chdirs to / before exec'ing
+          # s6-svscan, whose lockfile is CWD-relative (.s6-svscan/lock on the
+          # rootfs) — unwritable for a non-root uid, which crash-loops the pod
+          # with "unable to open .s6-svscan/lock: Permission denied".
+          # The init container re-chowns the data volume to 1000 on every start.
           volumeMounts:
             - name: data
               mountPath: /data
