@@ -991,7 +991,7 @@ talosctl logs <service> --nodes <ip> --tail 100
 
 - Renovate automatically opens PRs for dependency updates
 - Renovate is configured in `.renovaterc.json5`
-- By default, Renovate is active on weekends
+- This repo runs Renovate **every day** (`schedule: ["at any time"]`)
 - Merging a Renovate PR typically triggers Flux to apply the update
 
 ### Low-risk auto-merge
@@ -1044,6 +1044,12 @@ npx -y renovate@44.158.2-config-validator .renovaterc.json5 --strict
 
 - **Major version bumps**: Major version bumps may include breaking changes. Review the PR carefully before merging.
 - **Coordinated upgrades**: Some dependencies must be upgraded together (e.g., Talos and Kubernetes versions).
+- **Schedule syntax**: `"every day"` is NOT a valid schedule — Renovate parses
+  schedules with cron syntax (or the deprecated `@breejs/later` text syntax), and
+  an unparseable string makes the **whole config invalid** (Renovate stops
+  creating PRs). Use `"at any time"` for a daily schedule (the explicit default),
+  or a cron expression such as `* * * * *`. Validate with the config validator
+  after any change (above).
 
 ## Important Files Reference
 
