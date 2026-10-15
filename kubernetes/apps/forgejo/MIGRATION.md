@@ -55,7 +55,11 @@ below).
 6. **SSH via a Cilium LoadBalancer VIP** (172.20.17.142) instead of a headless
    service with an unroutable pod IP.
 7. **Deployment instead of StatefulSet** — single replica, RWO iSCSI volume;
-   matches the repo convention for the other migrated apps.
+   matches the repo convention for the other migrated apps. The deployment
+   uses `strategy: type: Recreate`: with an RWO volume a default rolling
+   update deadlocks — the new pod cannot attach the volume until the old
+   pod is deleted, and the Deployment controller will not delete the old
+   pod until the new pod is ready (observed during the 17.0.0 upgrade).
 
 ### `app.ini`
 
