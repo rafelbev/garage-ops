@@ -1,0 +1,83 @@
+---
+# PostgreSQL 16 dedicated to Forgejo.
+# The source database ran on PostgreSQL 11 (bitnami) on k3s; 11 is EOL, so the
+# migration targets 16. The database is moved with a pg_dump/pg_restore, which
+# is fully supported across major versions.
+# The official image runs as root and chowns the data directory itself, so a
+# fresh root-owned iSCSI volume works without an init container.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: forgejo-db
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  serviceName: postgres
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: docker.io/library/postgres:16
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: gitea
+            - name: POSTGRES_USER
+              value: gitea
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+          startupProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - gitea
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - gitea
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - gitea
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-data

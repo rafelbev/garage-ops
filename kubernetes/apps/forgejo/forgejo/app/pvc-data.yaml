@@ -1,0 +1,18 @@
+---
+# Forgejo data volume (git repositories, config, attachments, avatars, ...).
+# 10Gi matches the source PVC; 3.2 GiB was in use at migration time.
+# The volume is imported from the k3s NFS share (see migrate-config.sh notes)
+# and the init container below re-asserts uid/gid 1000 ownership on every start,
+# which also covers the root-owned `ssh` directory from the source volume.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: forgejo-data
+  namespace: forgejo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 10Gi

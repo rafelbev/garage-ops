@@ -1,0 +1,122 @@
+---
+# Forgejo 14.0.2, migrated from k3s (namespace `gitea`, image
+# code.forgejo.org/forgejo/forgejo:14.0.2 — same tag as the source).
+#
+# Differences from the source pod spec (deliberate):
+# - Runs as uid/gid 1000 (the source ran as root with fsGroup 1000); the data
+#   volume is chowned to 1000 by the init container on every start.
+# - The memcached sidecar dependency is dropped: app.ini's [cache] adapter is
+#   switched to `lru`. The source memcached pod had been Pending for weeks and
+#   was the cause of the source's crash loop.
+# - /tmp is a plain emptyDir (the source mounted it at /tmp/gitea; GITEA_TEMP
+#   points at /tmp).
+# - Explicit resource requests/limits (the source had none).
+# - Database is the new forgejo-db PostgreSQL 16 service (source used the
+#   shared k3s PostgreSQL 11).
+#
+# app.ini lives on the data volume at /data/gitea/conf/app.ini and is updated
+# in place during migration (domain -> git.garage.neo-tix.com, cache adapter,
+# database host/password). It is therefore not stored in this repo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo
+  namespace: forgejo
+  labels:
+    app: forgejo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: forgejo
+  template:
+    metadata:
+      labels:
+        app: forgejo
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: fix-ownership
+          image: code.forgejo.org/forgejo/forgejo:14.0.2
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          command:
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p \
+                /data/git/gitea-repositories \
+                /data/attachments /data/avatars /data/repo-avatars \
+                /data/repo-archive /data/packages /data/lfs \
+                /data/actions_log /data/actions_artifacts \
+                /data/queues /data/indexers /data/jwt \
+                /data/home/gitea /data/ssh /data/tmp \
+                /data/gitea/conf /data/gitea/log
+              chown -R 1000:1000 /data
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      containers:
+        - name: forgejo
+          image: code.forgejo.org/forgejo/forgejo:14.0.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+            - containerPort: 22
+              name: ssh
+          env:
+            - name: GITEA_APP_INI
+              value: /data/gitea/conf/app.ini
+            - name: GITEA_CUSTOM
+              value: /data/gitea
+            - name: GITEA_WORK_DIR
+              value: /data
+            - name: GITEA_TEMP
+              value: /tmp
+            - name: TMPDIR
+              value: /tmp
+            - name: SSH_LISTEN_PORT
+              value: "22"
+            - name: SSH_PORT
+              value: "22"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: 512Mi
+              cpu: 100m
+            limits:
+              memory: 1Gi
+              cpu: "1"
+          startupProbe:
+            tcpSocket:
+              port: http
+            failureThreshold: 120
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 10
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: forgejo-data
+        - name: tmp
+          emptyDir: {}
