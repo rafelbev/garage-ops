@@ -11,12 +11,14 @@
 # - /tmp is a plain emptyDir (the source mounted it at /tmp/gitea; GITEA_TEMP
 #   points at /tmp).
 # - Explicit resource requests/limits (the source had none).
-# - Database is the new forgejo-db PostgreSQL 16 service (source used the
-#   shared k3s PostgreSQL 11).
+# - The database stays on the k3s cluster (no in-cluster databases anymore):
+#   app.ini's [database] HOST is re-pointed in place to the k3s
+#   `postgresql-external` LoadBalancer IP (172.20.0.121:5432) during
+#   migration; user/password are unchanged.
 #
 # app.ini lives on the data volume at /data/gitea/conf/app.ini and is updated
 # in place during migration (domain -> git.garage.neo-tix.com, cache adapter,
-# database host/password). It is therefore not stored in this repo.
+# database host). It is therefore not stored in this repo.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
