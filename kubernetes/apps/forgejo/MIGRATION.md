@@ -27,7 +27,7 @@ Migrated from the k3s cluster (namespace `gitea`, service
 
 | App       | Namespace | Contents                                                                                                                                                                |
 | --------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `forgejo` | `forgejo` | Forgejo 14.0.2 Deployment, 10 GiB `truenas-iscsi` PVC, ClusterIP service (HTTP), LoadBalancer service (SSH, pinned `172.20.17.138`), HTTPRoute `git.garage.neo-tix.com` |
+| `forgejo` | `forgejo` | Forgejo 14.0.2 Deployment, 10 GiB `truenas-iscsi` PVC, ClusterIP service (HTTP), LoadBalancer service (SSH, pinned `172.20.17.142`), HTTPRoute `git.garage.neo-tix.com` |
 
 The database is **not** part of this PR — it stays on the k3s cluster (see
 below).
@@ -49,7 +49,7 @@ below).
    (root:root 0700).
 4. **`/tmp` is a plain emptyDir** (source mounted it at `/tmp/gitea`).
 5. **Explicit resource requests/limits** (source had none).
-6. **SSH via a Cilium LoadBalancer VIP** (172.20.17.138) instead of a headless
+6. **SSH via a Cilium LoadBalancer VIP** (172.20.17.142) instead of a headless
    service with an unroutable pod IP.
 7. **Deployment instead of StatefulSet** — single replica, RWO iSCSI volume;
    matches the repo convention for the other migrated apps.
