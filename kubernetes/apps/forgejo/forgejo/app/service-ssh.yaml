@@ -1,0 +1,24 @@
+---
+# External SSH access for git clone/push over ssh://git@git.garage.neo-tix.com/...
+# Pinned to a free IP from the Cilium LB pool (172.20.17.128/25); in use at
+# the time of writing: .135 (envoy-internal), .136 (k8s-gateway), .137
+# (envoy-external), .138 (LAN device), .139 (qbittorrent), .140 (minecraft),
+# .141 (whisper).
+apiVersion: v1
+kind: Service
+metadata:
+  name: forgejo-ssh
+  namespace: forgejo
+  labels:
+    app: forgejo
+  annotations:
+    lbipam.cilium.io/ips: "172.20.17.142"
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    app: forgejo
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: ssh
