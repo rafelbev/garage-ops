@@ -26,6 +26,14 @@ metadata:
     app: forgejo
 spec:
   replicas: 1
+  # Recreate (not the default RollingUpdate): the data volume is RWO iSCSI,
+  # so a rolling update deadlocks — the new pod cannot attach the volume
+  # until the old pod is deleted, and the Deployment controller will not
+  # delete the old pod until the new pod is ready. Recreate deletes the old
+  # pod first, which releases the attachment; matches the repo convention
+  # for the other single-replica RWO apps.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: forgejo
