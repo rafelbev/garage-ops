@@ -1,0 +1,103 @@
+# n8n migrated from k3s (image tag pinned to the running source version).
+#
+# Database: n8n on k3s runs its built-in SQLite database (database.sqlite in
+# /home/node/.n8n) — the DB_POSTGRESDB_* env vars and the postgres-user-auth
+# secret on k3s were never wired up (no DB_TYPE set) and are dropped here.
+# The SQLite file is migrated with the PVC.
+#
+# The init container runs as root because a fresh iSCSI volume is root-owned:
+# the pod's uid 1000 cannot create /home/node/.n8n on an empty volume, and
+# chowning the imported data to 1000:1000 here re-asserts ownership on every
+# pod start (a one-off exec chown would not survive volume rebinds).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  namespace: n8n
+  labels:
+    app: n8n
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      restartPolicy: Always
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
+      initContainers:
+        - name: init-data-dir
+          image: docker.n8n.io/n8nio/n8n:2.3.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - mkdir -p /home/node/.n8n && chown -R 1000:1000 /home/node/.n8n
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.n8n
+      containers:
+        - name: n8n
+          image: docker.n8n.io/n8nio/n8n:2.3.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5678
+              name: http
+              protocol: TCP
+          env:
+            - name: WEBHOOK_URL
+              value: https://n8n.garage.neo-tix.com/
+            - name: N8N_PORT
+              value: "5678"
+            - name: N8N_CONFIG_FILES
+              value: /n8n-config/config.json
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 250m
+            limits:
+              memory: 1Gi
+              cpu: "1"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+              scheme: HTTP
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+              scheme: HTTP
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.n8n
+            - name: config-volume
+              mountPath: /n8n-config
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: n8n
+        - name: config-volume
+          configMap:
+            name: n8n
+            defaultMode: 420

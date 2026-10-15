@@ -1,0 +1,16 @@
+# iSCSI (single-writer block volume) for n8n's data dir.
+# Source (k3s) held ~26M on a 1Gi NFS PVC; 4Gi leaves generous headroom for
+# execution history, binary data and the SQLite file, and truenas-iscsi
+# supports online expansion if it is ever needed.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n
+  namespace: n8n
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 4Gi
