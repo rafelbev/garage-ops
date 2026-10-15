@@ -3,8 +3,6 @@
 # code.forgejo.org/forgejo/forgejo:14.0.2 — same tag as the source).
 #
 # Differences from the source pod spec (deliberate):
-# - Runs as uid/gid 1000 (the source ran as root with fsGroup 1000); the data
-#   volume is chowned to 1000 by the init container on every start.
 # - The memcached sidecar dependency is dropped: app.ini's [cache] adapter is
 #   switched to `lru`. The source memcached pod had been Pending for weeks and
 #   was the cause of the source's crash loop.
@@ -84,28 +82,17 @@ spec:
               value: "22"
             - name: SSH_PORT
               value: "22"
-          securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
-            runAsNonRoot: true
-          # s6-svscan creates its lock at <CWD>/.s6-svscan/lock; the image's
-          # WORKDIR is on the rootfs (root-owned, unwritable as uid 1000),
-          # which crash-loops the pod with "unable to open
-          # .s6-svscan/lock: Permission denied". Point CWD at the /tmp
-          # emptyDir so the lock lands on tmpfs.
-          workingDir: /tmp
+          # Runs as root, like the source pod (no container securityContext,
+          # pod fsGroup 1000): s6-overlay's /init chdirs to / before exec'ing
+          # s6-svscan, whose lockfile is CWD-relative (.s6-svscan/lock on the
+          # rootfs) — unwritable for a non-root uid, which crash-loops the pod
+          # with "unable to open .s6-svscan/lock: Permission denied".
+          # The init container re-chowns the data volume to 1000 on every start.
           volumeMounts:
             - name: data
               mountPath: /data
             - name: tmp
               mountPath: /tmp
-            # s6-overlay (the image's init system) creates its svscan lock
-            # under /var/run; as a non-root pod that path on the rootfs is
-            # root-owned and unwritable, so s6-svscan falls back to the CWD
-            # and dies with "unable to open .s6-svscan/lock". A tmpfs
-            # emptyDir (the normal s6 /var/run) fixes it.
-            - name: var-run
-              mountPath: /var/run
           resources:
             requests:
               memory: 512Mi
@@ -134,6 +121,4 @@ spec:
           persistentVolumeClaim:
             claimName: forgejo-data
         - name: tmp
-          emptyDir: {}
-        - name: var-run
           emptyDir: {}
