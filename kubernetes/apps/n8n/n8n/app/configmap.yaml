@@ -1,0 +1,15 @@
+# n8n runtime config (N8N_CONFIG_FILES=/n8n-config/config.json).
+# Carried over verbatim from the k3s source configmap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: n8n
+  namespace: n8n
+data:
+  config.json: |
+    {
+      "executions": {
+        "pruneData": "true",
+        "pruneDataMaxAge": 3760
+      }
+    }
