@@ -1,0 +1,17 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: "${SECRET_DOMAIN/./-}-cf-edge"
+spec:
+  dnsNames:
+    - "${SECRET_DOMAIN}"
+    - "*.${SECRET_DOMAIN}"
+  issuerRef:
+    name: letsencrypt-production-edge
+    kind: ClusterIssuer
+  privateKey:
+    algorithm: ECDSA
+  secretName: "${SECRET_DOMAIN/./-}-cf-edge-tls"
+  usages:
+    - digital signature
