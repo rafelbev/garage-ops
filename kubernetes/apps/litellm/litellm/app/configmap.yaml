@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+data:
+  config.yaml: |
+    general_settings:
+      store_model_in_db: true
+      store_prompts_in_spend_logs: false
+    # In your config.yaml for the Litellm proxy
+    litellm_settings:
+      drop_params:
+        true
+      global_disable_no_log_param: true
