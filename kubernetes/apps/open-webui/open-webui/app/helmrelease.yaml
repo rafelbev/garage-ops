@@ -19,10 +19,8 @@ spec:
       tag: v0.11.4
     ollama:
       enabled: false
-    ollamaUrls:
-      - https://ollama.intranet.neo-tix.com
     ollamaUrlsFromExtraEnv: false
-    openaiBaseApiUrl: https://litellm.cloud.neo-tix.com/v1
+    openaiBaseApiUrl: https://litellm.garage.neo-tix.com/v1
     openaiApiKeyExistingSecret: open-webui
     openaiApiKeyExistingSecretKey: openai-api-key
     pipelines:
