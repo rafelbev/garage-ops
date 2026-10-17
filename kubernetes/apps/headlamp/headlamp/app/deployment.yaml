@@ -18,10 +18,13 @@ spec:
       labels:
         app: headlamp
     spec:
+      serviceAccountName: headlamp
       restartPolicy: Always
       containers:
         - name: headlamp
           image: ghcr.io/headlamp-k8s/headlamp:v0.45.0
+          args:
+            - -in-cluster
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 4466
