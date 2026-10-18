@@ -49,13 +49,6 @@ spec:
       enabled: false
     replicaCount: 1
     revisionHistoryLimit: 10
-    resources:
-      limits:
-        cpu: "4"
-        memory: 4G
-      requests:
-        cpu: "4"
-        memory: 4G
     service:
       type: ClusterIP
       port: 80
