@@ -624,7 +624,15 @@ This use case covers migrating an application from an existing cluster (e.g., k3
 - **Size iSCSI config PVCs generously**: The Radarr config directory was 1.6GB after compression (including media covers and database). A 1Gi PVC was too small; 2Gi was needed. Always estimate the source config size before creating the target PVC. Check with `du -sh` on the source PVC contents.
 - **Verify tar integrity after transfer**: Large tarballs transferred via `kubectl cp` can be corrupted. Verify with `tar -tzf` on both source and destination before attempting extraction.
 - **Config import can fail silently**: The import pod may fail due to "No space left on device" without obvious error messages. Check pod logs and PVC capacity.
-- **Squash merge awareness**: When a PR is squash-merged, subsequent PRs based on the original branch will have merge conflicts. Always check if the previous PR was squash-merged before pushing follow-up changes. If so, create a new branch from `main` for the new PR.
+- **Squash merge awareness**: When a PR is squash-merged, subsequent PRs based on the original branch will have merge conflicts. Always check if the previous PR was squash-merged before pushing follow-up changes. If so, create a new branch from `main` for a new PR.
+
+### Key Learnings from LiteLLM Migration
+
+- **Stateless proxies keep their DB external**: litellm stores all state (API keys, models, spend logs — a 4 GB database) in Postgres. Per the no-in-cluster-databases rule, the database stays on k3s and is exposed to the LAN via a LoadBalancer service created there (`postgres16-external` in the `postgresql16` namespace, MetalLB-assigned `172.20.0.138:5432`). This creates a **cross-cluster dependency**: the k3s `postgresql16` namespace must not be deleted until the database is migrated separately.
+- **Verify cross-cluster DB reachability from a pod on the new cluster**, not from the workstation — the workstation and the cluster may be on different networks. Run a probe pod on the new cluster using the app's own image (it already has the DB driver), authenticated as the app user, and confirm a real query succeeds.
+- **Reuse existing keys when a dependent service already holds them**: litellm's master key was already in open-webui's sops secret (open-webui points at litellm), so the key was reused without rotation — no client-side changes needed.
+- **k3s ingress IP allowlists do not carry over**: the k3s ingress used a `whitelist-source-range` annotation; there is no equivalent mechanism for HTTPRoutes in this repo. Note the difference in the PR.
+- **Add probes to proxy workloads**: the k3s source had none. The Talos manifests add a startup probe with a 10-minute budget (litellm's first boot runs the DB schema sync and is slow), plus liveness and readiness.
 
 ### Migration Script Template
 
