@@ -57,7 +57,9 @@ The tunnel CNAME `external.garage.neo-tix.com` (CRD source, DNSEndpoint
 1. Resolves the cluster's egress public IPv4 (`ifconfig.co`, `api.ipify.org`,
    `ifconfig.me` fallbacks). The cluster NATs through the same router as the
    WAN, so the egress IP equals the WAN IP.
-2. Compares against the current target of DNSEndpoint `garage-public`.
+2. Compares against the current target of DNSEndpoint `garage-public` (read
+   from the K8s API using the job's ServiceAccount token — the image is a
+   minimal `curl` container, no kubectl).
 3. Patches the DNSEndpoint when it changed; external-dns (CRD source) syncs
    the new A record to Cloudflare within its next cycle.
 
