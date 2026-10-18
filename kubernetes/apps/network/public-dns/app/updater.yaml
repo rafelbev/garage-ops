@@ -56,7 +56,7 @@ spec:
               type: RuntimeDefault
           containers:
             - name: updater
-              image: docker.io/bitnamilegacy/kubectl:1.31
+              image: docker.io/curlimages/curl:8.23.0
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:
@@ -66,6 +66,13 @@ spec:
                 - -c
                 - |
                   set -eu
+                  API="https://kubernetes.default.svc"
+                  TOKEN="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+                  CA="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+                  EP="$API/apis/externaldns.k8s.io/v1alpha1/namespaces/network/dnsendpoints/garage-public"
+
+                  api() { curl -fsS --max-time 30 --cacert "$CA" -H "Authorization: Bearer $TOKEN" "$@"; }
+
                   IP=""
                   for url in https://ifconfig.co/ip https://api.ipify.org https://ifconfig.me; do
                     candidate="$(curl -4fsS --max-time 15 "$url" 2>/dev/null || true)"
@@ -78,17 +85,18 @@ spec:
                     echo "ERROR: could not determine public IPv4 from any endpoint" >&2
                     exit 1
                   fi
-                  CURRENT="$(kubectl get dnsendpoint garage-public -n network -o jsonpath='{.spec.endpoints[0].targets[0]}')"
+
+                  CURRENT="$(api "$EP" | grep -o '"targets":\["[0-9.]*"\]' | head -n 1 | cut -d'"' -f4)"
                   if [ "$CURRENT" = "$IP" ]; then
                     echo "public IPv4 unchanged: $IP"
                     exit 0
                   fi
                   echo "public IPv4 changed: ${CURRENT:-<unset>} -> $IP"
-                  kubectl patch dnsendpoint garage-public -n network --type=merge -p '{
+                  api -X PATCH -H "Content-Type: application/merge-patch+json" -d '{
                     "spec": {
                       "endpoints": [
                         {"dnsName": "${SECRET_DOMAIN}", "recordType": "A", "recordTTL": 300, "targets": ["'$IP'"], "providerSpecific": [{"name": "cloudflare/proxied", "value": "false"}]},
                         {"dnsName": "*.${SECRET_DOMAIN}", "recordType": "A", "recordTTL": 300, "targets": ["'$IP'"], "providerSpecific": [{"name": "cloudflare/proxied", "value": "false"}]}
                       ]
                     }
-                  }'
+                  }' "$EP"
