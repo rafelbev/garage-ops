@@ -67,7 +67,7 @@ spec:
         runAsUser: 0
       containers:
         - name: migrate
-          image: alpine:3.21
+          image: alpine:3.24
           command:
             - /bin/sh
             - -c
