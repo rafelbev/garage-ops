@@ -1,0 +1,7 @@
+# Label the node as GPU-capable so scheduling (node selectors, DRA
+# DeviceClass consumers) can target it. Applied at node registration
+# via the kubelet (KubeNodeConfig.labels).
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+labels:
+  gpu-capable: "true"
