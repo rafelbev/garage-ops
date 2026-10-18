@@ -1,0 +1,20 @@
+---
+# Proxmox VM-server pool (was `vmservers-balanced-service` on k3s).
+# External IP endpoints on port 8006 (Proxmox Web/API).
+# tls.insecureSkipVerify mirrors the k3s nginx behaviour, which did not
+# verify the self-signed Proxmox backend certificates.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: vmservers
+spec:
+  type: Endpoints
+  endpoints:
+    - ip:
+        address: 172.20.17.65
+        port: 8006
+    - ip:
+        address: 172.20.17.66
+        port: 8006
+  tls:
+    insecureSkipVerify: true
