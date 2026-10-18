@@ -336,6 +336,69 @@ from the cluster-1 reset incident (2026-10).
 - **Don't pile on resets.** A second full reset regenerates the CA again and you
   lose observability. Only EPHEMERAL wipes if truly needed.
 
+## Use Case 1c: GPU Worker Node (cluster-4) and DRA DeviceClass
+
+The GPU-capable worker `cluster-4` (172.20.17.197, Proxmox VM, nocloud image,
+RTX 2080Ti PCI passthrough) exposes its NVIDIA GPU through
+[Dynamic Resource Allocation](https://kubernetes.io/docs/concepts/resource-management/dynamic-resource-allocation/)
+— **no device plugin, no NVIDIA GPU Operator**.
+
+### Architecture
+
+- **Driver + toolkit come from Talos system extensions**, baked into a custom
+  schematic (see `talos/SPECIFICATION.md`):
+    - `siderolabs/nonfree-kmod-nvidia-lts` — kernel modules (nvidia, nvidia_uvm,
+      nvidia_drm, nvidia_modeset)
+    - `siderolabs/nvidia-container-toolkit-lts` — userspace driver/toolkit
+    - plus `iscsi-tools` and `qemu-guest-agent`, matching the other schematics
+- The NVIDIA driver registers with the kubelet as a DRA driver and publishes
+  the GPU in a `ResourceSlice` (apiGroup `resource.k8s.io`).
+- **`DeviceClass` `gpu`** (`kubernetes/apps/gpu-deviceclass/`) selects the
+  device by its driver (`device.driver == "nvidia.com/gpu"`) and sets
+  `extendedResourceName: nvidia.com/gpu`, so pods can keep the classic
+  `resources.limits: {nvidia.com/gpu: 1}` syntax while allocation is
+  handled by DRA (Kubernetes >= 1.36).
+- **Node label `gpu-capable: "true"`** is set via
+  `KubeNodeConfig.labels` in `talos/node/cluster-4/50-gpu-label.yaml`, so
+  workloads can also select the node plainly.
+
+### Requesting a GPU
+
+```yaml
+resources:
+    limits:
+        nvidia.com/gpu: 1
+```
+
+or an explicit DRA claim (`resourceClaims` + `resources.resources` on the
+container) — see `kubernetes/apps/gpu-deviceclass/README.md`.
+
+### Verification
+
+```bash
+kubectl get deviceslices          # driver, pool, device name, labels
+kubectl get deviceclass gpu -o yaml
+kubectl get resourceclaim -A
+# on the node: nvidia-smi
+```
+
+### Pitfalls
+
+- **The DeviceClass v1 selector is CEL-only, and CEL only sees
+  `device.driver` and `device.name`.** `spec.selectors[].label` existed in
+  v1beta1 but was removed in `resource.k8s.io/v1`, and device _labels_
+  (e.g. `nvidia.com/gpu.product`) are **not** exposed to v1 CEL — a selector
+  like `device.labels[...]` fails server-side validation. Select by driver:
+  `device.driver == "nvidia.com/gpu"`.
+- **If a second GPU type is added later**, the driver-wide selector will
+  match both; add a separate DeviceClass per type and select by
+  `device.name` (the driver publishes per-device names).
+- **Don't add the GPU Operator for this node.** Its driver and toolkit
+  components would conflict with the Sidero extensions. Only add it if the
+  legacy device-plugin path is ever needed.
+- **Schematic must carry all modules**: when re-creating the schematic,
+  include the iSCSI modules too — see `talos/SPECIFICATION.md`.
+
 ## Use Case 2: Upgrading Kubernetes
 
 1. Update `kubernetesVersion` in `talos/topf.yaml`
