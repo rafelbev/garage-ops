@@ -1,0 +1,17 @@
+---
+# Sticky routing for the Proxmox pool: Proxmox sessions are per-node, so
+# pin a client source IP to the same VM server (ConsistentHash/SourceIP)
+# to avoid mid-session node switches.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: vmservers
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: proxmox
+  loadBalancer:
+    type: ConsistentHash
+    consistentHash:
+      type: SourceIP

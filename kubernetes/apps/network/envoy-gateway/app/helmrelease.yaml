@@ -13,6 +13,12 @@ spec:
       imageRegistry: mirror.gcr.io
     config:
       envoyGateway:
+        # Enable the Backend API (gateway.envoyproxy.io/v1alpha1) so external
+        # IP/FQDN backends (e.g. the Proxmox VM-server pool) can be referenced
+        # from HTTPRoutes, including tls.insecureSkipVerify for self-signed
+        # backend certificates.
+        extensionApis:
+          enableBackend: true
         provider:
           type: Kubernetes
           kubernetes:
