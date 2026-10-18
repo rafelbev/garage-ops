@@ -33,8 +33,6 @@ spec:
     extraEnvVars:
       - name: WEBUI_URL
         value: https://chat.garage.neo-tix.com
-      - name: ENABLE_WEBSOCKET_SUPPORT
-        value: "false"
       - name: PLAYWRIGHT_WS_URI
         value: ws://playwright.playwright.svc.cluster.local:9222
       - name: TOKENIZERS_PARALLELISM
