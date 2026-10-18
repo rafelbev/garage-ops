@@ -86,7 +86,7 @@ spec:
                     exit 1
                   fi
 
-                  CURRENT="$(api "$EP" | grep -o '"targets":\["[0-9.]*"\]' | head -n 1 | cut -d'"' -f4)"
+                  CURRENT="$(api "$EP" | tr -d ' \n' | grep -oE '"targets":\["[0-9.]*" *\]' | head -n 1 | cut -d'"' -f4)"
                   if [ "$CURRENT" = "$IP" ]; then
                     echo "public IPv4 unchanged: $IP"
                     exit 0
