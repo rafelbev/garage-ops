@@ -1,0 +1,94 @@
+---
+# Keeps the DNSEndpoint `garage-public` targets pointing at the current public
+# IPv4 address. Every 5 minutes it asks the internet what this cluster's egress
+# IP is (the cluster NATs through the same router as the WAN), and patches the
+# DNSEndpoint when it changed. external-dns then syncs the new A record to
+# Cloudflare.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: public-dns-updater
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: public-dns-updater
+rules:
+  - apiGroups: ["externaldns.k8s.io"]
+    resources: ["dnsendpoints"]
+    verbs: ["get", "list", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: public-dns-updater
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: public-dns-updater
+subjects:
+  - kind: ServiceAccount
+    name: public-dns-updater
+    namespace: network
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: public-dns-updater
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      template:
+        spec:
+          serviceAccountName: public-dns-updater
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: updater
+              image: docker.io/bitnamilegacy/kubectl:1.31
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  IP=""
+                  for url in https://ifconfig.co/ip https://api.ipify.org https://ifconfig.me; do
+                    candidate="$(curl -4fsS --max-time 15 "$url" 2>/dev/null || true)"
+                    if printf '%s' "$candidate" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+                      IP="$candidate"
+                      break
+                    fi
+                  done
+                  if [ -z "$IP" ]; then
+                    echo "ERROR: could not determine public IPv4 from any endpoint" >&2
+                    exit 1
+                  fi
+                  CURRENT="$(kubectl get dnsendpoint garage-public -n network -o jsonpath='{.spec.endpoints[0].targets[0]}')"
+                  if [ "$CURRENT" = "$IP" ]; then
+                    echo "public IPv4 unchanged: $IP"
+                    exit 0
+                  fi
+                  echo "public IPv4 changed: ${CURRENT:-<unset>} -> $IP"
+                  kubectl patch dnsendpoint garage-public -n network --type=merge -p '{
+                    "spec": {
+                      "endpoints": [
+                        {"dnsName": "${SECRET_DOMAIN}", "recordType": "A", "recordTTL": 300, "targets": ["'$IP'"], "providerSpecific": [{"name": "cloudflare/proxied", "value": "false"}]},
+                        {"dnsName": "*.${SECRET_DOMAIN}", "recordType": "A", "recordTTL": 300, "targets": ["'$IP'"], "providerSpecific": [{"name": "cloudflare/proxied", "value": "false"}]}
+                      ]
+                    }
+                  }'

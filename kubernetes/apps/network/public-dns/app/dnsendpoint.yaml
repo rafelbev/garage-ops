@@ -1,0 +1,34 @@
+---
+# Public A records for the garage domain — split DNS horizon, public side.
+#
+# The target is the cluster's current public IPv4 address. It is kept up to date
+# by the public-dns-updater CronJob (updater.yaml in this directory), which
+# patches the targets whenever the WAN IP changes. external-dns
+# (cloudflare-dns, `crd` source) syncs these to the Cloudflare zone.
+#
+# `cloudflare/proxied: "false"` keeps the records GREY (unproxied). Public
+# visitors connect straight to the public IP; the router forwards 80/443 to the
+# envoy-external LB (172.20.17.137), which terminates TLS with the Let's Encrypt
+# cert for *.garage.neo-tix.com. Proxied (orange) records would terminate TLS at
+# the Cloudflare edge, which has no cert for the two-level wildcard on the free
+# plan, so they must stay grey.
+apiVersion: externaldns.k8s.io/v1alpha1
+kind: DNSEndpoint
+metadata:
+  name: garage-public
+spec:
+  endpoints:
+    - dnsName: "${SECRET_DOMAIN}"
+      recordType: A
+      recordTTL: 300
+      targets: ["141.8.16.156"]
+      providerSpecific:
+        - name: cloudflare/proxied
+          value: "false"
+    - dnsName: "*.${SECRET_DOMAIN}"
+      recordType: A
+      recordTTL: 300
+      targets: ["141.8.16.156"]
+      providerSpecific:
+        - name: cloudflare/proxied
+          value: "false"
