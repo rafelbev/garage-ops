@@ -1,0 +1,23 @@
+---
+# Static PersistentVolume for the immich media library
+# Points to the existing TrueNAS NFS export already used by k3s
+# (no data migration required)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: immich-media-pv
+spec:
+  capacity:
+    storage: 4Ti
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 172.20.17.150
+    path: /mnt/storage/media/Photos
+  mountOptions:
+    - hard
+    - nfsvers=4
+    - sync
+    - noac
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
