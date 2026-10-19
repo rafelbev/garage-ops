@@ -29,8 +29,18 @@ spec:
               value: immich
             - name: DB_PASSWORD
               value: immich
+            # Redis is not migrated to Talos - it stays on the k3s cluster
+            # and is exposed via the LoadBalancer service `redis-external`
+            # in the k3s `redis` namespace (MetalLB-pinned IP).
             - name: REDIS_HOSTNAME
-              value: immich-redis
+              value: 172.20.0.139
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-redis
+                  key: password
             - name: IMMICH_MACHINE_LEARNING_URL
               value: http://immich-machine-learning:3003
             - name: TZ
