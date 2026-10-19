@@ -11,11 +11,11 @@ spec:
   selector:
     matchLabels:
       app: openterminal
+  # Recreate (not RollingUpdate): the pod uses a ReadWriteOnce iSCSI PVC,
+  # which cannot be attached to the new pod while the old pod still has
+  # it. RollingUpdate would deadlock the rollout in ContainerCreating.
   strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+    type: Recreate
   template:
     metadata:
       labels:
