@@ -23,6 +23,7 @@ spec:
         - name: file-browser
           image: filebrowser/filebrowser:v2.32.3
           imagePullPolicy: IfNotPresent
+          workingDir: /db
           ports:
             - containerPort: 8080
               name: http
