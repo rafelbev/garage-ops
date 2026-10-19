@@ -1,0 +1,70 @@
+---
+# The Kubernetes API server VIP (172.20.17.138:6443) — the node-network L4
+# load balancer in front of the three control-plane kube-apiservers.
+#
+# The Backend API (extension, enabled cluster-wide) carries static IP
+# endpoints plus the TLS settings for the backend leg: Envoy terminates the
+# client TLS on the gateway's 443 listener (wildcard cert) and re-encrypts
+# to the API server, validating its serving cert against the cluster CA.
+# The cert's SANs include the VIP IP and k8s.garage.neo-tix.com, so
+# verification passes without skipping it (unlike Proxmox's self-signed
+# pool, which uses tls.insecureSkipVerify).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: k8s-api
+spec:
+  type: Endpoints
+  endpoints:
+    - ip:
+        address: 172.20.17.138
+        port: 6443
+  tls:
+    caCertificateRefs:
+      - group: ""
+        kind: Secret
+        name: k8s-api-ca
+---
+# Cluster CA (public information, served by the API server to any client).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: k8s-api-ca
+type: Opaque
+stringData:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIBijCCAS+gAwIBAgIQViPZF1Xso/UFWD7vpzr1YDAKBggqhkjOPQQDAjAVMRMw
+    EQYDVQQKEwprdWJlcm5ldGVzMB4XDTI2MDgxNjE3MTMzOVoXDTM2MDgxMzE3MTMz
+    OVowFTETMBEGA1UEChMKa3ViZXJuZXRlczBZMBMGByqGSM49AgEGCCqGSM49AwEH
+    A0IABKBaNzysgd+ZtEykcVpRPLUabuc1KEthl8XpS1WZY/qxZLMzyfzAn9UXWx2F
+    B/Q7Yj3xseUBSe93TY2oAhRW2hijYTBfMA4GA1UdDwEB/wQEAwIChDAdBgNVHSUE
+    FjAUBggrBgEFBQcDAQYIKwYBBQUHAwIwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4E
+    FgQUwpkFHLx/G5Rq7hnJDVNYb6gO52UwCgYIKoZIzj0EAwIDSQAwRgIhAP7+PX9B
+    jn5+2Ce/vrETnQky0mprwVWiTbyMHDsAMoIdAiEA7aTaG/DomKufvTKc5lA/jh9c
+    3j1qu17gTqf4teWPTm0=
+    -----END CERTIFICATE-----
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: k8s-api
+spec:
+  hostnames:
+    - k8s.garage.neo-tix.com
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-external
+      namespace: network
+  rules:
+    - backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: k8s-api
+          namespace: k8s-api
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
