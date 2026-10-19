@@ -36,7 +36,7 @@ spec:
         runAsNonRoot: true
       initContainers:
         - name: init-data-dir
-          image: docker.n8n.io/n8nio/n8n:2.44.3
+          image: docker.n8n.io/n8nio/n8n:2.44.4
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
@@ -50,7 +50,7 @@ spec:
               mountPath: /home/node/.n8n
       containers:
         - name: n8n
-          image: docker.n8n.io/n8nio/n8n:2.44.3
+          image: docker.n8n.io/n8nio/n8n:2.44.4
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5678
