@@ -21,7 +21,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: file-browser
-          image: filebrowser/filebrowser:v2.32.3
+          image: filebrowser/filebrowser:v2.63.23
           imagePullPolicy: IfNotPresent
           workingDir: /db
           ports:
