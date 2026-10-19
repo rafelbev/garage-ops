@@ -27,7 +27,7 @@ spec:
           - 568
       initContainers:
         - name: fix-ownership
-          image: ghcr.io/alexta69/metube:2026.10.09
+          image: ghcr.io/alexta69/metube:2026.10.19
           command:
             - /bin/sh
             - -c
@@ -39,7 +39,7 @@ spec:
               mountPath: /downloads
       containers:
         - name: metube
-          image: ghcr.io/alexta69/metube:2026.10.09
+          image: ghcr.io/alexta69/metube:2026.10.19
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
