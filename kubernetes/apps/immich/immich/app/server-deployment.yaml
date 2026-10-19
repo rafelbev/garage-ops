@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: immich-server
+  labels:
+    app.kubernetes.io/name: immich-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: immich-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: immich-server
+    spec:
+      containers:
+        - name: server
+          image: ghcr.io/immich-app/immich-server:v2.7.5
+          ports:
+            - containerPort: 2283
+              name: http
+          env:
+            - name: DB_HOSTNAME
+              value: immich-postgres
+            - name: DB_DATABASE_NAME
+              value: immich
+            - name: DB_USERNAME
+              value: immich
+            - name: DB_PASSWORD
+              value: immich
+            # Redis is not migrated to Talos - it stays on the k3s cluster
+            # and is exposed via the LoadBalancer service `redis-external`
+            # in the k3s `redis` namespace (MetalLB-pinned IP).
+            - name: REDIS_HOSTNAME
+              value: 172.20.0.139
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: immich-redis
+                  key: password
+            - name: IMMICH_MACHINE_LEARNING_URL
+              value: http://immich-machine-learning:3003
+            - name: TZ
+              value: Europe/Malta
+          volumeMounts:
+            - name: library
+              mountPath: /usr/src/app/upload
+            - name: documents
+              mountPath: /documents
+              readOnly: true
+            - name: sync
+              mountPath: /sync
+              readOnly: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+      volumes:
+        - name: library
+          persistentVolumeClaim:
+            claimName: media-pvc
+        - name: documents
+          persistentVolumeClaim:
+            claimName: documents-pvc
+        - name: sync
+          persistentVolumeClaim:
+            claimName: sync-pvc
