@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for File Browser config (iSCSI for single-writer performance)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: file-browser-config
+  namespace: file-browser
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 1Gi
