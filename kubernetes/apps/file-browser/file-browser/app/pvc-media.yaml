@@ -1,0 +1,15 @@
+---
+# Static PersistentVolumeClaim for the File Browser media library
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: file-browser-media
+  namespace: file-browser
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 4Ti
+  volumeName: file-browser-media-pv

@@ -30,8 +30,10 @@ spec:
             - name: TZ
               value: "Europe/Malta"
           volumeMounts:
-            - name: config
-              mountPath: /config
+            - name: db
+              mountPath: /db
+            - name: media
+              mountPath: /rootdir
           resources:
             requests:
               memory: 256Mi
@@ -52,6 +54,9 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 10
       volumes:
-        - name: config
+        - name: db
           persistentVolumeClaim:
-            claimName: file-browser-config
+            claimName: file-browser-db
+        - name: media
+          persistentVolumeClaim:
+            claimName: file-browser-media
