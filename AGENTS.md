@@ -697,6 +697,13 @@ This use case covers migrating an application from an existing cluster (e.g., k3
 - **k3s ingress IP allowlists do not carry over**: the k3s ingress used a `whitelist-source-range` annotation; there is no equivalent mechanism for HTTPRoutes in this repo. Note the difference in the PR.
 - **Add probes to proxy workloads**: the k3s source had none. The Talos manifests add a startup probe with a 10-minute budget (litellm's first boot runs the DB schema sync and is slow), plus liveness and readiness.
 
+### Key Learnings from Headscale Migration
+
+- **Host-endpoint apps migrate as exposure, not workload**: headscale runs as a host process on `172.20.17.17` (not in a container). The k3s side was selectorless ClusterIP Services + manual `Endpoints` objects + an Nginx Ingress. On Talos this maps directly to the hermes-dashboard / k8s-api pattern: `Service` (no selector) + `Endpoints` + `HTTPRoute`. No PVC or config migration is involved — only the cluster-side exposure moves.
+- **headplane (the headscale web UI) serves under `/admin/`**: headplane on port 3000 returns 404 at `/` and serves the login page under `/admin/`. The HTTPRoute must keep the `/admin/` → `headplane:3000` rule ahead of the `/` → `headscale:8085` rule (Gateway API evaluates rules in order).
+- **Verify host endpoints from a pod on the new cluster before merging**: a curl probe pod on Talos confirmed `172.20.17.17:8085/health` → `{"status":"pass"}` and `172.20.17.17:3000/admin/` → 302 → `/admin/login` — the same checks a merge+Flux deploy will rely on.
+- **Gateway API handles WebSocket upgrades natively**: the k3s Ingress needed a `configuration-snippet` for `Upgrade`/`Connection` headers; the Talos HTTPRoute needs no equivalent annotation.
+
 ### Migration Script Template
 
 See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:
