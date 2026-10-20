@@ -17,8 +17,16 @@ spec:
         # IP/FQDN backends (e.g. the Proxmox VM-server pool) can be referenced
         # from HTTPRoutes, including tls.insecureSkipVerify for self-signed
         # backend certificates.
+        #
+        # EnableEnvoyPatchPolicy is required for the
+        # headscale-ts2021-upgrade EnvoyPatchPolicy: Tailscale clients
+        # upgrade the TS2021 control connection with
+        # `Upgrade: tailscale-control-protocol`, a custom upgrade type
+        # Envoy does not whitelist by default (see
+        # https://headscale.net/stable/ref/integration/reverse-proxy/#envoy).
         extensionApis:
           enableBackend: true
+          enableEnvoyPatchPolicy: true
         provider:
           type: Kubernetes
           kubernetes:
