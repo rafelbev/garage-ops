@@ -29,7 +29,7 @@ spec:
             # the sops-encrypted `immich-db` secret.
             - name: DB_HOSTNAME
               value: 172.20.0.113
-            - name: DB_PORTNAME
+            - name: DB_PORT
               value: "32289"
             - name: DB_DATABASE_NAME
               value: immich
