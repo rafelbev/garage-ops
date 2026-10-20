@@ -1,0 +1,58 @@
+---
+# Allow Tailscale's TS2021 control-protocol WebSocket upgrade through the
+# envoy-external gateway (headscale.garage.neo-tix.com).
+#
+# Tailscale clients open the control connection with `POST /ts2021` carrying
+# `Upgrade: tailscale-control-protocol` over HTTP/1.1 (they offer no ALPN
+# protocol, so h2/h3 on the gateway listeners never apply to it). See
+# https://headscale.net/stable/ref/integration/reverse-proxy/#envoy :
+#
+#   "You need to add a new upgrade_type named tailscale-control-protocol."
+#
+# Envoy whitelists the `websocket` upgrade type by default and answers
+# upgrades of any other type with 403, and Envoy Gateway (v1.9) emits
+# `upgrade_configs: [websocket]` at the *route* level for every dynamic
+# route — route level overrides the HTTP connection manager level — so the
+# type must be added per route via an xDS JSON patch, which is what
+# EnvoyPatchPolicy provides (opt-in API, enabled via
+# extensionApis.enableEnvoyPatchPolicy in ./helmrelease.yaml).
+#
+# The patch targets the headscale virtual host inside the shared
+# `network/envoy-external/https` RouteConfiguration (xDS name scheme v1,
+# confirmed against the live proxy's /config_dump) and replaces
+# `upgrade_configs` on the route serving headscale (HTTPRoute rule 1,
+# PathPrefix /) with `websocket` + `tailscale-control-protocol`. Without
+# this patch Envoy answers the /ts2021 POST with 403 and headscale clients
+# cannot log in through the gateway.
+#
+# JSONPath notes (verified against the live gateway, EG v1.9.2 / ojg):
+# - The virtual host name `network/envoy-external/https/
+#   headscale_garage_neo-tix_com` is matched with an unanchored pattern;
+#   a bare `.` in the pattern is fine (it only ever matches the literal
+#   dot in practice here).
+# - `routes[1]` is positional and must stay in sync with the rule order in
+#   kubernetes/apps/headscale/headscale/app/httproute.yaml (rule 0 =
+#   /admin/ -> headplane, rule 1 = / -> headscale).
+#
+# NOTE: LocalPolicyTargetReference — the policy and the target Gateway
+# must live in the same namespace (network).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  name: headscale-ts2021-upgrade
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: envoy-external
+  type: JSONPatch
+  jsonPatches:
+    # rule 1 of the headscale HTTPRoute: PathPrefix / -> headscale (serves /ts2021)
+    - type: type.googleapis.com/envoy.config.route.v3.RouteConfiguration
+      name: network/envoy-external/https
+      operation:
+        op: replace
+        jsonPath: ..virtual_hosts[?match(@.name, '.*headscale_garage_neo-tix_com')].routes[1].route.upgrade_configs
+        value:
+          - upgrade_type: websocket
+          - upgrade_type: tailscale-control-protocol
