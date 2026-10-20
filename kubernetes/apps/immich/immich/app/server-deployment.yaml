@@ -21,14 +21,25 @@ spec:
             - containerPort: 2283
               name: http
           env:
+            # The database stays on the k3s cluster (no in-cluster database on
+            # Talos): CNPG cluster `immich` in k3s namespace `immich`,
+            # primary exposed via the `immich-postgres-external` NodePort
+            # service (5432 -> 32289) reachable on k3s node 172.20.0.113
+            # (k3os-8974). Same user/database as on k3s; password comes from
+            # the sops-encrypted `immich-db` secret.
             - name: DB_HOSTNAME
-              value: immich-postgres
+              value: 172.20.0.113
+            - name: DB_PORTNAME
+              value: "32289"
             - name: DB_DATABASE_NAME
               value: immich
             - name: DB_USERNAME
               value: immich
             - name: DB_PASSWORD
-              value: immich
+              valueFrom:
+                secretKeyRef:
+                  name: immich-db
+                  key: db_password
             # Redis is not migrated to Talos - it stays on the k3s cluster
             # and is exposed via the LoadBalancer service `redis-external`
             # in the k3s `redis` namespace (MetalLB-pinned IP).
