@@ -9,6 +9,7 @@ resources:
   - pvc-sync.yaml
   - pvc-documents.yaml
   - secret.sops.yaml
+  - secret-db.sops.yaml
   - server-deployment.yaml
   - server-service.yaml
   - ml-deployment.yaml
