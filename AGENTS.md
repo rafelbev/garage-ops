@@ -729,6 +729,32 @@ This use case covers migrating an application from an existing cluster (e.g., k3
   `default_redirection_url` pointed at `www.cloud.neo-tix.com`, which is
   not hosted on Talos — it now lands on `auth.garage.neo-tix.com`.
 
+### Key Learnings from the File Browser Fix
+
+- **The new `filebrowser/filebrowser` image (v2.63.x) hardcodes its paths**: the
+  `/init.sh` entrypoint injects `--config=/config/settings.json` when no `-c`
+  argument is given, and the baked-in config points at
+  `database: /database/filebrowser.db`. `workingDir` is ignored entirely — a
+  `workingDir: /db` fix that worked on the old `filebrowser/file-browser`
+  image silently stopped working after a Renovate image bump, and filebrowser
+  re-initialized a fresh ephemeral DB with a random admin password on every
+  restart (crash loop). To customize, mount a ConfigMap at `/config` with your
+  own `settings.json` — `init.sh` only copies `/defaults/settings.json` when
+  `/config/settings.json` is absent.
+- **The database file must be named `filebrowser.db`**: the k3s deployment ran
+  with an explicit `-d /db/database.db`, so the PVC held `database.db`. The
+  new image would never find it even after remounting. Renamed it to
+  `filebrowser.db` in the PVC (one-shot probe pod, deployment scaled to 0 —
+  the PVC is RWO).
+- **Tar migrations can drop file ownership**: the k3s→Talos transfer left
+  `filebrowser.db` as `root:root 600`, while the image runs as uid 1000 →
+  `open /database/filebrowser.db: permission denied`. A one-shot
+  `chown -R 1000:1000` in a probe pod fixed it. When migrating state, check
+  ownership in the PVC, not just contents.
+- **Check the listening port across image bumps**: the new image listens on
+  80 (the old k3s config used 8080). containerPort, probes, and the Service
+  `targetPort` all had to move to 80.
+
 ### Migration Script Template
 
 See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:
