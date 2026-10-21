@@ -23,6 +23,8 @@ spec:
         - name: authelia
           image: ghcr.io/authelia/authelia:4.37.5
           imagePullPolicy: IfNotPresent
+          command:
+            - authelia
           args:
             - --config=/configuration.yaml
           ports:
