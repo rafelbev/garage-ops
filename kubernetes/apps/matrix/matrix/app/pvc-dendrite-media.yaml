@@ -1,0 +1,15 @@
+---
+# Dendrite media store (uploaded files, thumbnails). 1.8G at migration;
+# 5Gi matches the source size and leaves headroom. Single-writer, so iSCSI.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dendrite-media
+  namespace: matrix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 5Gi

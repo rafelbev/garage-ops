@@ -1,0 +1,15 @@
+---
+# mautrix-whatsapp state (config.yaml, registration.yaml, logs; ~25M at
+# migration). Single-writer, so iSCSI.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mautrix-whatsapp-data
+  namespace: matrix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 2Gi

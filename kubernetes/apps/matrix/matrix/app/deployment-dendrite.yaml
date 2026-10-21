@@ -1,0 +1,96 @@
+---
+# Dendrite monolith — the Matrix homeserver (migrated from k3s).
+#
+# Image is pinned by digest: the source ran matrixdotorg/dendrite-monolith:main,
+# which resolved to this digest at migration time (the newest dated tag,
+# v0.15.2, is older than the running main build — pinning it would downgrade
+# the homeserver against a database it has already migrated forward).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dendrite
+  namespace: matrix
+  labels:
+    app: dendrite
+spec:
+  replicas: 1
+  # Single replica with an RWO iSCSI PVC: Recreate so the old pod terminates
+  # and detaches the LUN before the replacement starts (RollingUpdate would
+  # deadlock on the volume attach).
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dendrite
+  template:
+    metadata:
+      labels:
+        app: dendrite
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: dendrite
+          image: matrixdotorg/dendrite-monolith@sha256:12677a88944e10f22a6c88fcce8d1c458f75ad1be4ebb3f44ad80e69946331ad
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+          ports:
+            - containerPort: 8008
+              name: http
+              protocol: TCP
+            - containerPort: 8448
+              name: https
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          # Slow first boot: dendrite rebuilds its in-memory jetstream from
+          # Postgres (~5.7GB of room/event state on the external database)
+          # before the API binds. Keep the source's generous startup budget.
+          startupProbe:
+            tcpSocket:
+              port: 8008
+            periodSeconds: 5
+            failureThreshold: 600
+            timeoutSeconds: 1
+          livenessProbe:
+            tcpSocket:
+              port: 8008
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
+          readinessProbe:
+            tcpSocket:
+              port: 8008
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: dendrite-config
+              mountPath: /etc/dendrite/dendrite.yaml
+              subPath: dendrite.yaml
+            - name: dendrite-config
+              mountPath: /etc/whatsapp/registration.yaml
+              subPath: registration.yaml
+            - name: dendrite-key
+              mountPath: /etc/dendrite/matrix_key.pem
+              subPath: matrix_key.pem
+            - name: media
+              mountPath: /var/dendrite/media
+      volumes:
+        - name: dendrite-config
+          secret:
+            secretName: dendrite-config
+            defaultMode: 384
+        - name: dendrite-key
+          secret:
+            secretName: dendrite-key
+            defaultMode: 384
+        - name: media
+          persistentVolumeClaim:
+            claimName: dendrite-media

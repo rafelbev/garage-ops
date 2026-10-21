@@ -1,0 +1,27 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: matrix
+spec:
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: dendrite
+      namespace: matrix
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mautrix-whatsapp
+      namespace: matrix
+  interval: 1h
+  path: ./kubernetes/apps/matrix/matrix/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: matrix

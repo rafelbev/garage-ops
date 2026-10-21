@@ -1,0 +1,75 @@
+---
+# mautrix-whatsapp — WhatsApp bridge for the homeserver (migrated from k3s).
+#
+# State lives in the data PVC: config.yaml, registration.yaml and logs
+# (~25M at migration). The bridge database (postgres "whatsapp") is on the
+# external k3s Postgres, referenced from config.yaml in the PVC.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mautrix-whatsapp
+  namespace: matrix
+  labels:
+    app: mautrix-whatsapp
+spec:
+  replicas: 1
+  # Recreate: single replica with an RWO iSCSI PVC (the source's RollingUpdate
+  # would deadlock on the LUN attach during updates).
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mautrix-whatsapp
+  template:
+    metadata:
+      labels:
+        app: mautrix-whatsapp
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: whatsapp
+          image: dock.mau.dev/mautrix/whatsapp:v26.09
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/bin/mautrix-whatsapp
+            - --ignore-unsupported-server
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+          ports:
+            - containerPort: 29318
+              name: http
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # Generous liveness failureThreshold carried over from the source:
+          # the bridge re-logs-in to WhatsApp (QR pairing) on cold starts and
+          # the endpoint can be slow to answer while that happens.
+          livenessProbe:
+            httpGet:
+              path: /_matrix/mau/live
+              port: 29318
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 300
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /_matrix/mau/live
+              port: 29318
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mautrix-whatsapp-data
