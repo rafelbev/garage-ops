@@ -23,15 +23,32 @@ spec:
         - name: authelia
           image: ghcr.io/authelia/authelia:4.37.5
           imagePullPolicy: IfNotPresent
+          args:
+            - --config=/configuration.yaml
           ports:
             - containerPort: 9091
               name: http
           env:
             - name: TZ
               value: "Europe/Malta"
+            - name: AUTHELIA_JWT_SECRET_FILE
+              value: /secrets/JWT_TOKEN
+            - name: AUTHELIA_SESSION_SECRET_FILE
+              value: /secrets/SESSION_ENCRYPTION_KEY
+            - name: AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE
+              value: /secrets/STORAGE_ENCRYPTION_KEY
+            - name: AUTHELIA_SERVER_DISABLE_HEALTHCHECK
+              value: "true"
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: configuration
+              mountPath: /configuration.yaml
+              subPath: configuration.yaml
+              readOnly: true
+            - name: secrets
+              mountPath: /secrets
+              readOnly: true
           resources:
             requests:
               memory: 256Mi
@@ -41,17 +58,35 @@ spec:
               cpu: 500m
           livenessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: http
             initialDelaySeconds: 30
             periodSeconds: 30
+            failureThreshold: 5
           readinessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+            failureThreshold: 5
       volumes:
         - name: config
           persistentVolumeClaim:
             claimName: authelia-config
+        - name: configuration
+          configMap:
+            name: authelia
+            items:
+              - key: configuration.yaml
+                path: configuration.yaml
+        - name: secrets
+          secret:
+            secretName: authelia
+            items:
+              - key: JWT_TOKEN
+                path: JWT_TOKEN
+              - key: SESSION_ENCRYPTION_KEY
+                path: SESSION_ENCRYPTION_KEY
+              - key: STORAGE_ENCRYPTION_KEY
+                path: STORAGE_ENCRYPTION_KEY

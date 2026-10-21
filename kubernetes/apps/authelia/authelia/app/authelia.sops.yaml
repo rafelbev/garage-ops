@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: authelia
+  namespace: authelia
+stringData:
+  JWT_TOKEN: ENC[AES256_GCM,data:RHeJQnohDskDE1/i2k2Kf/L37QIFyfwUjuqWfQNJMTfm73mvc91FlBP+pdngW1qop1SxMvGtxhua3z5UN4ZZIR+Uukhi02Fy5HWa7hdwyuN1uKzAG+14U9/fSD5uQpxb2WPqzDpje3KzEySHX32Fvf3JYPdzomYgLBW82w==,iv:HJzrzYQKQytmhbeaDOFPfAFBZsaNESbNXGlDpaha4Gw=,tag:DDpkHfPth1yFZOLq3xYl3g==,type:str]
+  SESSION_ENCRYPTION_KEY: ENC[AES256_GCM,data:AWYELbhgH+ej+ETnDANc9ECI7AsqvKWTU2AZZ2sicygXyLjUOcy5oHSGxa8UKnoH5NefCkATv+JUq3jYYe7vpmuVNMEt9OXrPNGn16BKcCIr57+SirSjhNK1Cb6TCA+ttZPTqIVndG2xe7GSaK2wdGtjCa8vMrJivQU1XKitLg==,iv:tHx1dQIj09MDwQd5NuG2vjjUf34x+G4ENJyyoOjMCGw=,tag:br/QQ+T6tiHqP9pZnD05Sw==,type:str]
+  STORAGE_ENCRYPTION_KEY: ENC[AES256_GCM,data:9xIag9xH+hGrE4EiZeE//D5SD2+n/tGPP/mYIUN50XKqHreMhoBUpWuOxQV+WraVB0polfDaPpCg7yTeyHt1aMBkN0Dy1NeTN4RcoCCK/LzGd53U4Rrqwg7fuFAkDAFc+vC9jyZnCKS6FHGLrb1i4S9hC/uAN72rhcz9j0NeUzs=,iv:ySLki0YUnMEChDrjcjG2Z4bma3hJwNfxLldz8+WoLHE=,tag:epLUoPvz2wnjN0WW48yQew==,type:str]
+sops:
+  age:
+    - enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBwanloWFZmRXB1RVdsYlNK
+        RFc3OUJkMWlKK0VDdjlJNTdZdVMvU3lyd2pRCi8wNy9yL3VhQjFESlBHYnVCeDBm
+        UkFJWGlUVXczdUd0YjRSVEdHZUNXMm8KLS0tIEdNelRFOEJLOHEyR1k4Q2djbHUv
+        anFzSkRrRzJSc1ZYWGtYQUppa2RkMjAKZbDQvGm3tn6qiLVHcH8zxLpGVssfOELv
+        Av27B1j7iclFAZ3bErpXNVFmBwR0L50W+GtCIpbafosy0OhU5BidTQ==
+        -----END AGE ENCRYPTED FILE-----
+      recipient: age1hfvm6lyqshj2mexy0mpw9kj3kj64k75vc6zgwe597djszzyzxd0sdaephm
+  encrypted_regex: ^(data|stringData)$
+  lastmodified: "2026-10-21T15:45:19Z"
+  mac: ENC[AES256_GCM,data:S2/2Hdg61ayIj0+FlBpH2O6qsD8yBjGPz0+nhbW3gwYlGRJXOYDjqmKJqhCBbTCRfq/KQpEQZ/rg58eEI85yk6w6h+9gTrQYU2TUERAiLIKiuNpIylNyVxsRn7ghDk41FF/e1LiFp6rV9pg4PTd/KCQjscRMZ0cNllR0W/7Csqo=,iv:dm3CIrfeCnSSvpfyYP/HKtZyfGiYpG9j5rdZSJT7R4k=,tag:aemTj1ohJ4ughUkOXCGxGQ==,type:str]
+  mac_only_encrypted: true
+  version: 3.13.3

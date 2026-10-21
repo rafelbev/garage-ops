@@ -704,6 +704,31 @@ This use case covers migrating an application from an existing cluster (e.g., k3
 - **Verify host endpoints from a pod on the new cluster before merging**: a curl probe pod on Talos confirmed `172.20.17.17:8085/health` → `{"status":"pass"}` and `172.20.17.17:3000/admin/` → 302 → `/admin/login` — the same checks a merge+Flux deploy will rely on.
 - **Gateway API handles WebSocket upgrades natively**: the k3s Ingress needed a `configuration-snippet` for `Upgrade`/`Connection` headers; the Talos HTTPRoute needs no equivalent annotation.
 
+### Key Learnings from Authelia Migration
+
+- **Authelia's state is three components, not just a PVC.** The k3s
+  DaemonSet ran with a ConfigMap (`configuration.yaml`), a Secret
+  (three keys referenced via `AUTHELIA_*_SECRET_FILE` env vars), and a
+  PVC holding the local storage database (`db.sqlite3`), the users
+  file (`users_database.yml`) and `notification.txt`. A migration that
+  only carries the PVC leaves the pod crash-looping on fatal config
+  errors (`authentication_backend not configured`, `storage not
+  configured`, `notifier not configured`).
+- **`STORAGE_ENCRYPTION_KEY` is bound to the database file — carry it
+  over unchanged.** Authelia's local storage encrypts `db.sqlite3` at
+  rest with this key; rotating it orphans the migrated database
+  (it can no longer be decrypted). `JWT_TOKEN` and
+  `SESSION_ENCRYPTION_KEY` are safe to regenerate — only active
+  sessions/JWTs are invalidated, users just re-login on cutover.
+- **Authelia's health endpoint is `/api/health`, not `/health`.**
+  Probes on `/health` 404 forever; the pod never becomes ready even
+  when the app is healthy.
+- **Domain re-pointing in `configuration.yaml`**: `session.domain`,
+  `totp.issuer` and the `access_control` `domain_regex` entries all
+  carry the old base domain (`cloud.neo-tix.com` → `garage.neo-tix.com`).
+  `default_redirection_url` pointed at `www.cloud.neo-tix.com`, which is
+  not hosted on Talos — it now lands on `auth.garage.neo-tix.com`.
+
 ### Migration Script Template
 
 See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:
