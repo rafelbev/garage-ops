@@ -23,16 +23,17 @@ spec:
         - name: file-browser
           image: filebrowser/filebrowser:v2.63.23
           imagePullPolicy: IfNotPresent
-          workingDir: /db
           ports:
-            - containerPort: 8080
+            - containerPort: 80
               name: http
           env:
             - name: TZ
               value: "Europe/Malta"
           volumeMounts:
             - name: db
-              mountPath: /db
+              mountPath: /database
+            - name: config
+              mountPath: /config
             - name: media
               mountPath: /rootdir
           resources:
@@ -58,6 +59,9 @@ spec:
         - name: db
           persistentVolumeClaim:
             claimName: file-browser-db
+        - name: config
+          configMap:
+            name: file-browser-config
         - name: media
           persistentVolumeClaim:
             claimName: file-browser-media

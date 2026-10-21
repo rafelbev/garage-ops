@@ -1,0 +1,20 @@
+---
+# File Browser configuration (new image layout: /config/settings.json)
+# The v2.63 image's /init.sh entrypoint injects --config=/config/settings.json
+# when no -c argument is given, so mounting this ConfigMap at /config takes
+# precedence over the baked-in /defaults/settings.json.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: file-browser-config
+  namespace: file-browser
+data:
+  settings.json: |
+    {
+      "port": 80,
+      "baseURL": "",
+      "address": "",
+      "log": "stdout",
+      "database": "/database/filebrowser.db",
+      "root": "/rootdir"
+    }

@@ -5,6 +5,7 @@ resources:
   - ./pv-media.yaml
   - ./pvc-config.yaml
   - ./pvc-media.yaml
+  - ./configmap.yaml
   - ./deployment.yaml
   - ./service.yaml
   - ./httproute.yaml
