@@ -70,6 +70,25 @@ spec:
         certificateRefs:
           - kind: Secret
             name: ${SECRET_DOMAIN/./-}-production-tls
+    - name: k8s-tls
+      # Raw TLS passthrough for the Kubernetes API server (mTLS). Envoy must
+      # NOT terminate this TLS: a terminated HTTPS route drops the client
+      # certificate, so kube-apiserver rejects kubectl with "the server has
+      # asked for the client to provide credentials". This listener inspects
+      # the SNI from the ClientHello and forwards the still-encrypted bytes
+      # (client cert intact) to the API server VIP, where the TLS is
+      # terminated. The SNI match is the listener `hostname`; the backend is
+      # the TLSRoute in kubernetes/apps/k8s-api. It coexists with the wildcard
+      # `https` listener above on port 443: SNI k8s.garage.neo-tix.com is
+      # dispatched here, every other SNI to `https`.
+      protocol: TLS
+      port: 443
+      hostname: k8s.garage.neo-tix.com
+      tls:
+        mode: Passthrough
+      allowedRoutes:
+        namespaces:
+          from: All
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
