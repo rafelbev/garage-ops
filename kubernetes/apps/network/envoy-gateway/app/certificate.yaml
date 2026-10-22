@@ -7,6 +7,10 @@ spec:
   dnsNames:
     - "${SECRET_DOMAIN}"
     - "*.${SECRET_DOMAIN}"
+    # Apex domain for the Matrix homeserver (server_name): the federation
+    # well-known and /_matrix API are served from neo-tix.com (see
+    # kubernetes/apps/matrix/matrix/app/httproute.yaml).
+    - "neo-tix.com"
   duration: 160h
   issuerRef:
     name: letsencrypt-production

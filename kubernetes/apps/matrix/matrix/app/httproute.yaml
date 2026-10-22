@@ -1,0 +1,74 @@
+---
+# Public client URL for the homeserver.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: matrix
+  namespace: matrix
+spec:
+  hostnames:
+    - matrix.garage.neo-tix.com
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-external
+      namespace: network
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: dendrite
+          namespace: matrix
+          port: 8008
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+---
+# Federation well-known and federation API on the homeserver's server_name
+# apex domain (clients with @user:neo-tix.com MXIDs discover the homeserver
+# here; other servers federate to it).
+#
+# Cutover prerequisites (see PR description):
+#   - the manual Cloudflare A record for neo-tix.com must point at the Talos
+#     public IP (it currently points at the k3s ingress), and
+#   - the gateway certificate carries the neo-tix.com SAN (added in
+#     network/envoy-gateway/app/certificate.yaml), issued via the
+#     letsencrypt-production DNS-01 (Cloudflare) solver.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: matrix-well-known
+  namespace: matrix
+spec:
+  hostnames:
+    - neo-tix.com
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-external
+      namespace: network
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: dendrite
+          namespace: matrix
+          port: 8008
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /.well-known
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: dendrite
+          namespace: matrix
+          port: 8008
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /_matrix
