@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: firefly-iii-importer
+  namespace: firefly-iii
+  labels:
+    app: firefly-iii-importer
+spec:
+  type: ClusterIP
+  selector:
+    app: firefly-iii-importer
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
