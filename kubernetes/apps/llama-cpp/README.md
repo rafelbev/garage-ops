@@ -76,9 +76,17 @@ talosctl --nodes 172.20.17.197 dmesg | grep -i nvidia   # or nvidia-smi via debu
   `spec.strategy.type` to `Recreate` fails the Flux dry-run with
   `spec.strategy.rollingUpdate: Forbidden: may not be specified when
   strategy 'type' is 'Recreate'` — the API server had defaulted
-  `rollingUpdate` into the stored Deployment and the manifest did not
-  unset it, so it survives the server-side-apply merge. The manifest
-  must set `rollingUpdate: null` to make SSA drop the field.
+  `rollingUpdate` (25%/25%) into the stored Deployment when it was
+  created under the default `RollingUpdate` strategy. The manifest sets
+  `rollingUpdate: null`, but **Flux's two-way strategic-merge patch
+  computation drops nil fields**, so the manifest alone cannot remove
+  the server-defaulted value from an _existing_ object (a plain
+  `kubectl apply --server-side --dry-run` of the same manifest passes —
+  only Flux's diff-based patch fails). The defaulted field must be
+  removed from the live Deployment once:
+  `kubectl -n llama-cpp patch deploy llama-cpp --type merge
+  -p '{"spec":{"strategy":{"rollingUpdate":null}}}'`. With a clean live
+  object, Flux's dry-run passes and SSA keeps the field unset.
 - **Envoy response compression breaks the llama.cpp web UI:** the global
   `BackendTrafficPolicy/envoy` (in `network`) sets Zstd/Brotli/Gzip
   compressors on every route; Envoy's compression filter strips the

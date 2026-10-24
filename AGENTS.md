@@ -778,6 +778,18 @@ This use case covers migrating an application from an existing cluster (e.g., k3
   `requestTimeout` is required for long generations) and omit the
   `compressor` field — see
   `kubernetes/apps/llama-cpp/README.md`.
+- **Flux SSA drops nil fields in its two-way patch:** a server-defaulted
+  field (e.g. `spec.strategy.rollingUpdate` on a Deployment created
+  under the default `RollingUpdate` strategy) cannot be removed from an
+  _existing_ object by setting it to `null` in the manifest — Flux's
+  two-way strategic-merge patch computation skips nil values, so the
+  defaulted value survives the dry-run merge and validation fails
+  (`rollingUpdate: Forbidden` with strategy `Recreate`). A plain
+  `kubectl apply --server-side --dry-run` of the same manifest passes;
+  only Flux's diff-based patch fails. Remove the field from the live
+  object once (`kubectl patch --type merge` with
+  `{"spec":{"strategy":{"rollingUpdate":null}}}`); with a clean live
+  object, Flux's dry-run passes.
 - **A crash-looping `envoy-gateway` controller makes new HTTPRoutes look
   broken even when the manifests are correct.** The controller stops
   writing route status and new routes are never attached to a listener,
