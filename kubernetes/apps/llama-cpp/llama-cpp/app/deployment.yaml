@@ -16,6 +16,7 @@ spec:
         app: llama-cpp
     spec:
       restartPolicy: Always
+      runtimeClassName: nvidia
       containers:
         - name: llama-cpp
           image: ghcr.io/ggml-org/llama.cpp:full-cuda
@@ -37,9 +38,11 @@ spec:
               value: "Europe/Malta"
           resources:
             requests:
+              nvidia.com/gpu: "1"
               memory: 1Gi
               cpu: "1"
             limits:
+              nvidia.com/gpu: "1"
               memory: 4Gi
               cpu: "2"
           startupProbe:
