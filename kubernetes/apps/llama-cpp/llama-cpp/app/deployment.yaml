@@ -67,7 +67,8 @@ spec:
               mountPath: /config/models.ini
               subPath: models.ini
             - name: models
-              mountPath: /models
+              mountPath: /root/.cache/huggingface
+              subPath: huggingface
       volumes:
         - name: config
           configMap:
