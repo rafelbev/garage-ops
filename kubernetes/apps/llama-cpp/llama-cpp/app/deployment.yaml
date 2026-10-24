@@ -27,23 +27,27 @@ spec:
         - name: llama-cpp
           image: ghcr.io/ggml-org/llama.cpp:full-cuda
           imagePullPolicy: IfNotPresent
-          command: ["/app/llama-server"]
+          command: ["/bin/sh", "-c"]
           args:
-            - --host
-            - 0.0.0.0
-            - --port
-            - "8080"
-            - --models-max
-            - "1"
-            - --models-autoload
-            - --models-preset
-            - /config/models.ini
+            - |
+              exec /app/llama-server \
+                --host 0.0.0.0 \
+                --port 8080 \
+                --api-key "$API_KEY" \
+                --models-max 1 \
+                --models-autoload \
+                --models-preset /config/models.ini
           ports:
             - containerPort: 8080
               name: http
           env:
             - name: TZ
               value: "Europe/Malta"
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llama-cpp
+                  key: API_KEY
           resources:
             requests:
               nvidia.com/gpu: "1"
