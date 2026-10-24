@@ -3,3 +3,13 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: gpu-operator
+  labels:
+    # The gpu-operator's DaemonSet operands (NFD worker, device plugin,
+    # DCGM exporter) mount hostPath volumes and need elevated PodSecurity.
+    # Without this, the API server's PodSecurity admission rejects the
+    # pods ("violates PodSecurity baseline:latest: hostPath volumes"), so
+    # the NFD worker DaemonSet can never be created and the operator
+    # rollout stalls. Enforcing the privileged standard for this namespace
+    # is scoped to the GPU operator workload and is safe here.
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/enforce-version: latest
