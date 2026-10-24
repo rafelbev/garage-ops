@@ -22,9 +22,11 @@ spec:
           imagePullPolicy: IfNotPresent
           command: ["/app/llama-server"]
           args:
-            - "--models-max 1"
-            - "--models-autoload"
-            - "--models-preset /config/models.ini"
+            - --models-max
+            - "1"
+            - --models-autoload
+            - --models-preset
+            - /config/models.ini
           ports:
             - containerPort: 9931
               name: http
