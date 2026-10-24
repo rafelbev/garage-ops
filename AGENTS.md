@@ -755,6 +755,42 @@ This use case covers migrating an application from an existing cluster (e.g., k3
   80 (the old k3s config used 8080). containerPort, probes, and the Service
   `targetPort` all had to move to 80.
 
+### Key Learnings from the llama-cpp (GPU Inference) Deployment
+
+- **GPU workloads on this cluster use the GPU Operator's device-plugin
+  path**: `nvidia.com/gpu` in `resources` (time-sliced, exposed by the
+  operator's device plugin on `cluster-4`) plus `runtimeClassName: nvidia`
+  (the RuntimeClass is created by the operator). The DRA `DeviceClass
+  gpu` exists but is not the active path — the driver is not publishing
+  `ResourceSlice`s, so no `resourceClaims` are used. See
+  `kubernetes/apps/gpu-operator/README.md` and
+  `kubernetes/apps/gpu-deviceclass/README.md`.
+- **A crash-looping `envoy-gateway` controller makes new HTTPRoutes look
+  broken even when the manifests are correct.** The controller stops
+  writing route status and new routes are never attached to a listener,
+  while the data plane keeps serving the routes it already has. Symptom:
+  `kubectl -n <ns> get httproute -o yaml` shows **no `status` field at
+  all**. Check `kubectl -n network get pods` — if `envoy-gateway` is in
+  `CrashLoopBackOff` (here: a stale pod whose network namespace could no
+  longer reach the API server —
+  `Get "https://<svc-ip>:443/api": dial tcp ... i/o timeout`), delete the
+  pod; the replacement reconciles every route within seconds.
+- **Live-tuned values must be encoded in the manifest.** A live
+  `kubectl patch` of the Deployment (the 8Gi request / 22Gi limit memory
+  tuning for the ~27B GGUF + 256k KV cache) is reverted by Flux on the
+  next reconciliation; the working values now live in
+  `deployment.yaml`.
+- **Branch testing sources must not leak into production manifests:** the
+  Kustomization was pointed at a test `GitRepository/llama-cpp` applied
+  directly to the cluster (no manifest in this repo). Production
+  manifests must use the standard `flux-system` source; the test
+  GitRepository is deleted after the PR merges.
+- **HF model downloads persist in the NFS cache PVC:** llama-server
+  downloads GGUF repos into `/root/.cache/huggingface` (the 4Ti RWX NFS
+  PVC) on first boot; models survive pod restarts. Keep PVC headroom in
+  mind before adding large models, and give the startup probe a
+  10-minute budget for the first NFS load.
+
 ### Migration Script Template
 
 See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:
