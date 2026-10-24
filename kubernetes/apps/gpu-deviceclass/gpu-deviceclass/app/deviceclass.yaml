@@ -2,18 +2,22 @@
 # DRA DeviceClass (resource.k8s.io/v1) exposing the GPU-capable node's
 # NVIDIA devices to workloads. The NVIDIA driver (installed as a Talos
 # system extension on cluster-4) publishes the device in a ResourceSlice;
-# this class selects it and routes allocation through Dynamic Resource
-# Allocation — no device plugin is involved.
+# this class selects it for explicit DRA claims (resourceClaims +
+# DeviceClass).
 #
-# `extendedResourceName` lets pods keep the classic syntax
-# (resources.limits: {nvidia.com/gpu: 1}) while the request is
-# satisfied through DRA (Kubernetes >= 1.36).
+# NOTE: this class deliberately does NOT set extendedResourceName.
+# Since Kubernetes 1.37 (DRA Extended Resource, stable, KEP-5004) a single
+# node must not provide the same extended resource through both DRA and a
+# device plugin, and the NVIDIA GPU Operator's device plugin now owns
+# nvidia.com/gpu on cluster-4 (see kubernetes/apps/gpu-operator/). The
+# classic resources.limits: {nvidia.com/gpu: 1} syntax is satisfied by the
+# device plugin (time-sliced); explicit DRA claims through this class keep
+# working, as does the implicit name deviceclass.resource.kubernetes.io/gpu.
 apiVersion: resource.k8s.io/v1
 kind: DeviceClass
 metadata:
   name: gpu
 spec:
-  extendedResourceName: nvidia.com/gpu
   selectors:
     - cel:
         # v1 CEL selectors only expose device.driver and device.name
