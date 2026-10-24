@@ -51,7 +51,7 @@ data:
     load-on-startup = true
 
     ; context / KV cache
-    ctx-size = 32768
+    ctx-size = 262144
     ctx-checkpoints = 256
     cache-type-k = q4_0
     cache-type-v = q4_0
