@@ -1,0 +1,71 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-cpp
+  labels:
+    app: llama-cpp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-cpp
+  template:
+    metadata:
+      labels:
+        app: llama-cpp
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: llama-cpp
+          image: ghcr.io/ggml-org/llama.cpp:full-cuda
+          imagePullPolicy: IfNotPresent
+          command: ["/app/llama-server"]
+          args:
+            - "--models-max 1"
+            - "--models-autoload"
+            - "--models-preset /config/models.ini"
+          ports:
+            - containerPort: 9931
+              name: http
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: "1"
+            limits:
+              memory: 4Gi
+              cpu: "2"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /config/models.ini
+              subPath: models.ini
+            - name: models
+              mountPath: /models
+      volumes:
+        - name: config
+          configMap:
+            name: llama-cpp-models
+            defaultMode: 420
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-cpp-models
