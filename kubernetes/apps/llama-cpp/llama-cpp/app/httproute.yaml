@@ -18,7 +18,7 @@ spec:
           kind: Service
           name: llama-cpp
           namespace: llama-cpp
-          port: 9931
+          port: 8080
           weight: 1
       matches:
         - path:
