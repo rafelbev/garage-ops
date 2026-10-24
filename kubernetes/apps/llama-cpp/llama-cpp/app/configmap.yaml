@@ -72,3 +72,18 @@ data:
     reasoning-preserve = true
 
     parallel = 2
+
+    ; ================================================================
+    ; ggml-org/tiny-llamas
+    ; ================================================================
+    [ggml-org/tiny-llamas]
+    alias = ggml-org/tiny-llamas
+    hf-repo = ggml-org/tiny-llamas
+
+    ; context / KV cache
+    ctx-size = 32768
+    ctx-checkpoints = 256
+    cache-type-k = q4_0
+    cache-type-v = q4_0
+
+    parallel = 2
