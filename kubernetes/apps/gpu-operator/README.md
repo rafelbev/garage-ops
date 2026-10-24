@@ -134,6 +134,37 @@ kubectl get node cluster-4 -o jsonpath='{.status.allocatable.nvidia\.com/gpu}{"\
 # expected: 4
 ```
 
+### NFD worker DaemonSet rejected by PodSecurity admission
+
+Once the `HelmRelease` is healthy, the operator's `node-feature-discovery-worker`
+DaemonSet can be rejected with:
+
+```
+pods "gpu-operator-node-feature-discovery-worker-..." is forbidden: violates
+PodSecurity "baseline:latest": hostPath volumes (volumes "host-boot",
+"host-os-release", "host-sys", "host-usr-lib", "host-lib", "host-proc-swaps",
+"features-d")
+```
+
+**Root cause:** the NFD worker (and other GPU operator DaemonSet operands) mount
+hostPath volumes and need elevated PodSecurity. The API server's default
+PodSecurity standard is `baseline`, which rejects those hostPath mounts, so the
+NFD worker DaemonSet can never be created and the operator rollout stalls.
+
+**Fix:** label the `gpu-operator` namespace with the privileged PodSecurity
+standard (scoped to the GPU operator workload only):
+
+```yaml
+# kubernetes/apps/gpu-operator/namespace.yaml
+metadata:
+    name: gpu-operator
+    labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/enforce-version: latest
+```
+
+This is in the repo so Flux applies it and does not revert the label.
+
 ## Notes
 
 - `cluster-4` is the only node with an NVIDIA GPU. The operand DaemonSets
