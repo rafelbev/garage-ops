@@ -72,6 +72,13 @@ talosctl --nodes 172.20.17.197 dmesg | grep -i nvidia   # or nvidia-smi via debu
 
 ## Pitfalls
 
+- **SSA null-unset for the Recreate strategy:** switching
+  `spec.strategy.type` to `Recreate` fails the Flux dry-run with
+  `spec.strategy.rollingUpdate: Forbidden: may not be specified when
+  strategy 'type' is 'Recreate'` — the API server had defaulted
+  `rollingUpdate` into the stored Deployment and the manifest did not
+  unset it, so it survives the server-side-apply merge. The manifest
+  must set `rollingUpdate: null` to make SSA drop the field.
 - **Envoy response compression breaks the llama.cpp web UI:** the global
   `BackendTrafficPolicy/envoy` (in `network`) sets Zstd/Brotli/Gzip
   compressors on every route; Envoy's compression filter strips the

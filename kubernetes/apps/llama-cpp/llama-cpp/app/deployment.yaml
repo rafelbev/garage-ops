@@ -12,6 +12,10 @@ spec:
       app: llama-cpp
   strategy:
     type: Recreate
+    # null: explicitly unset the API-server-defaulted rollingUpdate field so
+    # the server-side apply drops it (it is forbidden when type is Recreate
+    # and would otherwise survive the merge from the previous revision).
+    rollingUpdate: null
   template:
     metadata:
       labels:
