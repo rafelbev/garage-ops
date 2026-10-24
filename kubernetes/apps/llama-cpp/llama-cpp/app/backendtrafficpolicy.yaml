@@ -17,10 +17,10 @@ kind: BackendTrafficPolicy
 metadata:
   name: llama-cpp
 spec:
-  targetRef:
-    group: gateway.networking.k8s.io
-    kind: HTTPRoute
-    name: llama-cpp
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: llama-cpp
   retry:
     numRetries: 2
     retryOn:
