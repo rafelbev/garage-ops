@@ -13,8 +13,9 @@ Self-hosted LLM inference server running
 | GPU            | 1x `nvidia.com/gpu` (RTX 2080Ti on `cluster-4`) via the [GPU Operator](../gpu-operator/README.md) device plugin                       |
 | Model config   | ConfigMap `llama-cpp-models` (`models.ini`) mounted at `/config/models.ini`, consumed via `--models-preset`                           |
 | Model storage  | static NFS PV `models-pv` (4Ti, TrueNAS `/mnt/storage/models`) mounted at `/root/.cache/huggingface` — the HuggingFace download cache |
-| Exposure       | `HTTPRoute` `llama-cpp.garage.neo-tix.com` → `envoy-external` gateway (plain pass-through, no auth annotations)                       |
+| Exposure       | `HTTPRoute` `llama-cpp.garage.neo-tix.com` → `envoy-external` gateway (API-key auth via `--api-key`)                                  |
 | Traffic policy | route-scoped `BackendTrafficPolicy` disabling response compression (see pitfall below)                                                |
+| Auth           | `--api-key` from SOPS-encrypted Secret `llama-cpp` (key `API_KEY`) — requires `Authorization: Bearer *** header on all endpoints      |
 
 ### Requesting the GPU
 
@@ -66,6 +67,9 @@ the pod, which downloads the new repo into the cache on start.
 
 ```bash
 kubectl -n llama-cpp get pods -o wide          # scheduled on cluster-4
+# with API key:
+curl -fsS -H "Authorization: Bearer <key>" https://llama-cpp.garage.neo-tix.com/health
+# without API key (should 401):
 curl -fsS https://llama-cpp.garage.neo-tix.com/health
 talosctl --nodes 172.20.17.197 dmesg | grep -i nvidia   # or nvidia-smi via debug container
 ```

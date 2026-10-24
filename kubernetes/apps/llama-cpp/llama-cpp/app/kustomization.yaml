@@ -9,3 +9,4 @@ resources:
   - ./backendtrafficpolicy.yaml
   - ./pv-models.yaml
   - ./pvc-models.yaml
+  - ./secret.sops.yaml
