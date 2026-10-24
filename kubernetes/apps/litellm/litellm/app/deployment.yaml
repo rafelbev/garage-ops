@@ -18,7 +18,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: litellm
-          image: ghcr.io/berriai/litellm:v1.106.2
+          image: ghcr.io/berriai/litellm:v1.106.3
           imagePullPolicy: IfNotPresent
           args:
             - --config
