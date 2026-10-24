@@ -1,0 +1,15 @@
+---
+# Static PersistentVolumeClaim for models library
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-cpp-models
+  namespace: llama-cpp
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ""
+  resources:
+    requests:
+      storage: 4Ti
+  volumeName: models-pv

@@ -1,0 +1,86 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-cpp
+  labels:
+    app: llama-cpp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-cpp
+  strategy:
+    type: Recreate
+    # null: explicitly unset the API-server-defaulted rollingUpdate field so
+    # the server-side apply drops it (it is forbidden when type is Recreate
+    # and would otherwise survive the merge from the previous revision).
+    rollingUpdate: null
+  template:
+    metadata:
+      labels:
+        app: llama-cpp
+    spec:
+      restartPolicy: Always
+      runtimeClassName: nvidia
+      containers:
+        - name: llama-cpp
+          image: ghcr.io/ggml-org/llama.cpp:full-cuda
+          imagePullPolicy: IfNotPresent
+          command: ["/app/llama-server"]
+          args:
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8080"
+            - --models-max
+            - "1"
+            - --models-autoload
+            - --models-preset
+            - /config/models.ini
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              memory: 8Gi
+              cpu: "1"
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 22Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          volumeMounts:
+            - name: config
+              mountPath: /config/models.ini
+              subPath: models.ini
+            - name: models
+              mountPath: /root/.cache/huggingface
+              subPath: huggingface
+      volumes:
+        - name: config
+          configMap:
+            name: llama-cpp-models
+            defaultMode: 420
+        - name: models
+          persistentVolumeClaim:
+            claimName: llama-cpp-models
