@@ -6,5 +6,6 @@ resources:
   - ./deployment.yaml
   - ./service.yaml
   - ./httproute.yaml
+  - ./backendtrafficpolicy.yaml
   - ./pv-models.yaml
   - ./pvc-models.yaml

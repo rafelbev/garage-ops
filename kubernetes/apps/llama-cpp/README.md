@@ -7,13 +7,14 @@ Self-hosted LLM inference server running
 
 ## Architecture
 
-| Component     | Detail                                                                                                                                |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Workload      | single-replica Deployment, `runtimeClassName: nvidia`                                                                                 |
-| GPU           | 1x `nvidia.com/gpu` (RTX 2080Ti on `cluster-4`) via the [GPU Operator](../gpu-operator/README.md) device plugin                       |
-| Model config  | ConfigMap `llama-cpp-models` (`models.ini`) mounted at `/config/models.ini`, consumed via `--models-preset`                           |
-| Model storage | static NFS PV `models-pv` (4Ti, TrueNAS `/mnt/storage/models`) mounted at `/root/.cache/huggingface` — the HuggingFace download cache |
-| Exposure      | `HTTPRoute` `llama-cpp.garage.neo-tix.com` → `envoy-external` gateway (plain pass-through, no auth annotations)                       |
+| Component      | Detail                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Workload       | single-replica Deployment, `runtimeClassName: nvidia`                                                                                 |
+| GPU            | 1x `nvidia.com/gpu` (RTX 2080Ti on `cluster-4`) via the [GPU Operator](../gpu-operator/README.md) device plugin                       |
+| Model config   | ConfigMap `llama-cpp-models` (`models.ini`) mounted at `/config/models.ini`, consumed via `--models-preset`                           |
+| Model storage  | static NFS PV `models-pv` (4Ti, TrueNAS `/mnt/storage/models`) mounted at `/root/.cache/huggingface` — the HuggingFace download cache |
+| Exposure       | `HTTPRoute` `llama-cpp.garage.neo-tix.com` → `envoy-external` gateway (plain pass-through, no auth annotations)                       |
+| Traffic policy | route-scoped `BackendTrafficPolicy` disabling response compression (see pitfall below)                                                |
 
 ### Requesting the GPU
 
@@ -71,6 +72,19 @@ talosctl --nodes 172.20.17.197 dmesg | grep -i nvidia   # or nvidia-smi via debu
 
 ## Pitfalls
 
+- **Envoy response compression breaks the llama.cpp web UI:** the global
+  `BackendTrafficPolicy/envoy` (in `network`) sets Zstd/Brotli/Gzip
+  compressors on every route; Envoy's compression filter strips the
+  client's `Accept-Encoding` from upstream requests, and llama-server
+  (full-cuda image) **requires** `Accept-Encoding: gzip` to serve its
+  built-in web UI — every web UI asset then responds
+  `415 "Error: gzip is not supported by this browser"` while `/health`
+  and `/models` (no gzip check) keep working. Port-forwarding the pod
+  works because the browser's header reaches the server unmodified.
+  Fix: `backendtrafficpolicy.yaml` — a route-scoped policy fully
+  replaces the global one, so it repeats the global retry/keepalive/
+  timeout settings (the disabled `requestTimeout` is required for long
+  generations) and omits the `compressor` field.
 - **A crash-looping `envoy-gateway` controller makes every new HTTPRoute
   look broken.** The controller pod stops writing route status
   (`Accepted`/`ResolvedRefs`) and new routes are silently not attached to

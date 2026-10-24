@@ -765,6 +765,19 @@ This use case covers migrating an application from an existing cluster (e.g., k3
   `ResourceSlice`s, so no `resourceClaims` are used. See
   `kubernetes/apps/gpu-operator/README.md` and
   `kubernetes/apps/gpu-deviceclass/README.md`.
+- **Envoy response compression breaks llama.cpp's web UI:** the global
+  `BackendTrafficPolicy/envoy` (in `network`) sets Zstd/Brotli/Gzip
+  compressors on every route; Envoy's compression filter strips the
+  client's `Accept-Encoding` from upstream requests, and llama-server
+  (full-cuda image) requires `Accept-Encoding: gzip` to serve its
+  built-in web UI — web UI assets then respond
+  `415 "Error: gzip is not supported by this browser"` while `/health`
+  and `/models` keep working (they don't check). A route-scoped
+  `BackendTrafficPolicy` fully replaces the global one, so it must
+  repeat the global retry/keepalive/timeout settings (disabled
+  `requestTimeout` is required for long generations) and omit the
+  `compressor` field — see
+  `kubernetes/apps/llama-cpp/README.md`.
 - **A crash-looping `envoy-gateway` controller makes new HTTPRoutes look
   broken even when the manifests are correct.** The controller stops
   writing route status and new routes are never attached to a listener,

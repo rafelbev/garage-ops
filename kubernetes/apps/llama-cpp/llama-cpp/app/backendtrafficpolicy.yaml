@@ -1,0 +1,32 @@
+---
+# Route-scoped BackendTrafficPolicy: disable response compression for this route.
+#
+# Why: the global BackendTrafficPolicy/envoy (network ns) sets
+# Zstd/Brotli/Gzip compressors on every route of envoy-external. Envoy's
+# compression filter strips the client's Accept-Encoding header from
+# upstream requests, and llama-server (full-cuda image) REQUIRES
+# "Accept-Encoding: gzip" to serve its built-in web UI — every web UI
+# asset responds 415 "Error: gzip is not supported by this browser"
+# without it (/health and /models are unaffected because they don't check).
+# A route-scoped policy fully replaces the global one for this route, so
+# the global retry/keepalive/timeout settings are repeated here (the
+# disabled request timeout is required for long generations) and the
+# compressor field is deliberately omitted.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: llama-cpp
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: llama-cpp
+  retry:
+    numRetries: 2
+    retryOn:
+      triggers:
+        - reset
+  tcpKeepalive: {}
+  timeout:
+    http:
+      requestTimeout: 0s
