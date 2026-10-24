@@ -24,16 +24,16 @@ The v26.x chart renders a `ClusterPolicy` CR; the operator daemon
 (`gpu-operator` Deployment) then creates the operand DaemonSets from it.
 With the values in `helmrelease.yaml`:
 
-| Operand                                    | State               | Why                                                                                                                                                             |
-| ------------------------------------------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| driver                                     | off                 | comes from the Talos kernel-module extension                                                                                                                    |
-| toolkit                                    | off                 | comes from the Talos userspace/toolkit extension (no `installDir` needed)                                                                                       |
-| cdi                                        | **on** (NRI off)    | generates the CDI device spec; the NRI plugin ships with the toolkit operand in this chart and is redundant — containerd wiring comes from the Sidero extension |
-| device-plugin                              | **on, time-sliced** | exposes `nvidia.com/gpu` as a schedulable resource                                                                                                              |
-| dcgm-exporter                              | on (default)        | GPU metrics to Prometheus (`ServiceMonitor` CRD exists in the cluster)                                                                                          |
-| node-feature-discovery                     | on (default)        | labels nodes with GPU features                                                                                                                                  |
-| mig-manager, gfd, vgpu*, vfio, cc, sandbox | off                 | datacenter-only, no-ops on a single consumer card                                                                                                               |
-| `operator.runtimeClass`                    | cleared             | only `cluster-4` has the `nvidia` RuntimeClass; operands don't need it, so the DaemonSets can run on the other nodes                                            |
+| Operand                                    | State                    | Why                                                                                                                                                             |
+| ------------------------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| driver                                     | off                      | comes from the Talos kernel-module extension                                                                                                                    |
+| toolkit                                    | off                      | comes from the Talos userspace/toolkit extension (no `installDir` needed)                                                                                       |
+| cdi                                        | **on** (NRI off)         | generates the CDI device spec; the NRI plugin ships with the toolkit operand in this chart and is redundant — containerd wiring comes from the Sidero extension |
+| device-plugin                              | **on, time-sliced**      | exposes `nvidia.com/gpu` as a schedulable resource                                                                                                              |
+| dcgm-exporter                              | on (default)             | GPU metrics to Prometheus (`ServiceMonitor` CRD exists in the cluster)                                                                                          |
+| node-feature-discovery                     | on (default)             | labels nodes with GPU features                                                                                                                                  |
+| mig-manager, gfd, vgpu*, vfio, cc, sandbox | off                      | datacenter-only, no-ops on a single consumer card                                                                                                               |
+| `operator.runtimeClass`                    | `nvidia` (chart default) | only `cluster-4` has the `nvidia` RuntimeClass; operands don't need it, so the DaemonSets can run on the other nodes                                            |
 
 ## Time-slicing (concurrent GPU access)
 
@@ -102,6 +102,36 @@ kubectl run cuda-test --rm -i --restart=Never \
   --image=nvcr.io/nvidia/k8s/cuda-sample:vectoradd-cuda12.5.0 -- \
   sh -c "nvidia-smi"   # or the vectoradd sample requesting nvidia.com/gpu: 1
 # concurrent test: two pods requesting nvidia.com/gpu: 1 both Running
+```
+
+## Troubleshooting
+
+### GPU Operator HelmRelease stuck in `Failed` — no device plugin (2026-10-24)
+
+After PR #225 merged, `HelmRelease/gpu-operator/gpu-operator` failed with:
+
+```
+failed to create resource: server-side apply failed for object /cluster-policy
+nvidia.com/v1, Kind=ClusterPolicy: ClusterPolicy.nvidia.com "cluster-policy" is
+invalid: spec.operator: Invalid value: "null": spec.operator in body must be of
+type object: "null"
+```
+
+**Root cause:** the `gpu-operator` chart v26.7.2 renders the whole `spec.operator`
+block from non-empty values only, so setting `operator.runtimeClass: ""` made the
+template emit `spec.operator: null`, which the `ClusterPolicy` CRD schema rejects
+(the field must be an object). The release failed during `ClusterPolicy` creation
+and therefore never created the device plugin — cluster-4 never advertised
+`nvidia.com/gpu`.
+
+**Fix:** keep the chart default (`operator.runtimeClass: nvidia`). Reconcile and
+verify:
+
+```bash
+flux reconcile source git -n gpu-operator
+kubectl -n gpu-operator get pods -o wide
+kubectl get node cluster-4 -o jsonpath='{.status.allocatable.nvidia\.com/gpu}{"\n"}'
+# expected: 4
 ```
 
 ## Notes

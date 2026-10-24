@@ -38,13 +38,14 @@ spec:
     # nvidia-container-toolkit extension README).
     hostPaths:
       driverInstallDir: /usr/local
-    # Do not pin the operand pods to the "nvidia" RuntimeClass: only
-    # cluster-4 has the nvidia runtime configured, and the operands
-    # (device plugin, CDI, exporter, NFD) do not need it themselves.
-    # Left at the chart default ("nvidia"), the operand DaemonSets would
-    # fail to start on the other three nodes.
+    # The gpu-operator chart (v26.7.2) renders the whole `operator` block
+    # only from non-empty fields, so an empty-string runtimeClass made it
+    # emit `spec.operator: null`, which the nvidia.com/v1 ClusterPolicy CRD
+    # rejects (spec.operator must be an object). The HelmRelease therefore
+    # failed before creating the device plugin, and cluster-4 never
+    # advertised nvidia.com/gpu. Keep the chart default ("nvidia").
     operator:
-      runtimeClass: ""
+      runtimeClass: nvidia
     # Time-slicing: advertise the single physical GPU as 4 virtual
     # nvidia.com/gpu slots so multiple inference pods (llama.cpp, vllm,
     # whisper, ...) can be scheduled on cluster-4 at the same time.
