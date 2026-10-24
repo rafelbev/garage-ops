@@ -1,0 +1,89 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llama-cpp-models
+data:
+  models.ini: |
+    version = 1
+
+    ; ===================================================================
+    ; [*] — shared by every model (override any of these per-model below)
+    ; ===================================================================
+    [*]
+    ; hardware / threading
+    threads = 4
+    threads-batch = 4
+    threads-http = 2
+    n-gpu-layers = auto
+    flash-attn = on
+    load-mode = mmap
+    kv-unified = true
+
+    ; context / KV cache
+    ctx-size = 262144
+    ctx-checkpoints = 256
+    cache-type-k = q8_0
+    cache-type-v = q4_0
+    cache-prompt = true
+    cache-reuse = 1024
+    parallel = 1
+
+    ; batching
+    batch-size = 512        ; was: -b
+    ubatch-size = 1024      ; was: -ub
+
+    ; misc
+    perf = true
+    log-verbosity = 4      ; was: -lv 4
+    slots = true
+
+    ; ================================================================
+    ; Qwen3.8 27B SWIFT 1.5 GSQ-RCO + MTP
+    ; ================================================================
+    [ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF]
+    alias = ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp
+    hf-repo = ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp
+    spec-type = draft-mtp
+    spec-draft-ngl = all
+    spec-draft-n-max = 4
+    spec-draft-n-min = 2
+    load-on-startup = true
+
+    ; context / KV cache
+    ctx-size = 262144
+    ctx-checkpoints = 256
+    cache-type-k = q4_0
+    cache-type-v = q4_0
+
+    ; sampling
+    temp = 1.0
+    top-p = 0.95
+    top-k = 20
+    min-p = 0.00
+    repeat-penalty = 1.0
+    presence-penalty = 0.0
+
+    ; chat / reasoning
+    jinja = true
+    chat-template-kwargs = {"parallel_tool_calls":true, "reasoning_effort": "medium"}
+    reasoning = on
+    reasoning-format = auto
+    reasoning-preserve = true
+
+    parallel = 2
+
+    ; ================================================================
+    ; ggml-org/tiny-llamas
+    ; ================================================================
+    [ggml-org/tiny-llamas]
+    alias = ggml-org/tiny-llamas
+    hf-repo = ggml-org/tiny-llamas
+
+    ; context / KV cache
+    ctx-size = 32768
+    ctx-checkpoints = 256
+    cache-type-k = q4_0
+    cache-type-v = q4_0
+
+    parallel = 2

@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-cpp
+  labels:
+    app: llama-cpp
+spec:
+  type: ClusterIP
+  selector:
+    app: llama-cpp
+  ports:
+    - name: http
+      port: 9931
+      targetPort: http
+      protocol: TCP
