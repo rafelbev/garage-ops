@@ -44,11 +44,11 @@ data:
     [ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF]
     alias = ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp
     hf-repo = ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp
-    mmproj = /models/mmproj-BF16.gguf
     spec-type = draft-mtp
     spec-draft-ngl = all
     spec-draft-n-max = 4
     spec-draft-n-min = 2
+    load-on-startup = true
 
     ; context / KV cache
     ctx-size = 32768
