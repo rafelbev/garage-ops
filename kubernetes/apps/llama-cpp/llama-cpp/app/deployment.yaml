@@ -10,6 +10,8 @@ spec:
   selector:
     matchLabels:
       app: llama-cpp
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -25,13 +27,15 @@ spec:
           args:
             - --host
             - 0.0.0.0
+            - --port
+            - "8080"
             - --models-max
             - "1"
             - --models-autoload
             - --models-preset
             - /config/models.ini
           ports:
-            - containerPort: 9931
+            - containerPort: 8080
               name: http
           env:
             - name: TZ
