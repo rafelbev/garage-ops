@@ -68,16 +68,21 @@ slow — the prefetch Job (below) removes the download from that window.
 The default model is `ConwayResearch/Underdog-Saluki-27B-1.0` (IQ2-mix).
 Tuning notes:
 
-- **No MTP/draft speculation.** The Saluki repo has no MTP/draft file, so
-  the Qwen preset's `spec-type = draft-mtp` settings must NOT be copied
-  over — there is no draft to load and the server would fail to start.
+- **DFlash2 speculative decoding.** The Saluki preset enables `draft-dflash`
+  via a separate drafter repo (`z-lab/Qwen3.8-27B-DFlash2-GGUF`, `Q4_K_M`,
+  1.14 GB) pointed at by `hf-repo-draft`. The drafter is NOT in the Saluki
+  repo, so the preset must name it explicitly. `spec-draft-n-max = 4` and
+  `spec-draft-ngl = all` keep the drafter fully on GPU. This requires a
+  llama.cpp build with the DFlash2 spec-type merged (PR #27342, 2026-08);
+  the current `full-cuda` tag satisfies that.
 - **Vision retained.** The repo ships `mmproj-...-Q8_0.gguf` / `-F16.gguf`;
   the server auto-downloads and loads it, so image inputs work through the
   OpenAI chat API with no extra flags.
 - **Context 256k, q4_0/q4_0 KV.** Saluki's 7.89 GB weights leave ~2.5 GB more
   VRAM headroom than the ~10.4 GB Qwen default, so the same 256k context the
   Qwen preset used fits with room to spare (q4_0/q4_0 keeps the KV within the
-  22Gi host limit).
+  22Gi host limit). The DFlash2 drafter adds ~1.7 GiB (model + KV + compute),
+  which still fits within the 22Gi limit.
 - **Sampling for agentic/coding:** `temp 0.6`, `top-p 0.95`, `top-k 20`,
   `min-p 0.05` (a small safety net that drops near-zero-probability tokens).
 - **Reasoning:** thinking stays ON (`reasoning = on`, `reasoning-format
