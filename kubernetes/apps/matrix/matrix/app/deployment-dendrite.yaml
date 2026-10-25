@@ -30,7 +30,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: dendrite
-          image: matrixdotorg/dendrite-monolith@sha256:7dafe6edfc8cfab758a68a4cf20414df1ade4a36b45b1852554d81fb70b1272c
+          image: matrixdotorg/dendrite-monolith:v0.15.2
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
