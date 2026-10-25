@@ -10,6 +10,12 @@
   },
   packageRules: [
     {
+      description: "searxng publishes calver date tags with a '-<commit-sha>' suffix (the sha changes per build). Under the default docker versioning the suffix is a semver prerelease, so every tag is filtered out and no updates are proposed. The shared preset's versioning rule only matches the GHCR name, and this image is pulled from Docker Hub, so define the tag shape here.",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["/^(docker\\.io\\/)?searxng\\/searxng$/"],
+      versioning: "regex^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-[a-f0-9]+$",
+    },
+    {
       description: "GitHub Actions Group",
       matchManagers: ["github-actions"],
       groupName: "github-actions",
