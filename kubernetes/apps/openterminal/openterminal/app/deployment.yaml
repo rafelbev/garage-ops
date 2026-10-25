@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: open-terminal
-          image: ghcr.io/open-webui/open-terminal:0.14.4
+          image: ghcr.io/open-webui/open-terminal:0.14.5
           imagePullPolicy: Always
           env:
             - name: OPEN_TERMINAL_API_KEY
