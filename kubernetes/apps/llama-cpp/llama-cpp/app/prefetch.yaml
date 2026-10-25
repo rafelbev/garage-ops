@@ -38,8 +38,10 @@ spec:
               set -e
               echo "Prefetching ConwayResearch/Underdog-Saluki-27B-1.0 into the HF cache..."
               hf download ConwayResearch/Underdog-Saluki-27B-1.0 Underdog-Saluki-27B-1.0-IQ2-mix.gguf
-              echo "Verifying the file landed in the cache:"
-              find /root/.cache/huggingface/hub -name "Underdog-Saluki-27B-1.0-IQ2-mix.gguf" \( -type f -o -type l \) -exec ls -la {} \;
+              echo "Prefetching the DFlash2 drafter (z-lab/Qwen3.8-27B-DFlash2-GGUF)..."
+              hf download z-lab/Qwen3.8-27B-DFlash2-GGUF Qwen3.8-27B-DFlash2-Q4_K_M.gguf
+              echo "Verifying the files landed in the cache:"
+              find /root/.cache/huggingface/hub -name "Underdog-Saluki-27B-1.0-IQ2-mix.gguf" -o -name "Qwen3.8-27B-DFlash2-Q4_K_M.gguf" \( -type f -o -type l \) -exec ls -la {} \;
           env:
             - name: HF_HUB_CACHE
               value: /root/.cache/huggingface/hub
