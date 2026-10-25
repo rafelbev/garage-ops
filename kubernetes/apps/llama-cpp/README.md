@@ -38,14 +38,15 @@ GPU Operator (see the [GPU Operator README](../gpu-operator/README.md)).
 
 ### Resource tuning (why 8Gi/22Gi)
 
-The preset loads a ~27B GGUF (`ukisai/Swift-1.5-Qwen3.5-27B-GSQ-RCO`,
-IQ3_XXS + MTP draft) with a 256k-token context and q8_0/q4_0 KV cache
-checkpoints. Weight + KV host memory comfortably exceeds the initial
-1Gi/4Gi guess, so the deployment was tuned live to
-**8Gi request / 22Gi limit** and that is what is encoded in
-`deployment.yaml`. The startup probe gets a 10-minute budget
+The default model is a ~27B GGUF — `ConwayResearch/Underdog-Saluki-27B-1.0`
+(IQ2-mix, 7.89 GB) — with a 256k-token context and q4_0/q4_0 KV cache. The
+prior default was `ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO` (IQ3_XXS + MTP
+draft, ~10.4 GB); Saluki is ~2.5 GB smaller, so it leaves more VRAM headroom
+for the KV cache. Weight + KV host memory comfortably exceeds the initial
+1Gi/4Gi guess, so the deployment is tuned to **8Gi request / 22Gi limit**
+(encoded in `deployment.yaml`). The startup probe gets a 10-minute budget
 (`failureThreshold: 60` x 10s) because the first model load from NFS is
-slow.
+slow — the prefetch Job (below) removes the download from that window.
 
 ### Model presets
 
@@ -56,12 +57,79 @@ slow.
 - One section per model, keyed by the HuggingFace repo id
   (`hf-repo`). On first boot llama-server downloads the repo into the
   mounted HuggingFace cache (`/root/.cache/huggingface` on the NFS PVC),
-  so models persist across pod restarts and the PVC only grows.
+  so models persist across pod restarts and the PVC only grows. The
+  built-in `--hf-repo`/`--hf-file` download is used (no manual `hf-cli`);
+  `--hf-file` pins the exact GGUF, and the `mmproj` vision add-on is
+  downloaded automatically when present in the repo.
 - `load-on-startup: true` autoloading is controlled per model
-  (`--models-autoload`, `--models-max 1`).
+  (`--models-autoload`, `--models-max 1`) — exactly one model loads at
+  startup; the rest are on-demand via the router.
 
-To add a model: add a section to the ConfigMap and push — Flux redeploys
-the pod, which downloads the new repo into the cache on start.
+The default model is `ConwayResearch/Underdog-Saluki-27B-1.0` (IQ2-mix).
+Tuning notes:
+
+- **No MTP/draft speculation.** The Saluki repo has no MTP/draft file, so
+  the Qwen preset's `spec-type = draft-mtp` settings must NOT be copied
+  over — there is no draft to load and the server would fail to start.
+- **Vision retained.** The repo ships `mmproj-...-Q8_0.gguf` / `-F16.gguf`;
+  the server auto-downloads and loads it, so image inputs work through the
+  OpenAI chat API with no extra flags.
+- **Context 256k, q4_0/q4_0 KV.** Saluki's 7.89 GB weights leave ~2.5 GB more
+  VRAM headroom than the ~10.4 GB Qwen default, so the same 256k context the
+  Qwen preset used fits with room to spare (q4_0/q4_0 keeps the KV within the
+  22Gi host limit).
+- **Sampling for agentic/coding:** `temp 0.6`, `top-p 0.95`, `top-k 20`,
+  `min-p 0.05` (a small safety net that drops near-zero-probability tokens).
+- **Reasoning:** thinking stays ON (`reasoning = on`, `reasoning-format
+  auto`, `reasoning-preserve`) at `reasoning_effort: low` — the least effort
+  that still retains quality for a 2-bit quant. `parallel_tool_calls: true`
+  is kept because Saluki is specifically tuned for parallel tool calls.
+
+To add a model: add a section to the ConfigMap, run the prefetch Job (below),
+and push — Flux redeploys the pod, which loads the new model from the cache.
+
+### Prefetching models (first-boot warm-up)
+
+`prefetch.yaml` is a one-shot `Job` that pre-downloads the default model into
+the shared HuggingFace cache (the NFS PVC) so the server's first boot with a
+new model is fast — it finds the file already cached and skips the multi-GB
+download.
+
+- **No GPU:** it only writes to the shared RWX NFS volume, so it never touches
+  the running model's VRAM and cannot disturb it.
+- **Same cache layout:** it uses the same `huggingface_hub` cache the server
+  reads (`HF_HUB_CACHE=/root/.cache/huggingface/hub`), so a file written here
+  is picked up by the server on boot.
+- **Idempotent:** `hf download` is a no-op when the file is already cached,
+  so re-applying (Flux reconcile) is cheap and safe.
+- **To prefetch a new model:** change the repo/file in `prefetch.yaml` and
+  re-apply.
+
+### Testing a new model safely (branch-tracking)
+
+The live cluster must never be left without a working model. To test a new
+model without risking the running one:
+
+1. Commit the `models.ini` change + `prefetch.yaml` to a feature branch and
+   push it.
+2. Point a **test `GitRepository`** at the branch (in `flux-system`) and a
+   **test `Kustomization`** (`llama-cpp-test`, **`prune: false`**) at the
+   branch's `app` path. `prune: false` is critical: deleting the test
+   Kustomization must NOT delete the shared resources — the production
+   Kustomization re-asserts the previous model.
+3. Run the prefetch Job first (warms the cache), so the swap's downtime is
+   only the model _load_ from NFS (minutes), not a download (hours).
+4. Flux redeploys the pod (Recreate); the new model loads from the cache. Test
+   a prompt from inside the pod:
+   `kubectl -n llama-cpp exec deploy/llama-cpp -- sh -c 'curl -s
+   -H "Authorization: Bearer $API_KEY" -d @/tmp/req.json
+   localhost:8080/v1/chat/completions'`.
+5. **Rollback:** delete the test `Kustomization` + `GitRepository` (+ the
+   prefetch Job). The production Kustomization re-applies the previous model,
+   which loads from the cache.
+
+Delete the test `GitRepository` after the PR merges (the production
+`ks.yaml` already points at the standard `flux-system` source).
 
 ## Verification
 
