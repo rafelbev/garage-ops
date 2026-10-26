@@ -28,7 +28,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: whatsapp
-          image: dock.mau.dev/mautrix/whatsapp:v26.09
+          image: dock.mau.dev/mautrix/whatsapp:v26.10
           imagePullPolicy: IfNotPresent
           command:
             - /usr/bin/mautrix-whatsapp
