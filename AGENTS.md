@@ -974,10 +974,11 @@ verify the decision. Include a line such as:
 
 As of this writing, the following hosts are in the `bypass` whitelist:
 
-`audiobookshelf` · `esphome` · `file` · `git` (Forgejo) · `gonic` ·
-`headlamp` · `hermes-dashboard` · `home-assistant` · `photos` (Immich) ·
-`jellyfin` · `matrix` · `music` (Music Assistant) · `n8n` · `chat`
-(Open WebUI) · `proxmox` · `qbittorrent`
+`audiobookshelf` · `chat` (Open WebUI) · `esphome` · `file` · `git`
+(Forgejo) · `gonic` · `headlamp` · `headscale` · `hermes-dashboard` ·
+`home-assistant` · `jellyfin` · `llama-cpp` · `litellm` · `matrix` ·
+`music` (Music Assistant) · `n8n` · `photos` (Immich) · `proxmox` ·
+`qbittorrent`
 
 ### Pitfalls
 
@@ -988,10 +989,10 @@ As of this writing, the following hosts are in the `bypass` whitelist:
 - **Rule order matters.** Authelia evaluates `access_control.rules` in
   order; the first match wins. The whitelist `bypass` rule must come
   **before** the `two_factor` rule, otherwise it is never reached.
-- **Token / API-key auth is not username/password.** Apps like `headscale`
-  (token), `litellm` (API key), and `llama-cpp` (API key) do **not** qualify
-  for the whitelist — they stay 2FA-protected unless explicitly decided
-  otherwise.
+- **Token / API-key auth also qualifies for the whitelist.** Apps like
+  `headscale` (token), `litellm` (API key), and `llama-cpp` (API key) gate
+  themselves with their own auth mechanism and are included in the bypass
+  whitelist — Authelia's 2FA does not stack on top of them.
 - **The `internal` network list is precise, not broad.** It is
   `172.20.0.0/16` + `100.64.0.0/10`. Do not revert it to the old broad
   private ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/18`) — that
