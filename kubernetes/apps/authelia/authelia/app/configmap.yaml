@@ -130,6 +130,24 @@ data:
             - '(.*).garage.neo-tix.com'
           networks:
             - internal
+        - policy: bypass
+          domain_regex:
+            - 'audiobookshelf\.garage\.neo-tix\.com'
+            - 'esphome\.garage\.neo-tix\.com'
+            - 'file\.garage\.neo-tix\.com'
+            - 'git\.garage\.neo-tix\.com'
+            - 'gonic\.garage\.neo-tix\.com'
+            - 'headlamp\.garage\.neo-tix\.com'
+            - 'hermes-dashboard\.garage\.neo-tix\.com'
+            - 'home-assistant\.garage\.neo-tix\.com'
+            - 'photos\.garage\.neo-tix\.com'
+            - 'jellyfin\.garage\.neo-tix\.com'
+            - 'matrix\.garage\.neo-tix\.com'
+            - 'music\.garage\.neo-tix\.com'
+            - 'n8n\.garage\.neo-tix\.com'
+            - 'chat\.garage\.neo-tix\.com'
+            - 'proxmox\.garage\.neo-tix\.com'
+            - 'qbittorrent\.garage\.neo-tix\.com'
         - policy: two_factor
           domain_regex:
             - '(.*).garage.neo-tix.com'
