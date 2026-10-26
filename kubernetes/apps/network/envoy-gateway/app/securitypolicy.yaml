@@ -1,0 +1,39 @@
+---
+# Wire the Envoy ext_authz filter to Authelia for every route on
+# envoy-external. Authelia's access_control rules (bypass internal,
+# bypass whitelist, two_factor catch-all) decide the outcome per
+# request. failOpen: false means unauthenticated public requests are
+# rejected with a redirect to the Authelia login page.
+#
+# The auth.garage.neo-tix.com route is protected by a bypass rule in
+# the Authelia config (domain_regex: auth\.garage\.neo-tix\.com) to
+# prevent a redirect loop.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: authelia-extauthz
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-external
+  extAuth:
+    headersToExtAuth:
+      - accept
+      - cookie
+      - location
+      - authorization
+      - proxy-authorization
+      - x-forwarded-proto
+    failOpen: false
+    http:
+      backendRefs:
+        - name: authelia
+          namespace: authelia
+          port: 80
+      path: /api/authz/ext-authz/
+      headersToBackend:
+        - Remote-User
+        - Remote-Groups
+        - Remote-Name
+        - Remote-Email
