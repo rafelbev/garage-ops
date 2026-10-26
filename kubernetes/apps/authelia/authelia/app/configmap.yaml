@@ -136,6 +136,7 @@ data:
             - 'chat\.garage\.neo-tix\.com'
             - 'esphome\.garage\.neo-tix\.com'
             - 'file\.garage\.neo-tix\.com'
+            - 'flux-webhook\.garage\.neo-tix\.com'
             - 'git\.garage\.neo-tix\.com'
             - 'gonic\.garage\.neo-tix\.com'
             - 'headlamp\.garage\.neo-tix\.com'
