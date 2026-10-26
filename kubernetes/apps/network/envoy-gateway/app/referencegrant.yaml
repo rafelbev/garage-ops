@@ -1,0 +1,24 @@
+---
+# Allow the SecurityPolicy in the network namespace to reference the
+# Authelia Service in the authelia namespace (cross-namespace
+# reference for the ext_authz backend).
+#
+# The ReferenceGrant is created in the authelia namespace (where the
+# Service lives). The `from` identifies the SecurityPolicy by
+# group/kind/namespace (no `name` field in this API version). The `to`
+# identifies the Service by group/kind/name (no `namespace` field —
+# it is implied by the ReferenceGrant's own namespace).
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: authelia-extauthz-ref
+  namespace: authelia
+spec:
+  from:
+    - group: gateway.envoyproxy.io
+      kind: SecurityPolicy
+      namespace: network
+  to:
+    - group: ""
+      kind: Service
+      name: authelia

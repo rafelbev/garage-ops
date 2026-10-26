@@ -26,6 +26,7 @@ spec:
         # https://headscale.net/stable/ref/integration/reverse-proxy/#envoy).
         extensionApis:
           enableBackend: true
+          enableSecurityPolicy: true
           enableEnvoyPatchPolicy: true
         provider:
           type: Kubernetes
