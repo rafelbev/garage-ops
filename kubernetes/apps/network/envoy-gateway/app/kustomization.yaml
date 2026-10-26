@@ -9,3 +9,5 @@ resources:
   - ./helmrelease.yaml
   - ./ocirepository.yaml
   - ./podmonitor.yaml
+  - ./referencegrant.yaml
+  - ./securitypolicy.yaml

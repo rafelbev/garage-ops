@@ -1,0 +1,37 @@
+---
+# TEST: Authelia ext_authz scoped to the echo HTTPRoute only.
+#
+# This is a targeted test — only echo.garage.neo-tix.com goes through
+# Authelia. No other route is affected. Once this is verified working,
+# the targetRef will be changed from the echo HTTPRoute to the
+# envoy-external Gateway to protect all routes.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: authelia-extauthz-echo
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: echo
+      namespace: default
+  extAuth:
+    headersToExtAuth:
+      - accept
+      - cookie
+      - location
+      - authorization
+      - proxy-authorization
+      - x-forwarded-proto
+    failOpen: false
+    http:
+      backendRefs:
+        - name: authelia
+          namespace: authelia
+          port: 80
+      path: /api/authz/ext-authz/
+      headersToBackend:
+        - Remote-User
+        - Remote-Groups
+        - Remote-Name
+        - Remote-Email
