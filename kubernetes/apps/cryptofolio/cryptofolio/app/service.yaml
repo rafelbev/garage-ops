@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cryptofolio
+  namespace: cryptofolio
+  labels:
+    app: cryptofolio
+spec:
+  type: ClusterIP
+  selector:
+    app: cryptofolio
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
