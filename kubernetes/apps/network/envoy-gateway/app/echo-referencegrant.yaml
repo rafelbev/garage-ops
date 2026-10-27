@@ -1,0 +1,18 @@
+---
+# Allow the HTTPRoute in the network namespace to reference the
+# echo Service in the default namespace (cross-namespace backend
+# reference).
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: echo-auth-ref
+  namespace: default
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: network
+  to:
+    - group: ""
+      kind: Service
+      name: echo
