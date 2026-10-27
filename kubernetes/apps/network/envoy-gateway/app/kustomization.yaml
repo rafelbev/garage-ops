@@ -9,5 +9,7 @@ resources:
   - ./helmrelease.yaml
   - ./ocirepository.yaml
   - ./podmonitor.yaml
+  - ./echo-auth-httproute.yaml
+  - ./echo-referencegrant.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml

@@ -1,0 +1,33 @@
+---
+# Public-facing HTTPRoute for echo, scoped to the envoy-external Gateway.
+#
+# This route lives in the network namespace (same as the Gateway) so that
+# the SecurityPolicy can target it and activate the ext_authz filter.
+#
+# The original echo HTTPRoute in the default namespace is removed to avoid
+# hostname conflicts. Internal/headscale access to echo is handled by
+# this route (Authelia bypasses for internal networks).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: echo-auth
+  namespace: network
+spec:
+  hostnames:
+    - echo.garage.neo-tix.com
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: envoy-external
+  rules:
+    - backendRefs:
+        - group: ""
+          kind: Service
+          name: echo
+          namespace: default
+          port: 80
+          weight: 1
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
