@@ -1,8 +1,11 @@
+---
+# Allow the HTTPRoute in the network namespace to reference the
+# metube Service in the metube namespace (cross-namespace backend
+# reference).
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
   name: metube-auth-ref
-  namespace: metube
 spec:
   from:
     - group: gateway.networking.k8s.io
