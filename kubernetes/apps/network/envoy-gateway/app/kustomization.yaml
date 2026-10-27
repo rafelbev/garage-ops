@@ -12,7 +12,6 @@ resources:
   - ./echo-auth-httproute.yaml
   - ./echo-referencegrant.yaml
   - ./metube-auth-httproute.yaml
-  - ./metube-referencegrant.yaml
   - ./metube-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
