@@ -5,5 +5,5 @@ resources:
   - ./deployment.yaml
   - ./service.yaml
   - ./pvc.yaml
-  - ./httproute.yaml
+  - ./openterminal-auth-referencegrant.yaml
   - ./secret.sops.yaml
