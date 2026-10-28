@@ -13,6 +13,8 @@ resources:
   - ./echo-referencegrant.yaml
   - ./metube-auth-httproute.yaml
   - ./metube-securitypolicy.yaml
+  - ./searxng-auth-httproute.yaml
+  - ./searxng-securitypolicy.yaml
   - ./readarr-auth-httproute.yaml
   - ./readarr-securitypolicy.yaml
   - ./lidarr-auth-httproute.yaml
