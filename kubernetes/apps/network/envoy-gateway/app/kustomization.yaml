@@ -12,9 +12,12 @@ resources:
   - ./echo-auth-httproute.yaml
   - ./echo-referencegrant.yaml
   - ./metube-auth-httproute.yaml
-  - ./metube-referencegrant.yaml
   - ./metube-securitypolicy.yaml
   - ./lidarr-auth-httproute.yaml
   - ./lidarr-securitypolicy.yaml
+  - ./radarr-auth-httproute.yaml
+  - ./radarr-securitypolicy.yaml
+  - ./sonarr-auth-httproute.yaml
+  - ./sonarr-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
