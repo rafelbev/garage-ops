@@ -6,4 +6,4 @@ resources:
   - ./pvc-media.yaml
   - ./deployment.yaml
   - ./service.yaml
-  - ./httproute.yaml
+  - ./readarr-auth-referencegrant.yaml
