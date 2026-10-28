@@ -15,5 +15,7 @@ resources:
   - ./metube-securitypolicy.yaml
   - ./radarr-auth-httproute.yaml
   - ./radarr-securitypolicy.yaml
+  - ./sonarr-auth-httproute.yaml
+  - ./sonarr-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
