@@ -4,4 +4,4 @@ kind: Kustomization
 resources:
   - ./service.yaml
   - ./endpoints.yaml
-  - ./httproute.yaml
+  - ./orca-serve-auth-referencegrant.yaml

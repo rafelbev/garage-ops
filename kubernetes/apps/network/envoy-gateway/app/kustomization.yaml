@@ -14,5 +14,7 @@ resources:
   - ./metube-auth-httproute.yaml
   - ./metube-referencegrant.yaml
   - ./metube-securitypolicy.yaml
+  - ./orca-serve-auth-httproute.yaml
+  - ./orca-serve-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
