@@ -14,5 +14,7 @@ resources:
   - ./metube-auth-httproute.yaml
   - ./metube-referencegrant.yaml
   - ./metube-securitypolicy.yaml
+  - ./plantuml-auth-httproute.yaml
+  - ./plantuml-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
