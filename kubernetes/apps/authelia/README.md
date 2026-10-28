@@ -46,7 +46,7 @@ As of this writing, the following hosts are in the `bypass` whitelist:
 
 `audiobookshelf` · `chat` (Open WebUI) · `esphome` · `file` · `git`
 (Forgejo) · `gonic` · `headlamp` · `headscale` · `hermes-dashboard` ·
-`home-assistant` · `jellyfin` · `llama-cpp` · `litellm` · `matrix` ·
+`home-assistant` · `jellyfin` · `llama-cpp` · `lidarr` · `litellm` · `matrix` ·
 `music` (Music Assistant) · `n8n` · `photos` (Immich) · `proxmox` ·
 `qbittorrent`
 

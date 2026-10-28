@@ -150,6 +150,7 @@ data:
             - 'home-assistant\.garage\.neo-tix\.com'
             - 'jellyfin\.garage\.neo-tix\.com'
             - 'llama-cpp\.garage\.neo-tix\.com'
+            - 'lidarr\.garage\.neo-tix\.com'
             - 'litellm\.garage\.neo-tix\.com'
             - 'matrix\.garage\.neo-tix\.com'
             - 'music\.garage\.neo-tix\.com'
