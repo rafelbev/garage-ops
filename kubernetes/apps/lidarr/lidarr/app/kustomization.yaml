@@ -7,4 +7,4 @@ resources:
   - ./pvc-media.yaml
   - ./deployment.yaml
   - ./service.yaml
-  - ./httproute.yaml
+  - ./lidarr-auth-referencegrant.yaml
