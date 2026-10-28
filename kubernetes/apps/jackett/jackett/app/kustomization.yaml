@@ -5,4 +5,4 @@ resources:
   - ./pvc-config.yaml
   - ./deployment.yaml
   - ./service.yaml
-  - ./httproute.yaml
+  - ./jackett-auth-referencegrant.yaml

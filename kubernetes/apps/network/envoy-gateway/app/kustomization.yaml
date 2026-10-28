@@ -15,6 +15,16 @@ resources:
   - ./metube-securitypolicy.yaml
   - ./openterminal-auth-httproute.yaml
   - ./openterminal-securitypolicy.yaml
+  - ./plantuml-auth-httproute.yaml
+  - ./plantuml-securitypolicy.yaml
+  - ./searxng-auth-httproute.yaml
+  - ./searxng-securitypolicy.yaml
+  - ./readarr-auth-httproute.yaml
+  - ./readarr-securitypolicy.yaml
+  - ./lidarr-auth-httproute.yaml
+  - ./lidarr-securitypolicy.yaml
+  - ./jackett-auth-httproute.yaml
+  - ./jackett-securitypolicy.yaml
   - ./radarr-auth-httproute.yaml
   - ./radarr-securitypolicy.yaml
   - ./sonarr-auth-httproute.yaml
