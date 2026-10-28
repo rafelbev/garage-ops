@@ -21,7 +21,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: gonic
-          image: sentriz/gonic:v0.22.0
+          image: sentriz/gonic:v0.23.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
