@@ -13,5 +13,7 @@ resources:
   - ./echo-referencegrant.yaml
   - ./metube-auth-httproute.yaml
   - ./metube-securitypolicy.yaml
+  - ./radarr-auth-httproute.yaml
+  - ./radarr-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
