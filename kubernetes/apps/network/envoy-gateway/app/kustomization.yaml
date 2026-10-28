@@ -14,5 +14,7 @@ resources:
   - ./metube-auth-httproute.yaml
   - ./metube-referencegrant.yaml
   - ./metube-securitypolicy.yaml
+  - ./jackett-auth-httproute.yaml
+  - ./jackett-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
