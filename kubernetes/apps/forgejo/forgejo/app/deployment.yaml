@@ -46,7 +46,7 @@ spec:
         fsGroup: 1000
       initContainers:
         - name: fix-ownership
-          image: code.forgejo.org/forgejo/forgejo:17.0.0
+          image: code.forgejo.org/forgejo/forgejo:17.0.1
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
@@ -68,7 +68,7 @@ spec:
               mountPath: /data
       containers:
         - name: forgejo
-          image: code.forgejo.org/forgejo/forgejo:17.0.0
+          image: code.forgejo.org/forgejo/forgejo:17.0.1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
