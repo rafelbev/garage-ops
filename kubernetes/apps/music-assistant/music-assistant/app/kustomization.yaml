@@ -5,4 +5,4 @@ resources:
   - ./pvc-data.yaml
   - ./deployment.yaml
   - ./service.yaml
-  - ./httproute.yaml
+  - ./sendspin-auth-referencegrant.yaml
