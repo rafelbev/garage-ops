@@ -16,7 +16,7 @@ spec:
     image:
       pullPolicy: Always
       repository: ghcr.io/open-webui/open-webui
-      tag: v0.12.3
+      tag: v0.12.4
     ollama:
       enabled: false
     ollamaUrlsFromExtraEnv: false
