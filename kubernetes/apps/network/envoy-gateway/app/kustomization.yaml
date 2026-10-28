@@ -13,6 +13,8 @@ resources:
   - ./echo-referencegrant.yaml
   - ./metube-auth-httproute.yaml
   - ./metube-securitypolicy.yaml
+  - ./sendspin-auth-httproute.yaml
+  - ./sendspin-securitypolicy.yaml
   - ./openterminal-auth-httproute.yaml
   - ./openterminal-securitypolicy.yaml
   - ./plantuml-auth-httproute.yaml
