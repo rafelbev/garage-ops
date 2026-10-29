@@ -21,7 +21,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: searxng
-          image: searxng/searxng:2026.10.28-c360868e5
+          image: searxng/searxng:2026.10.29-cff884f98
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
