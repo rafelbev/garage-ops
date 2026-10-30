@@ -52,12 +52,13 @@ spec:
     tls:
       mode: certManager
       certManager:
-        # Private self-signed CA: the four mTLS certificates are for
-        # internal cluster DNS names, which a public ACME issuer cannot
-        # issue (no valid public suffix).
+        # Private CA issuer: the four mTLS certificates must all be signed
+        # by one persistent CA so API and runner can verify each other.
+        # (A selfSigned issuer self-signs each certificate individually,
+        # which breaks mutual TLS.)
         issuerRef:
           name: n8n-sandbox-ca
-          kind: ClusterIssuer
+          kind: Issuer
           group: cert-manager.io
 
     api:
