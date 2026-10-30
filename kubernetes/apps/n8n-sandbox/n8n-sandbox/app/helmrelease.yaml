@@ -1,0 +1,69 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: n8n-sandbox
+spec:
+  chart:
+    spec:
+      chart: n8n-sandbox-service
+      sourceRef:
+        kind: HelmRepository
+        name: n8n-sandbox-service
+      version: "0.11.3"
+  interval: 1h
+  values:
+    # Short names: n8n-sandbox-api, n8n-sandbox-privileged-runner,
+    # n8n-sandbox-auth.
+    fullnameOverride: n8n-sandbox
+
+    # Auth Secret is created outside the chart (sops-encrypted in git,
+    # decrypted by the sops component) so no plaintext keys are committed.
+    auth:
+      existingSecret: n8n-sandbox-auth
+
+    dataPlane:
+      mode: in-cluster
+
+    runner:
+      # Talos has an immutable rootfs, so Sysbox cannot be installed.
+      # Privileged isolation is the documented path for such clusters.
+      isolation: privileged
+      acknowledgePrivileged: true
+      privileged:
+        scheduling:
+          nodeSelector:
+            kubernetes.io/hostname: cluster-3
+      # The runner wants br_netfilter loaded on the host, which the Talos
+      # kernel image does not ship and no Sidero extension provides. The
+      # chart's documented escape hatch: the runner trusts the operator;
+      # cluster-level isolation is provided by Cilium plus the chart's
+      # NetworkPolicy.
+      extraEnv:
+        - name: SANDBOX_RUNNER_DOCKER_ACK_BR_NETFILTER_IS_LOADED
+          value: "true"
+      resources:
+        requests:
+          cpu: 1
+          memory: 4Gi
+        limits:
+          memory: 8Gi
+
+    tls:
+      mode: certManager
+      certManager:
+        issuerRef:
+          name: letsencrypt-production
+          kind: ClusterIssuer
+          group: cert-manager.io
+
+    api:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      persistence:
+        storageClass: truenas-iscsi

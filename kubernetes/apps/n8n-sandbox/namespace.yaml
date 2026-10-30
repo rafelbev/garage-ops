@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: n8n-sandbox
+  labels:
+    # The in-cluster runner uses privileged isolation (Talos has an
+    # immutable rootfs, so Sysbox cannot be installed). The chart refuses
+    # to render until this Pod Security Admission level is set.
+    pod-security.kubernetes.io/enforce: privileged
