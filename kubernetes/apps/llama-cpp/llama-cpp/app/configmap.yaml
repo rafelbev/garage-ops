@@ -27,6 +27,7 @@ data:
     cache-type-v = q4_0
     cache-prompt = true
     cache-reuse = 1024
+    kv-tail-tokens = auto
     parallel = 1
 
     ; batching
