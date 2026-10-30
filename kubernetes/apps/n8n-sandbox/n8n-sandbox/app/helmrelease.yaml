@@ -10,7 +10,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: n8n-sandbox-service
-      version: "0.11.3"
+      version: "0.11.4"
   interval: 1h
   values:
     # Short names: n8n-sandbox-api, n8n-sandbox-privileged-runner,
