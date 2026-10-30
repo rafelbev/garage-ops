@@ -816,6 +816,48 @@ This use case covers migrating an application from an existing cluster (e.g., k3
   mind before adding large models, and give the startup probe a
   10-minute budget for the first NFS load.
 
+### Key Learnings from the n8n-sandbox-service Installation
+
+- **Privileged isolation is mandatory on Talos:** the in-cluster runner
+  needs Sysbox on most clusters, but Talos has an immutable rootfs so
+  Sysbox cannot be installed. Use `runner.isolation: privileged` +
+  `acknowledgePrivileged: true` plus the namespace PSA label
+  `pod-security.kubernetes.io/enforce: privileged`.
+- **`br_netfilter` is unobtainable on Talos:** not in the kernel image
+  (verified: 326 `.ko` files, zero bridge/netfilter), in no Sidero
+  system extension (all 90 official v1.14.1 extensions checked), and
+  the Talos factory has no kernel-module selection. The chart's
+  documented escape hatch is `runner.extraEnv` with
+  `SANDBOX_RUNNER_DOCKER_ACK_BR_NETFILTER_IS_LOADED=true`; the
+  compensating controls are Cilium plus the chart's NetworkPolicy.
+- **The four gRPC mTLS certificates need a `ca`-type Issuer with a
+  pre-created keypair secret.** cert-manager's `ca` issuer only
+  _verifies_ an existing secret — it does not generate one
+  (`pkg/issuer/ca/setup.go` → `ErrGetKeyPair`). A `selfSigned` issuer
+  is wrong for this chart: it self-signs each certificate individually
+  (no shared CA), so mutual TLS verification between API and runner
+  fails with `x509: certificate signed by unknown authority`. The CA
+  keypair (`n8n-sandbox-ca-tls`, 10-year, `CA:TRUE`) is stored
+  sops-encrypted in git.
+- **Flux OCI HelmRepositories require `type: oci`:** with the default
+  type the `oci://` URL scheme is rejected (`invalid Helm repository
+  URL`), and the HelmRelease stalls at `SourceNotReady`. Flux also
+  appends the chart name to the OCI URL — do not include it in the URL.
+- **RWO PVC rolling updates stall:** a Deployment with an RWO PVC can
+  get stuck when the new pod (surged) cannot mount the PVC while the
+  old pod still holds it; the 5-minute Helm upgrade times out and the
+  HelmRelease stalls (`MissingRollbackTarget`). Break the deadlock by
+  deleting the old pod; the PVC data persists.
+- **A stalled HelmRelease does not self-recover:** once
+  `Stalled/MissingRollbackTarget` is set, reconciles keep failing.
+  Delete the HelmRelease (remove its finalizer with
+  `--type merge` `finalizers: null` if the delete hangs) and let Flux
+  recreate it for a clean install.
+- **TLS secrets are loaded at process start:** after the mTLS
+  certificates are re-issued, restart the API and runner pods — the
+  running processes keep the old keys/certs in memory and mTLS keeps
+  failing until they reload the new secrets.
+
 ### Migration Script Template
 
 See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:
