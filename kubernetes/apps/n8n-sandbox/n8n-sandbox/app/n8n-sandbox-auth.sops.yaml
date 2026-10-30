@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: n8n-sandbox-auth
+  namespace: n8n-sandbox
+type: Opaque
+stringData:
+  api-keys: ENC[AES256_GCM,data:fH70L72McFcKLribpxW+RtURui69jC++bdzcNdHmjHPcK/SUiqwrIK0HVOB2OndiGt+ORj1XgXggPbR+JOi6SQ==,iv:ZiIQHZLdw6megtAvPbehnFCPvCmNYkr79I4IbvvWjJg=,tag:Fi+5SSATwbalJfA463WA7A==,type:str]
+  runner-registration-token: ENC[AES256_GCM,data:m/zwDkiad4NP5OR3StQy87dL1cRmk4Zlg9W5j9j1YfToB3mx1Vtbj8xekmbQoNLv6JkHH3FeZnM0PwdI+4z9hw==,iv:DStgQodT5bg5HOh+uSyJ7kAwP2598yBDtL+dpD16/y8=,tag:p6NTv1zC1NLoRCI+UQ+QNA==,type:str]
+  runner-api-key: ENC[AES256_GCM,data:KkrB3lxOwMkPS5m29nWVg3oTCyi/NTQrzDJ/4aYguf4Md6knDUUj2p1Z/AELNO4ldLumg3+i8UAJJjpppuhliw==,iv:JbNzBQXP5BYGOzJDzhJPobOicC09UR3rjddsspIGjg0=,tag:cfCxmzfu7s0f9K2hlEmRmg==,type:str]
+  runner-api-keys: ENC[AES256_GCM,data:KHJRsWjlV5bgeqJWZ16/CHvnA7SkTZ4Fi5Q/PW6aSTkDIqyTtKFyDFxWDt2lfgGMLPa8G1E+VQLwYnBQ66Wb/w==,iv:sXD5amSI/YHKvhCTTrKg6vJfQGgzNwdWNLqpYfCT9HI=,tag:UaLyLdsZ48ZUnQg+dCAapw==,type:str]
+sops:
+  age:
+    - enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBvZkN5UE1HRnlOam50NXE0
+        R1pjYkNyMWNzUll1TVNmMUdtOXJIUko3NEE0ClRaQUFkb1NGN1IwanJZbWIyRDhy
+        VEJ5VG1GcEN4ZnBNQ2ZYN1pWOVBSL0UKLS0tIGFOZzlHL0RvcFlLaFVFOWRpeWxS
+        bVhXWE92MktCQmRGdWk3NnV0TUw3dVEKlihL5/tohs6UGQiRBCAtSlWdGdNCaWU/
+        l7wogSgLxKyBovoo+DnM6R5vwj8pH056mOuYMES4J5Wty19AMnm2AA==
+        -----END AGE ENCRYPTED FILE-----
+      recipient: age1hfvm6lyqshj2mexy0mpw9kj3kj64k75vc6zgwe597djszzyzxd0sdaephm
+  encrypted_regex: ^(data|stringData)$
+  lastmodified: "2026-10-30T15:05:09Z"
+  mac: ENC[AES256_GCM,data:SYc/buKmVKuar6doyoPWoGA7cOnTkOj0JNwBj3KcM2zTcig4NENWh4XeqW4JdXWky07/O1dRp0QFKTSJ1elbZ5WBPDzSl8xrZm4xz7jRVXyoDu9dzf460jvGG1YHFYrCfPIWMYGaeMez+Z9MzCCOSJfuDhC2IuYqxEWr2cSoy6M=,iv:GecbaNUL5iB9sCLZf7kNPa60AWXcd9w0NSOKPHFKr5k=,tag:hCUaSEpAsP7qX8j+hWjJYw==,type:str]
+  mac_only_encrypted: true
+  version: 3.13.3
