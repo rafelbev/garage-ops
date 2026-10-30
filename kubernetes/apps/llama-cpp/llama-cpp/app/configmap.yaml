@@ -27,6 +27,7 @@ data:
     cache-type-v = q4_0
     cache-prompt = true
     cache-reuse = 1024
+    kv-tail-tokens = auto
     parallel = 1
 
     ; batching
@@ -48,13 +49,13 @@ data:
     spec-draft-ngl = all
     spec-draft-n-max = 4
     spec-draft-n-min = 2
-    load-on-startup = false
+    load-on-startup = true
 
     ; context / KV cache
     ctx-size = 262144
     ctx-checkpoints = 256
-    cache-type-k = q4_0
-    cache-type-v = q4_0
+    cache-type-k = kvarn3
+    cache-type-v = kvarn3
 
     ; sampling
     temp = 1.0
@@ -86,7 +87,7 @@ data:
     alias = ConwayResearch/Underdog-Saluki-27B-1.0
     hf-repo = ConwayResearch/Underdog-Saluki-27B-1.0
     hf-file = Underdog-Saluki-27B-1.0-IQ2-mix.gguf
-    load-on-startup = true
+    load-on-startup = false
 
     ; DFlash2 speculative decoding (draft-dflash)
     spec-type = draft-dflash
