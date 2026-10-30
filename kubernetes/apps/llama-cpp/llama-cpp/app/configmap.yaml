@@ -48,7 +48,7 @@ data:
     spec-draft-ngl = all
     spec-draft-n-max = 4
     spec-draft-n-min = 2
-    load-on-startup = false
+    load-on-startup = true
 
     ; context / KV cache
     ctx-size = 262144
@@ -86,7 +86,7 @@ data:
     alias = ConwayResearch/Underdog-Saluki-27B-1.0
     hf-repo = ConwayResearch/Underdog-Saluki-27B-1.0
     hf-file = Underdog-Saluki-27B-1.0-IQ2-mix.gguf
-    load-on-startup = true
+    load-on-startup = false
 
     ; DFlash2 speculative decoding (draft-dflash)
     spec-type = draft-dflash
