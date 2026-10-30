@@ -53,8 +53,8 @@ data:
     ; context / KV cache
     ctx-size = 262144
     ctx-checkpoints = 256
-    cache-type-k = q4_0
-    cache-type-v = q4_0
+    cache-type-k = kvarn3
+    cache-type-v = kvarn3
 
     ; sampling
     temp = 1.0
