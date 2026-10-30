@@ -5,4 +5,4 @@ metadata:
   name: n8n-sandbox-service
 spec:
   interval: 1h
-  url: oci://ghcr.io/n8n-io/n8n-sandbox-service/n8n-sandbox-service
+  url: oci://ghcr.io/n8n-io/n8n-sandbox-service
