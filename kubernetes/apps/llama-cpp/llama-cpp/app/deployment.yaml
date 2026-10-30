@@ -25,7 +25,7 @@ spec:
       runtimeClassName: nvidia
       containers:
         - name: llama-cpp
-          image: ghcr.io/ggml-org/llama.cpp:full-cuda
+          image: ghcr.io/anbeeld/beellama.cpp:server-cuda13-v0.4.9
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args:

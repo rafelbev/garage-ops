@@ -1,8 +1,10 @@
 # llama-cpp (GPU-accelerated LLM inference)
 
 Self-hosted LLM inference server running
-[llama-server](https://github.com/ggml-org/llama.cpp) from the
-`ghcr.io/ggml-org/llama.cpp:full-cuda` image on the GPU-capable worker
+[llama-server](https://github.com/Anbeeld/beellama.cpp) from the
+`ghcr.io/anbeeld/beellama.cpp:server-cuda13-v0.4.9` image (a CUDA 13.3
+build of [beelama.cpp](https://github.com/Anbeeld/beellama.cpp), a fork of
+llama.cpp with DFlash2/KVarN support) on the GPU-capable worker
 `cluster-4`, following the standard app layout.
 
 ## Architecture
@@ -74,7 +76,8 @@ Tuning notes:
   repo, so the preset must name it explicitly. `spec-draft-n-max = 4` and
   `spec-draft-ngl = all` keep the drafter fully on GPU. This requires a
   llama.cpp build with the DFlash2 spec-type merged (PR #27342, 2026-08);
-  the current `full-cuda` tag satisfies that.
+  beelama.cpp ships DFlash2 as a core feature, so the
+  `server-cuda13-v0.4.9` build satisfies that.
 - **Vision retained.** The repo ships `mmproj-...-Q8_0.gguf` / `-F16.gguf`;
   the server auto-downloads and loads it, so image inputs work through the
   OpenAI chat API with no extra flags.
@@ -149,6 +152,12 @@ talosctl --nodes 172.20.17.197 dmesg | grep -i nvidia   # or nvidia-smi via debu
 
 ## Pitfalls
 
+- **CUDA 13.3 supports the RTX 2080Ti (Turing, sm_75):** the
+  `server-cuda13` image is built against CUDA 13.3, whose minimum supported
+  architecture is Turing (sm_75) — Maxwell/Pascal/Volta were dropped in
+  CUDA 13.0. The `cluster-4` RTX 2080Ti is Turing, so it is within the
+  supported range; the image is built for all supported architectures, so
+  no `CUDA_DOCKER_ARCH` override is needed.
 - **SSA null-unset for the Recreate strategy:** switching
   `spec.strategy.type` to `Recreate` fails the Flux dry-run with
   `spec.strategy.rollingUpdate: Forbidden: may not be specified when
@@ -168,7 +177,7 @@ talosctl --nodes 172.20.17.197 dmesg | grep -i nvidia   # or nvidia-smi via debu
   `BackendTrafficPolicy/envoy` (in `network`) sets Zstd/Brotli/Gzip
   compressors on every route; Envoy's compression filter strips the
   client's `Accept-Encoding` from upstream requests, and llama-server
-  (full-cuda image) **requires** `Accept-Encoding: gzip` to serve its
+  (beelama.cpp image) **requires** `Accept-Encoding: gzip` to serve its
   built-in web UI — every web UI asset then responds
   `415 "Error: gzip is not supported by this browser"` while `/health`
   and `/models` (no gzip check) keep working. Port-forwarding the pod
