@@ -1,7 +1,13 @@
 ---
+# CA-type Issuer: cert-manager creates and persists the CA in the
+# n8n-sandbox-ca-tls Secret, and signs all four mTLS certificates with it.
+# (A selfSigned issuer would self-sign each certificate individually,
+# which breaks mutual TLS verification between API and runner.)
 apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
+kind: Issuer
 metadata:
   name: n8n-sandbox-ca
+  namespace: n8n-sandbox
 spec:
-  selfSigned: {}
+  ca:
+    secretName: n8n-sandbox-ca-tls
