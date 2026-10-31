@@ -9,15 +9,15 @@ llama.cpp with DFlash2/KVarN support) on the GPU-capable worker
 
 ## Architecture
 
-| Component      | Detail                                                                                                                                |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Workload       | single-replica Deployment, `runtimeClassName: nvidia`                                                                                 |
-| GPU            | 1x `nvidia.com/gpu` (RTX 2080Ti on `cluster-4`) via the [GPU Operator](../gpu-operator/README.md) device plugin                       |
-| Model config   | ConfigMap `llama-cpp-models` (`models.ini`) mounted at `/config/models.ini`, consumed via `--models-preset`                           |
-| Model storage  | static NFS PV `models-pv` (4Ti, TrueNAS `/mnt/storage/models`) mounted at `/root/.cache/huggingface` — the HuggingFace download cache |
-| Exposure       | `HTTPRoute` `llama-cpp.garage.neo-tix.com` → `envoy-external` gateway (API-key auth via `--api-key`)                                  |
-| Traffic policy | route-scoped `BackendTrafficPolicy` disabling response compression (see pitfall below)                                                |
-| Auth           | `--api-key` from SOPS-encrypted Secret `llama-cpp` (key `API_KEY`) — requires `Authorization: Bearer *** header on all endpoints      |
+| Component      | Detail                                                                                                                                                                        |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workload       | single-replica Deployment, `runtimeClassName: nvidia`                                                                                                                         |
+| GPU            | 1x `nvidia.com/gpu` (RTX 2080Ti on `cluster-4`) via the [GPU Operator](../gpu-operator/README.md) device plugin                                                               |
+| Model config   | ConfigMap `llama-cpp-models` (`models.ini`) mounted at `/config/models.ini`, consumed via `--models-preset`                                                                   |
+| Model storage  | static hostPath PV `llama-cpp-scratch-pv` (128 GiB, local disk on `cluster-4` at `/var/mnt/llama-cpp`) mounted at `/root/.cache/huggingface` — the HuggingFace download cache |
+| Exposure       | `HTTPRoute` `llama-cpp.garage.neo-tix.com` → `envoy-external` gateway (API-key auth via `--api-key`)                                                                          |
+| Traffic policy | route-scoped `BackendTrafficPolicy` disabling response compression (see pitfall below)                                                                                        |
+| Auth           | `--api-key` from SOPS-encrypted Secret `llama-cpp` (key `API_KEY`) — requires `Authorization: Bearer *** header on all endpoints                                              |
 
 ### Requesting the GPU
 
@@ -47,8 +47,10 @@ draft, ~10.4 GB); Saluki is ~2.5 GB smaller, so it leaves more VRAM headroom
 for the KV cache. Weight + KV host memory comfortably exceeds the initial
 1Gi/4Gi guess, so the deployment is tuned to **8Gi request / 22Gi limit**
 (encoded in `deployment.yaml`). The startup probe gets a 10-minute budget
-(`failureThreshold: 60` x 10s) because the first model load from NFS is
-slow — the prefetch Job (below) removes the download from that window.
+(`failureThreshold: 60` x 10s) because the first model load is slow — the
+prefetch Job (below) removes the download from that window. Loading the
+weights now happens from the local NVMe scratch disk (faster than the old
+NFS cache).
 
 ### Model presets
 
@@ -58,11 +60,11 @@ slow — the prefetch Job (below) removes the download from that window.
   types, sampling).
 - One section per model, keyed by the HuggingFace repo id
   (`hf-repo`). On first boot llama-server downloads the repo into the
-  mounted HuggingFace cache (`/root/.cache/huggingface` on the NFS PVC),
-  so models persist across pod restarts and the PVC only grows. The
-  built-in `--hf-repo`/`--hf-file` download is used (no manual `hf-cli`);
-  `--hf-file` pins the exact GGUF, and the `mmproj` vision add-on is
-  downloaded automatically when present in the repo.
+  mounted HuggingFace cache (`/root/.cache/huggingface` on the local
+  scratch-disk PVC), so models persist across pod restarts and the PVC
+  only grows. The built-in `--hf-repo`/`--hf-file` download is used (no
+  manual `hf-cli`); `--hf-file` pins the exact GGUF, and the `mmproj`
+  vision add-on is downloaded automatically when present in the repo.
 - `load-on-startup: true` autoloading is controlled per model
   (`--models-autoload`, `--models-max 1`) — exactly one model loads at
   startup; the rest are on-demand via the router.
@@ -99,11 +101,11 @@ and push — Flux redeploys the pod, which loads the new model from the cache.
 ### Prefetching models (first-boot warm-up)
 
 `prefetch.yaml` is a one-shot `Job` that pre-downloads the default model into
-the shared HuggingFace cache (the NFS PVC) so the server's first boot with a
-new model is fast — it finds the file already cached and skips the multi-GB
-download.
+the HuggingFace cache (the local scratch-disk PVC) so the server's first boot
+with a new model is fast — it finds the file already cached and skips the
+multi-GB download.
 
-- **No GPU:** it only writes to the shared RWX NFS volume, so it never touches
+- **No GPU:** it only writes to the local RWO volume, so it never touches
   the running model's VRAM and cannot disturb it.
 - **Same cache layout:** it uses the same `huggingface_hub` cache the server
   reads (`HF_HUB_CACHE=/root/.cache/huggingface/hub`), so a file written here
@@ -205,5 +207,27 @@ talosctl --nodes 172.20.17.197 dmesg | grep -i nvidia   # or nvidia-smi via debu
   could be tested against the live cluster. The Kustomization now points
   at the standard `flux-system` source; delete the test GitRepository
   after this PR merges.
-- **Keep the models PVC headroom:** it is a 4Ti RWX NFS volume shared by
-  every GGUF downloaded; check free space before adding large models.
+- **Keep the models PVC headroom:** it is a 128 GiB RWO local-disk volume.
+  `huggingface_hub` reads a single cache directory, so the _entire_ active
+  model set (every model in `models.ini`, currently ~33 GB) must fit on the
+  disk — check free space before adding large models. The previous 4Ti NFS
+  cache held ~173 GB of old/experimental models; those were pruned when the
+  active set moved to the local disk.
+- **hostPath PVs need the namespace PSA label:** the cluster-wide
+  PodSecurity `baseline:latest` default rejects hostPath volumes
+  (`violates PodSecurity "baseline:latest": hostPath volumes`). The
+  `namespace.yaml` therefore carries
+  `pod-security.kubernetes.io/enforce: privileged` (the same mechanism as
+  `gpu-operator`). A `kubectl label` would be reverted by Flux — the label
+  must live in the repo manifest.
+- **The `huggingface` subdirectory must exist on the disk:** the deployment
+  and the prefetch Job mount the PVC with `subPath: huggingface`, so the
+  Talos user volume (whole disk at `/var/mnt/llama-cpp`) must contain a
+  `huggingface/` directory with the `hub/` cache layout — the one-time
+  migration created it.
+- **The scratch disk comes from a Talos `UserVolumeConfig`:**
+  `talos/node/cluster-4/60-disk.yaml` declares `volumeType: disk` with a
+  `diskSelector` on `disk.dev_path == "/dev/sde"`; Talos wipes, formats
+  (ext4) and mounts the whole disk at `/var/mnt/llama-cpp`, persisting
+  across reboots. Verify with `talosctl get volumestatus / mounts`
+  (volume id `u-llama-cpp`).

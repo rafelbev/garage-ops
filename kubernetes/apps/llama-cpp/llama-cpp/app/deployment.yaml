@@ -87,4 +87,4 @@ spec:
             defaultMode: 420
         - name: models
           persistentVolumeClaim:
-            claimName: llama-cpp-models
+            claimName: llama-cpp-scratch
