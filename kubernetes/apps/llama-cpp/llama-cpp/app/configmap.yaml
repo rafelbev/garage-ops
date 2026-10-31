@@ -10,51 +10,36 @@ data:
     ; ===================================================================
     ; [*] — shared by every model (override any of these per-model below)
     ; ===================================================================
+    version = 1
+
+    ; =====================================================================
+    ; ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO (IQ3_XXS-mtp)
+    ; Target: 22 GB NVIDIA card, 256K context, q4 KV, MTP spec decode
+    ; =====================================================================
+
+    ; ---- Global server defaults (shared by every model in this file) ----
     [*]
-    ; hardware / threading
     threads = 4
     threads-batch = 4
     threads-http = 2
-    n-gpu-layers = auto
-    flash-attn = on
-    load-mode = mmap
-    kv-unified = true
+    perf = true
+    log-verbosity = 4
 
-    ; context / KV cache
-    ctx-size = 262144
-    ctx-checkpoints = 256
-    cache-type-k = q8_0
-    cache-type-v = q4_0
+    ; memory / context
+    n-gpu-layers = auto
+    load-mode = mmap
+    flash-attn = on
+    kv-unified = true
     cache-prompt = true
     cache-reuse = 1024
+    fit = on
+
+    batch-size = 512
+    ubatch-size = 1024
+
+    ; SINGLE slot: keeps the KV pool at 256K instead of 512K (~3 GB saved).
+    ; Bump to 2 only if you genuinely need two concurrent conversations.
     parallel = 1
-
-    ; batching
-    batch-size = 512        ; was: -b
-    ubatch-size = 1024      ; was: -ub
-
-    ; misc
-    perf = true
-    log-verbosity = 4      ; was: -lv 4
-    slots = true
-
-    ; ================================================================
-    ; Qwen3.8 27B SWIFT 1.5 GSQ-RCO + MTP
-    ; ================================================================
-    [ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF]
-    alias = ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp
-    hf-repo = ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp
-    spec-type = draft-mtp
-    spec-draft-ngl = all
-    spec-draft-n-max = 4
-    spec-draft-n-min = 2
-    load-on-startup = true
-
-    ; context / KV cache
-    ctx-size = 262144
-    ctx-checkpoints = 256
-    cache-type-k = q4_0
-    cache-type-v = q4_0
 
     ; sampling
     temp = 1.0
@@ -66,9 +51,26 @@ data:
 
     ; chat / reasoning
     jinja = true
-    chat-template-kwargs = {"parallel_tool_calls":true, "reasoning_effort": "medium"}
     reasoning = on
     reasoning-format = auto
     reasoning-preserve = true
+    chat-template-kwargs = {"parallel_tool_calls":true, "reasoning_effort": "medium"}
 
-    parallel = 2
+    ; ---- Per-model preset ----
+    [ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp]
+    alias = ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp
+    hf-repo = ukisai/Swift-1.5-Qwen3.8-27B-GSQ-RCO-GGUF:IQ3_XXS-mtp
+    load-on-startup = true
+
+    ctx-size = 262144
+    ; Capped at ~32 by the default 8192 checkpoint-min-step, so 256 was redundant.
+    ; Safe to delete this line entirely if you're not using context branching.
+    ctx-checkpoints = 16
+    cache-type-k = q4_0
+    cache-type-v = q4_0
+
+    ; MTP speculative decoding
+    spec-type = draft-mtp
+    spec-draft-ngl = all
+    spec-draft-n-max = 4
+    spec-draft-n-min = 2
