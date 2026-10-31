@@ -6,4 +6,5 @@ resources:
   - ./rbac.yaml
   - ./configmap.yaml
   - ./daemonset.yaml
+  - ./dhcp-daemon.yaml
   - ./nads.yaml
