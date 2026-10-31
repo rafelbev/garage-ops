@@ -3,3 +3,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: llama-cpp
+  labels:
+    # The scratch-disk PV is a hostPath volume; the cluster-wide PodSecurity
+    # `baseline:latest` default rejects hostPath volumes, so the namespace
+    # must be labeled privileged (same mechanism as gpu-operator).
+    pod-security.kubernetes.io/enforce: privileged

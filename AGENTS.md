@@ -810,11 +810,36 @@ This use case covers migrating an application from an existing cluster (e.g., k3
   directly to the cluster (no manifest in this repo). Production
   manifests must use the standard `flux-system` source; the test
   GitRepository is deleted after the PR merges.
-- **HF model downloads persist in the NFS cache PVC:** llama-server
-  downloads GGUF repos into `/root/.cache/huggingface` (the 4Ti RWX NFS
-  PVC) on first boot; models survive pod restarts. Keep PVC headroom in
-  mind before adding large models, and give the startup probe a
-  10-minute budget for the first NFS load.
+- **HF model downloads persist in the local scratch-disk PVC:** llama-server
+  downloads GGUF repos into `/root/.cache/huggingface` (the 128 GiB RWO
+  local-disk PVC on `cluster-4`, see `talos/node/cluster-4/60-disk.yaml`)
+  on first boot; models survive pod restarts. `huggingface_hub` reads a
+  single cache directory, so the entire active model set (every model in
+  `models.ini`) must fit on the disk — check free space before adding
+  large models. The old 4Ti RWX NFS cache (with ~173 GB of old/experimental
+  models) was pruned when the active set moved to the local disk.
+
+### Key Learnings from the llama-cpp Scratch Disk
+
+- **hostPath PVs need the namespace PSA label:** the cluster-wide
+  PodSecurity `baseline:latest` default rejects hostPath volumes (`violates
+  PodSecurity "baseline:latest": hostPath volumes`). A namespace that mounts
+  a hostPath PV must carry `pod-security.kubernetes.io/enforce: privileged`
+  in its repo manifest (same mechanism as `gpu-operator`) — a
+  `kubectl label` is reverted by Flux. Verify with a server-side dry-run
+  of a hostPath pod before committing.
+- **Talos `UserVolumeConfig` for whole local disks:** `volumeType: disk` +
+  `provisioning.diskSelector` matching `disk.dev_path` (e.g.
+  `"/dev/sde"`); Talos wipes, formats (ext4) and mounts the whole disk at
+  the target (here `/var/mnt/llama-cpp`), persisting across reboots. A
+  brand-new disk has no partitions, so the implicit wipe is safe. Verify
+  with `talosctl get volumestatus` / `mounts` (volume id `u-<name>`); the
+  v1.14 resource name is NOT `uservolume` (not registered).
+- **Static hostPath PV pattern:** `hostPath.path` + `type: Directory` (the
+  directory must exist — the Talos user volume creates it),
+  `nodeAffinity` pinned to the node, `storageClassName: ""`,
+  `persistentVolumeReclaimPolicy: Retain`, and a PVC with `volumeName`
+  binding. No StorageClass or provisioner involved.
 
 ### Key Learnings from the n8n-sandbox-service Installation
 

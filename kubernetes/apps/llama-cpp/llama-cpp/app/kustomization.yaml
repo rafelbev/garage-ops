@@ -7,7 +7,6 @@ resources:
   - ./service.yaml
   - ./httproute.yaml
   - ./backendtrafficpolicy.yaml
-  - ./pv-models.yaml
-  - ./pvc-models.yaml
-  - ./prefetch.yaml
+  - ./pv-scratch.yaml
+  - ./pvc-scratch.yaml
   - ./secret.sops.yaml
