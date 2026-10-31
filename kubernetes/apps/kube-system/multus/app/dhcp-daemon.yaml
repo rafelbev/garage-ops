@@ -58,7 +58,7 @@ spec:
               fi
               echo "Downloading ${URL} ..."
               wget -q -O /tmp/cni-plugins.tgz "${URL}"
-              tar -xzf /tmp/cni-plugins.tgz -C /tmp dhcp
+              tar -xzf /tmp/cni-plugins.tgz -C /tmp ./dhcp
               install -m 0755 /tmp/dhcp /opt/cni/bin/dhcp
               echo "Installed /opt/cni/bin/dhcp"
           volumeMounts:
