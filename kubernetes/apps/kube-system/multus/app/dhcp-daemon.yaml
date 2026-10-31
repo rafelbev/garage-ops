@@ -68,12 +68,11 @@ spec:
         - name: dhcp
           image: docker.io/library/busybox:latest
           command:
-            - /opt/cni/bin/dhcp
-            - daemon
-            - -pidfile
-            - /run/cni/dhcp.pid
-            - -hostprefix
-            - /host
+            - /bin/sh
+            - -c
+            - |
+              mkdir -p /run/cni
+              /opt/cni/bin/dhcp daemon -pidfile /run/cni/dhcp.pid -hostprefix /host
           securityContext:
             privileged: true
           terminationMessagePolicy: FallbackToLogsOnError
