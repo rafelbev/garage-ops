@@ -16,11 +16,13 @@ the default interface to Cilium and adds a per-pod secondary interface on reques
   primary CNI config: it lists the CNI configs, excludes `00-multus*`, sorts lexically, and takes
   the first — `05-cilium.conflist` (Cilium) sorts before the leftover `10-flannel.conflist`, so
   Cilium is picked. No manual `primaryCniConfigFile` is needed.
-- **Host layer 2:** Talos creates one 802.1Q VLAN sub-interface per target VLAN on the trunk NIC
-  (see the Talos config below). The trunk NIC is aliased to the stable name `trunk0` via a
-  MAC-based `LinkAliasConfig`.
-- **Secondary interface:** a `macvlan` CNI via a `NetworkAttachmentDefinition` (NAD) on the VLAN
-  sub-interface. Pods opt in via annotation.
+- **Host layer 2:** Talos creates one 802.1Q VLAN sub-interface per target VLAN on the trunk NIC,
+  and an L2 `BridgeConfig` per VLAN that sits on that sub-interface (see the Talos config below).
+  The trunk NIC is aliased to the stable name `trunk0` via a MAC-based `LinkAliasConfig`.
+- **Secondary interface:** a `bridge` CNI via a `NetworkAttachmentDefinition` (NAD) on the Talos
+  L2 bridge. The `bridge` CNI is used (not `macvlan`) because the Multus **thick** image bundles
+  the `bridge` plugin but not `macvlan` — see the official Sidero Talos Multus guide. Pods opt in
+  via annotation.
 
 ## Talos node config
 
@@ -30,7 +32,10 @@ Managed in `talos/` (applied via `just talos apply`):
   per-node `trunkMacAddr` from `topf.yaml`.
 - `talos/all/23-vlan-subinterfaces.yaml.tpl` — `VLANConfig` docs `trunk0.20` (VLAN 20) and
   `trunk0.40` (VLAN 40), parented on `trunk0`, `up: true`. The host sub-interface only needs to be
-  UP — pods get their own IPs from the macvlan CNI, so no host address is set.
+  UP — pods get their own IPs from the bridge CNI, so no host address is set.
+- `talos/all/24-vlan-bridges.yaml.tpl` — `BridgeConfig` docs `br-vlan20` (link `trunk0.20`) and
+  `br-vlan40` (link `trunk0.40`), each an L2 bridge with no address of its own. The `bridge` CNI
+  attaches each pod's interface to the matching bridge.
 - `talos/topf.yaml` — `nodes[].data.trunkMacAddr` (the trunk NIC MAC per node).
 
 Verify the sub-interfaces are up: `talosctl get linkstatuses -o yaml` shows `trunk0.20` /
@@ -40,10 +45,10 @@ Verify the sub-interfaces are up: `talosctl get linkstatuses -o yaml` shows `tru
 
 `app/nads.yaml` defines one NAD per VLAN:
 
-| NAD       | master      | subnet             | gateway       |
+| NAD       | bridge      | subnet             | gateway       |
 | --------- | ----------- | ------------------ | ------------- |
-| `vlan-20` | `trunk0.20` | `172.20.16.224/28` | `172.20.16.1` |
-| `vlan-40` | `trunk0.40` | `172.20.19.224/28` | `172.20.18.1` |
+| `vlan-20` | `br-vlan20` | `172.20.16.224/28` | `172.20.16.1` |
+| `vlan-40` | `br-vlan40` | `172.20.19.224/28` | `172.20.18.1` |
 
 IPAM is `host-local` with a **persistent** store: `dataDir` is `/var/lib/cni/networks/<name>`
 (on `/var`, which survives node reboots) — NOT the tmpfs `/run/cni`. So the same pod keeps its
@@ -53,14 +58,19 @@ deterministic allocation; the `*` entry bounds allocation to the usable range, a
 
 ## Attaching a pod to a VLAN
 
+The NADs live in `kube-system`, so reference them by fully-qualified `<namespace>/<name>` —
+Multus resolves NADs in the pod's own namespace by default, so an unqualified `vlan-20` from
+another namespace is not found:
+
 ```yaml
 metadata:
     annotations:
-        k8s.v1.cni.cncf.io/networks: vlan-20
+        k8s.v1.cni.cncf.io/networks: kube-system/vlan-20
 ```
 
-Multiple networks: a JSON list, e.g. `'[\"vlan-20\", \"vlan-40\"]'`; name the interface with
-`vlan-20@eth1`. Verify with:
+Multiple networks: a comma-separated list, e.g. `kube-system/vlan-20,kube-system/vlan-40`.
+Without an explicit name Multus auto-assigns `net1`, `net2`, …; to pin a name use the
+`<nad>@<ifname>` form, e.g. `kube-system/vlan-20@eth1`. Verify with:
 
 ```bash
 kubectl get pod <p> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.cncf\.io/network-status}'
@@ -97,21 +107,23 @@ across reboots and is addressable from that LAN), do two things:
         template:
             metadata:
                 annotations:
-                    k8s.v1.cni.cncf.io/networks: vlan-20
+                    k8s.v1.cni.cncf.io/networks: kube-system/vlan-20
             spec:
                 containers:
                     - name: qbittorrent
                       image: ...
     ```
 
-    The pod then comes up with two interfaces: `eth0` (Cilium, the pod network) and `eth1`
-    (the macvlan on `trunk0.20`, carrying `172.20.16.225/28` with gateway `172.20.16.1`).
+    The pod then comes up with two interfaces: `eth0` (Cilium, the pod network) and `net1`
+    (the `bridge` CNI interface on `br-vlan20`, carrying `172.20.16.225/28` with gateway
+    `172.20.16.1`).
 
 Verify the allocation:
 
 ```bash
 kubectl -n <ns> get pod <pod> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.cncf\.io/network-status}'
-# e.g. [{"name":"cilium","isDefault":true,...},{"name":"vlan-20","interface":"eth1","ips":["172.20.16.225"],...}]
+# e.g. [{"name":"cilium","interface":"eth0","default":true,...},
+#       {"name":"kube-system/vlan-20","interface":"net1","ips":["172.20.16.225"],...}]
 ```
 
 ## Image & resources
@@ -124,6 +136,14 @@ kubectl -n <ns> get pod <pod> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.
 
 ## Pitfalls
 
+- **Use the `bridge` CNI, not `macvlan`.** The Multus **thick** image bundles the `bridge` CNI
+  plugin (and `host-local`, `passthru`, …) but **not** `macvlan`. A NAD with `"type": "macvlan"`
+  fails with `failed to find plugin "macvlan" in path [/opt/cni/bin]` and the pod crash-loops on
+  `FailedCreatePodSandBox`. The `bridge` CNI needs a Talos `BridgeConfig` per VLAN (see the Talos
+  config above); that is why `br-vlan20`/`br-vlan40` exist.
+- **NADs are namespaced — reference them by fully-qualified name.** Multus resolves NADs in the
+  pod's own namespace by default, so a pod in `troubleshooting` cannot see `vlan-20` in
+  `kube-system` by bare name (`NoNetworkFound`). Use `kube-system/vlan-20` in the annotation.
 - **Cilium `cni.exclusive` must be `false`.** If it is not, Cilium silently renames
   `00-multus.conf` to `00-multus.conf.cilium_bak` with no visible Multus error. Confirm it took
   effect (the repo sets it; verify `00-multus.conf` is present and not renamed on a node after
