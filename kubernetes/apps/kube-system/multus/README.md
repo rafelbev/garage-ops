@@ -23,6 +23,13 @@ the default interface to Cilium and adds a per-pod secondary interface on reques
   L2 bridge. The `bridge` CNI is used (not `macvlan`) because the Multus **thick** image bundles
   the `bridge` plugin but not `macvlan` — see the official Sidero Talos Multus guide. Pods opt in
   via annotation.
+- **IPAM (DHCP):** each pod's secondary interface gets its IP (and netmask) from the **DHCP
+  server** on that VLAN, keyed by the interface's MAC. The NAD declares
+  `capabilities.mac`, so each pod pins its MAC via the annotation; the DHCP server maps that MAC
+  to a fixed IP. This gives deterministic, duplicate-free IPs with **no cross-node coordination**
+  (unlike `host-local`, which is per-node and hands the same first IP to every node). Backed by a
+  per-node `dhcp` daemon (`dhcp-daemon` DaemonSet) and the `dhcp` CNI binary (Talos
+  SystemExtension — see below).
 
 ## Talos node config
 
@@ -43,60 +50,53 @@ Verify the sub-interfaces are up: `talosctl get linkstatuses -o yaml` shows `tru
 
 ## NetworkAttachmentDefinitions
 
-`app/nads.yaml` defines one NAD per VLAN:
+`app/nads.yaml` defines one NAD per VLAN. IPAM is **DHCP** (the DHCP server on that VLAN assigns
+the IP, keyed by the interface's MAC); the NAD declares `capabilities.mac` so pods can pin their
+MAC via the annotation. The subnets (`172.20.16.0/24` for VLAN 20, `172.20.18.0/23` for VLAN 40)
+are the L2 subnets the DHCP servers serve — they are not used for IPAM (DHCP assigns the IP), but
+they define the address space.
 
-| NAD       | bridge      | subnet             | gateway       |
-| --------- | ----------- | ------------------ | ------------- |
-| `vlan-20` | `br-vlan20` | `172.20.16.224/28` | `172.20.16.1` |
-| `vlan-40` | `br-vlan40` | `172.20.19.224/28` | `172.20.18.1` |
-
-IPAM is `host-local` with a **persistent** store: `dataDir` is `/var/lib/cni/networks/<name>`
-(on `/var`, which survives node reboots) — NOT the tmpfs `/run/cni`. So the same pod keeps its
-IP across a reboot. A `reserve` block pins specific IPs to specific pods by name for
-deterministic allocation; the `*` entry bounds allocation to the usable range, and you add
-`"<pod-name>": "<ip>"` entries as you attach pods.
+| NAD       | bridge      | VLAN subnet      | DHCP server |
+| --------- | ----------- | ---------------- | ----------- |
+| `vlan-20` | `br-vlan20` | `172.20.16.0/24` | VLAN 20     |
+| `vlan-40` | `br-vlan40` | `172.20.18.0/23` | VLAN 40     |
 
 ## Attaching a pod to a VLAN
 
 The NADs live in `kube-system`, so reference them by fully-qualified `<namespace>/<name>` —
 Multus resolves NADs in the pod's own namespace by default, so an unqualified `vlan-20` from
-another namespace is not found:
+another namespace is not found. Because IPAM is DHCP, **pin the MAC** so the DHCP server maps it
+to a known IP. Use the JSON form of the annotation with a `mac` field per network:
 
 ```yaml
 metadata:
     annotations:
-        k8s.v1.cni.cncf.io/networks: kube-system/vlan-20
+        k8s.v1.cni.cncf.io/networks: '[{"name":"kube-system/vlan-20","mac":"aa:bb:cc:00:00:01"}]'
 ```
 
-Multiple networks: a comma-separated list, e.g. `kube-system/vlan-20,kube-system/vlan-40`.
-Without an explicit name Multus auto-assigns `net1`, `net2`, …; to pin a name use the
-`<nad>@<ifname>` form, e.g. `kube-system/vlan-20@eth1`. Verify with:
+Multiple networks: a JSON list, e.g.
+`'[{"name":"kube-system/vlan-20","mac":"..."},{"name":"kube-system/vlan-40","mac":"..."}]'`.
+Without an explicit name Multus auto-assigns `net1`, `net2`, …; to pin a name add `"interface"`,
+e.g. `{"name":"kube-system/vlan-20","interface":"eth1","mac":"..."}`. Verify with:
 
 ```bash
 kubectl get pod <p> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.cncf\.io/network-status}'
 ```
 
-## Example: pinning a specific IP to a deployment
+**Pinning the MAC per pod:** the MAC is what the DHCP server keys on, so each pod needs a
+**unique, stable MAC**. For a Deployment/StatefulSet, set the MAC in the pod template (one MAC
+per replica — for a StatefulSet, derive it from the ordinal). For a DaemonSet (one pod per
+node), the pod template is identical across nodes, so pin a **per-node MAC** in each node's pod
+(see the netshoot example below). The DHCP server is configured with a `MAC → IP` reservation for
+each MAC.
 
-To give a particular deployment a **known, deterministic IP** on a VLAN (so it keeps that IP
-across reboots and is addressable from that LAN), do two things:
+## Example: pinning a specific IP to a pod (DHCP + MAC)
 
-1. **Reserve the IP for that pod name** in the NAD's `reserve` block
-   (`kubernetes/apps/kube-system/multus/app/nads.yaml`). The key is the pod name (for a
-   single-replica Deployment that is the deployment name); the value is the IP you want:
+To give a particular pod a **known, deterministic IP** on a VLAN, you do **not** reserve the IP in
+the NAD (IPAM is DHCP). Instead:
 
-    ```json
-    "reserve": {
-        "qbittorrent": "172.20.16.225",
-        "*": [ "172.20.16.226", "172.20.16.227", ... ]
-    }
-    ```
-
-    When the `qbittorrent` pod is created, host-local assigns it `172.20.16.225` and never hands
-    that address to any other pod. The reserved IP is persisted in the `dataDir` store, so it
-    survives a node reboot.
-
-2. **Annotate the deployment** to attach the VLAN network:
+1. **Pick a stable MAC for that pod** and annotate the pod with it (the NAD declares
+   `capabilities.mac`):
 
     ```yaml
     apiVersion: apps/v1
@@ -107,24 +107,58 @@ across reboots and is addressable from that LAN), do two things:
         template:
             metadata:
                 annotations:
-                    k8s.v1.cni.cncf.io/networks: kube-system/vlan-20
+                    k8s.v1.cni.cncf.io/networks: '[{"name":"kube-system/vlan-20","mac":"aa:bb:cc:00:00:01"}]'
             spec:
                 containers:
                     - name: qbittorrent
                       image: ...
     ```
 
-    The pod then comes up with two interfaces: `eth0` (Cilium, the pod network) and `net1`
-    (the `bridge` CNI interface on `br-vlan20`, carrying `172.20.16.225/28` with gateway
-    `172.20.16.1`).
+2. **Reserve that MAC → IP on the DHCP server** for VLAN 20 (e.g. in dnsmasq:
+   `dhcp-match=aa:bb:cc:00:00:01,tag` + a per-MAC static lease, or a `host={mac,ip}` line). The
+   DHCP server hands `172.20.16.x` (whatever you reserved) to that MAC.
+
+The pod then comes up with two interfaces: `eth0` (Cilium, the pod network) and `net1` (the
+`bridge` CNI interface on `br-vlan20`, carrying the DHCP-assigned IP with the VLAN 20 netmask
+`/24` and gateway `172.20.16.1`).
+
+Because the IP is keyed by the MAC (not by the node), **every pod gets a distinct IP** even when
+multiple nodes run the same workload — unlike `host-local`, which is per-node and hands the same
+first IP to every node.
 
 Verify the allocation:
 
 ```bash
 kubectl -n <ns> get pod <pod> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.cncf\.io/network-status}'
 # e.g. [{"name":"cilium","interface":"eth0","default":true,...},
-#       {"name":"kube-system/vlan-20","interface":"net1","ips":["172.20.16.225"],...}]
+#       {"name":"kube-system/vlan-20","interface":"net1","ips":["172.20.16.25"],"mac":"aa:bb:cc:00:00:01",...}]
 ```
+
+## DHCP CNI binary (Talos SystemExtension)
+
+The `dhcp` CNI binary is **not** in the Multus thick image. It is installed on the nodes via a
+Talos **SystemExtension** that bakes the `dhcp` binary into the node image and drops it into
+`/opt/cni/bin`. The SystemExtension must be built/published and referenced in the Talos
+schematic (`talos/topf.yaml` → `schematicId`) — see `talos/SPECIFICATION.md`. Once the schematic
+is updated and `just talos upgrade` is run, every node has `/opt/cni/bin/dhcp`.
+
+Verify on a node:
+
+```bash
+talosctl -n <node> files ls /opt/cni/bin/   # should list dhcp
+```
+
+The `dhcp-daemon` DaemonSet (`app/dhcp-daemon.yaml`) runs the host's `/opt/cni/bin/dhcp` in
+daemon mode, listening on `/run/cni/dhcp.sock` (the socket path the NADs reference).
+
+## netshoot (per-node MAC example)
+
+The `troubleshooting/netshoot` DaemonSet (`kubernetes/apps/troubleshooting/netshoot/app/daemonset.yaml`)
+is the test pod: one per node, attached to both VLANs. Because it is a DaemonSet (identical pod
+template on every node), a **per-node MAC** is pinned in each node's pod via the annotation.
+The MAC placeholders `<MAC-VLAN20>` / `<MAC-VLAN40>` are filled in per node (one MAC per node);
+the DHCP server maps each MAC to a fixed IP. This is the reference for how to pin per-pod MACs
+on a DaemonSet.
 
 ## Image & resources
 
@@ -154,11 +188,24 @@ kubectl -n <ns> get pod <pod> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.
 - **Reboot race.** After a node reboot, Cilium can start before Multus; a pod scheduled in that
   window gets only `eth0`. Rare; if observed, the documented fallback is a Cilium
   `cni.confPath` + Multus `primaryCniConfigFile` pointing at `05-cilium.conflist`.
-- **`host-local` IPAM is per-node and persistent.** Each node allocates from its own store, so two
-  nodes sharing a range can hand the same IP to two pods. The store is persistent (on `/var`), so
-  a pod's IP survives a reboot, but a deleted pod's IP stays allocated until freed — the usable
-  range shrinks as pods churn. To keep it deterministic, pin pods to IPs via `reserve` in the NAD.
-  For cluster-wide (cross-node) allocation, use the `whereabouts` plugin (extra DaemonSet + CRD).
+- **DHCP IPAM needs a per-node `dhcp` daemon and the `dhcp` binary.** The `dhcp` CNI plugin talks
+  to a per-node daemon over a unix socket (`/run/cni/dhcp.sock`). The daemon is the
+  `dhcp-daemon` DaemonSet (`app/dhcp-daemon.yaml`); the `dhcp` binary must be in `/opt/cni/bin`
+  on every node. The thick Multus image bundles `bridge`, `host-local`, `passthru`, … but **not**
+  `dhcp` — the `dhcp` binary is installed separately (Talos SystemExtension, see below). If the
+  daemon is not running or the binary is missing, the pod fails with `failed to find plugin
+  "dhcp" in path [/opt/cni/bin]` or a socket connection error, and crash-loops on
+  `FailedCreatePodSandBox`.
+- **The MAC is the DHCP key — pin a unique, stable MAC per pod.** The DHCP server maps each MAC
+  to a fixed IP. If two pods share a MAC, the DHCP server hands both the same IP (duplicate).
+  For a DaemonSet the pod template is identical across nodes, so pin a **per-node MAC** in each
+  node's pod (see the netshoot example). The DHCP server must have a `MAC → IP` reservation for
+  every MAC you use.
+- **The `host-local` IPAM is per-node and persistent.** (Retained for reference — we switched to
+  DHCP.) Each node allocates from its own store, so two nodes sharing a range can hand the same
+  IP to two pods. The store is persistent (on `/var`), so a pod's IP survives a reboot, but a
+  deleted pod's IP stays allocated until freed — the usable range shrinks as pods churn. This is
+  why DHCP (keyed by MAC, central on the DHCP server) is preferred here.
 - **The switch port on the trunk NIC must be a trunk** carrying VLAN 20 and 40.
 - **Flannel leftover.** A `10-flannel.conflist` and a `kube-flannel` DaemonSet are present on the
   nodes (Talos v1.14 ships Flannel by default; it coexists with Cilium here). It is harmless to

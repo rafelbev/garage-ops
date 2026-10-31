@@ -14,9 +14,19 @@ spec:
     metadata:
       annotations:
         # Attach a secondary interface on the trunk NIC for each VLAN (Multus).
-        # eth0 = Cilium (default), eth1 = macvlan on trunk0.20, eth2 = macvlan on trunk0.40.
+        # eth0 = Cilium (default), net1 = bridge on br-vlan20, net2 = bridge on br-vlan40.
         # The NADs live in kube-system, so reference them by fully-qualified <namespace>/<name>.
-        k8s.v1.cni.cncf.io/networks: kube-system/vlan-20,kube-system/vlan-40
+        #
+        # IPAM is DHCP: each pod's interface gets its IP from the DHCP server on that
+        # VLAN, keyed by the interface's MAC. The MAC is pinned per pod via the
+        # "mac" field below (the NADs declare capabilities.mac).
+        #
+        # PIN A MAC PER NODE: this is a DaemonSet (one pod per node), and the pod
+        # template is identical across nodes, so the MAC must be set per pod.
+        # Replace <MAC-VLAN20> and <MAC-VLAN40> with the MAC for THIS node's pod
+        # (one MAC per node; the DHCP server maps each MAC to a fixed IP).
+        # Example: cluster-0 -> "aa:bb:cc:00:00:01", cluster-1 -> "aa:bb:cc:00:00:02", ...
+        k8s.v1.cni.cncf.io/networks: '[{"name":"kube-system/vlan-20","mac":"<MAC-VLAN20>"},{"name":"kube-system/vlan-40","mac":"<MAC-VLAN40>"}]'
       labels:
         app: netshoot
     spec:
