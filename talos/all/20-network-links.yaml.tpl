@@ -5,6 +5,14 @@ name: ethSel0
 selector:
   match: glob("{{ .Node.Data.macAddr }}", mac(link.hardware_addr))
 ---
+# The second NIC (trunk mode on the switch) is aliased to a stable name so the
+# 802.1Q VLAN sub-interfaces can reference it regardless of kernel NIC naming.
+apiVersion: v1alpha1
+kind: LinkAliasConfig
+name: trunk0
+selector:
+  match: glob("{{ .Node.Data.trunkMacAddr }}", mac(link.hardware_addr))
+---
 apiVersion: v1alpha1
 kind: BondConfig
 name: bond0
