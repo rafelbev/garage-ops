@@ -98,29 +98,12 @@ Tuning notes:
 To add a model: add a section to the ConfigMap, run the prefetch Job (below),
 and push — Flux redeploys the pod, which loads the new model from the cache.
 
-### Prefetching models (first-boot warm-up)
-
-`prefetch.yaml` is a one-shot `Job` that pre-downloads the default model into
-the HuggingFace cache (the local scratch-disk PVC) so the server's first boot
-with a new model is fast — it finds the file already cached and skips the
-multi-GB download.
-
-- **No GPU:** it only writes to the local RWO volume, so it never touches
-  the running model's VRAM and cannot disturb it.
-- **Same cache layout:** it uses the same `huggingface_hub` cache the server
-  reads (`HF_HUB_CACHE=/root/.cache/huggingface/hub`), so a file written here
-  is picked up by the server on boot.
-- **Idempotent:** `hf download` is a no-op when the file is already cached,
-  so re-applying (Flux reconcile) is cheap and safe.
-- **To prefetch a new model:** change the repo/file in `prefetch.yaml` and
-  re-apply.
-
 ### Testing a new model safely (branch-tracking)
 
 The live cluster must never be left without a working model. To test a new
 model without risking the running one:
 
-1. Commit the `models.ini` change + `prefetch.yaml` to a feature branch and
+1. Commit the `models.ini` change to a feature branch and
    push it.
 2. Point a **test `GitRepository`** at the branch (in `flux-system`) and a
    **test `Kustomization`** (`llama-cpp-test`, **`prune: false`**) at the
