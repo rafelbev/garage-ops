@@ -12,6 +12,10 @@ spec:
       app: netshoot
   template:
     metadata:
+      annotations:
+        # Attach a secondary interface on the trunk NIC for each VLAN (Multus).
+        # eth0 = Cilium (default), eth1 = macvlan on trunk0.20, eth2 = macvlan on trunk0.40.
+        k8s.v1.cni.cncf.io/networks: vlan-20,vlan-40
       labels:
         app: netshoot
     spec:
