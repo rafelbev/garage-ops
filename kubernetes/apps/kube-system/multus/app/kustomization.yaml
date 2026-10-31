@@ -8,3 +8,6 @@ resources:
   - ./daemonset.yaml
   - ./dhcp-daemon.yaml
   - ./nads.yaml
+  - ./webhook-deployment.yaml
+  - ./webhook-service.yaml
+  - ./webhook-configuration.yaml

@@ -160,14 +160,43 @@ talosctl -n <node> files ls -l /opt/cni/bin/   # should list dhcp (0755)
 The `dhcp-daemon` DaemonSet's main container then runs the host's `/opt/cni/bin/dhcp` in daemon
 mode, listening on `/run/cni/dhcp.sock` (the socket path the NADs reference).
 
-## netshoot (per-node MAC example)
+## netshoot + mac-webhook (random MAC per pod)
 
 The `troubleshooting/netshoot` DaemonSet (`kubernetes/apps/troubleshooting/netshoot/app/daemonset.yaml`)
 is the test pod: one per node, attached to both VLANs. Because it is a DaemonSet (identical pod
-template on every node), a **per-node MAC** is pinned in each node's pod via the annotation.
-The MAC placeholders `<MAC-VLAN20>` / `<MAC-VLAN40>` are filled in per node (one MAC per node);
-the DHCP server maps each MAC to a fixed IP. This is the reference for how to pin per-pod MACs
-on a DaemonSet.
+template on every node), the MAC is **not** pinned per node in the manifest. Instead, the pod
+annotation carries **placeholders** (`<MAC-VLAN20>` / `<MAC-VLAN40>`), and a **mutating webhook**
+(`mac-webhook`) replaces each placeholder with a **random** locally-administered unicast MAC
+(`02:xx:xx:xx:xx:xx`) at pod creation. The DHCP server then assigns each pod a **random IP** keyed
+by that MAC (no reservation needed — the DHCP server hands out an IP from its pool).
+
+The webhook is a minimal Go server (`webhook/main.go`, built via `webhook/Dockerfile`):
+
+- **Deployment + Service** (`app/webhook-deployment.yaml`, `app/webhook-service.yaml`): runs the
+  webhook in `kube-system`, exposed on port 443.
+- **MutatingWebhookConfiguration** (`app/webhook-configuration.yaml`): intercepts pod `CREATE`
+  operations, calls the webhook, and applies the JSON patch (the MAC annotation).
+  `failurePolicy: Ignore` (fail open — if the webhook is down, pods are created without the MAC).
+- **cert-manager Issuer + Certificate** (`app/webhook-service.yaml`): self-signed TLS cert for the
+  webhook. The `caBundle` in the MutatingWebhookConfiguration is set by
+  `webhook-cabundle-update.sh` after the Certificate is issued.
+
+**Setup steps** (one-time):
+
+1. Build and push the webhook image: `docker build -t <registry>/mac-webhook:latest webhook/`
+   and update the image tag in `app/webhook-deployment.yaml`.
+2. Apply the manifests (via Flux, on PR merge).
+3. Run `webhook-cabundle-update.sh` to set the `caBundle` (after the Certificate is ready).
+4. The netshoot pods are recreated; the webhook injects a random MAC per pod; the DHCP server
+   assigns a random IP per MAC.
+
+Verify:
+
+```bash
+kubectl -n troubleshooting get pod <pod> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.cncf\.io/network-status}'
+# e.g. [{"name":"kube-system/vlan-20","interface":"net1","ips":["172.20.16.42"],"mac":"02:ab:cd:ef:01:02",...},
+#       {"name":"kube-system/vlan-40","interface":"net2","ips":["172.20.18.77"],"mac":"02:34:56:78:9a:bc",...}]
+```
 
 ## Image & resources
 
