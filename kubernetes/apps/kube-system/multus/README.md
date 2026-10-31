@@ -28,8 +28,8 @@ the default interface to Cilium and adds a per-pod secondary interface on reques
   `capabilities.mac`, so each pod pins its MAC via the annotation; the DHCP server maps that MAC
   to a fixed IP. This gives deterministic, duplicate-free IPs with **no cross-node coordination**
   (unlike `host-local`, which is per-node and hands the same first IP to every node). Backed by a
-  per-node `dhcp` daemon (`dhcp-daemon` DaemonSet) and the `dhcp` CNI binary (Talos
-  SystemExtension — see below).
+  per-node `dhcp` daemon (`dhcp-daemon` DaemonSet) and the `dhcp` CNI binary (installed by the
+  DaemonSet's init container — see below).
 
 ## Talos node config
 
@@ -134,22 +134,31 @@ kubectl -n <ns> get pod <pod> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.
 #       {"name":"kube-system/vlan-20","interface":"net1","ips":["172.20.16.25"],"mac":"aa:bb:cc:00:00:01",...}]
 ```
 
-## DHCP CNI binary (Talos SystemExtension)
+## DHCP CNI binary (init-container install)
 
-The `dhcp` CNI binary is **not** in the Multus thick image. It is installed on the nodes via a
-Talos **SystemExtension** that bakes the `dhcp` binary into the node image and drops it into
-`/opt/cni/bin`. The SystemExtension must be built/published and referenced in the Talos
-schematic (`talos/topf.yaml` → `schematicId`) — see `talos/SPECIFICATION.md`. Once the schematic
-is updated and `just talos upgrade` is run, every node has `/opt/cni/bin/dhcp`.
+The `dhcp` CNI binary is **not** in the Multus thick image. It is installed on the nodes by the
+`dhcp-daemon` DaemonSet's **init container** (`install-dhcp-binary`), which downloads the
+`dhcp` binary from the [containernetworking/plugins release](https://github.com/containernetworking/plugins/releases)
+(v1.9.1, `cni-plugins-linux-amd64-v1.9.1.tgz`, which bundles the `dhcp` binary) and installs it
+to `/opt/cni/bin/dhcp` on the host (via a hostPath volume). The init container skips the download
+if the binary is already present, so a pod recreation does not re-fetch it.
+
+This approach was chosen over a Talos SystemExtension because a SystemExtension's `rootfs` is
+restricted to a fixed list of allowed paths (`/usr/local`, `/usr/lib/firmware`, …) and
+**`/opt/cni/bin` is not in that list** — so a SystemExtension cannot write the `dhcp` binary
+there directly. (A SystemExtension _service_ could, but that requires a Go module, the
+`talos-extension` SDK, an OCI image build, a registry push, and a new schematic — more moving
+parts than the init-container.)
 
 Verify on a node:
 
 ```bash
-talosctl -n <node> files ls /opt/cni/bin/   # should list dhcp
+# the init container installs the binary; confirm it is present and executable
+talosctl -n <node> files ls -l /opt/cni/bin/   # should list dhcp (0755)
 ```
 
-The `dhcp-daemon` DaemonSet (`app/dhcp-daemon.yaml`) runs the host's `/opt/cni/bin/dhcp` in
-daemon mode, listening on `/run/cni/dhcp.sock` (the socket path the NADs reference).
+The `dhcp-daemon` DaemonSet's main container then runs the host's `/opt/cni/bin/dhcp` in daemon
+mode, listening on `/run/cni/dhcp.sock` (the socket path the NADs reference).
 
 ## netshoot (per-node MAC example)
 
