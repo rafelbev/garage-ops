@@ -1,0 +1,46 @@
+---
+# Service for the mac-webhook Deployment (exposes the webhook on port 443).
+apiVersion: v1
+kind: Service
+metadata:
+  name: mac-webhook
+  namespace: kube-system
+  labels:
+    app: mac-webhook
+spec:
+  selector:
+    app: mac-webhook
+  ports:
+    - name: webhook
+      port: 443
+      targetPort: 8443
+      protocol: TCP
+---
+# cert-manager Issuer (self-signed) + Certificate for the mac-webhook TLS cert.
+# The Certificate is issued by the self-signed Issuer; the CA is the
+# self-signed root. The `caBundle` in the MutatingWebhookConfiguration is set
+# to this CA (see webhook-cabundle-update.sh).
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: mac-webhook-selfsigned
+  namespace: kube-system
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mac-webhook-tls
+  namespace: kube-system
+spec:
+  secretName: mac-webhook-tls
+  issuerRef:
+    name: mac-webhook-selfsigned
+    kind: Issuer
+    group: cert-manager.io
+  dnsNames:
+    - mac-webhook.kube-system.svc
+    - mac-webhook.kube-system.svc.cluster.local
+  # Renew well before expiry so the CA (and thus the caBundle) rotates rarely.
+  renewBefore: 2160h # 90 days
