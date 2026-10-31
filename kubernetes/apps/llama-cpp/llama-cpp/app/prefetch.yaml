@@ -1,13 +1,12 @@
 ---
-# One-shot Job that pre-downloads the default model into the HuggingFace
-# cache (the local scratch-disk PVC) so the llama-server's first boot with
-# a new model is fast: it finds the file already cached and skips the
-# multi-GB download.
+# One-shot Job that pre-downloads the default model into the shared HuggingFace
+# cache (the NFS PVC) so the llama-server's first boot with a new model is fast:
+# it finds the file already cached and skips the multi-GB download.
 #
-#   - Runs with NO GPU — it only writes to the local RWO volume, so it
+#   - Runs with NO GPU — it only writes to the shared RWX NFS volume, so it
 #     never touches the running model's VRAM and cannot disturb it.
-#   - Idempotent: `hf download` is a no-op when the file is already cached,
-#     so re-applying (Flux reconcile) is safe and cheap.
+#   - Idempotent: `hf download` is a no-op when the file is already cached, so
+#     re-applying (Flux reconcile) is safe and cheap.
 #   - To prefetch a NEW model, change the repo / file below and re-apply.
 #
 # The server (llama-server --hf-repo) and this Job use the same huggingface_hub
@@ -60,4 +59,4 @@ spec:
       volumes:
         - name: models
           persistentVolumeClaim:
-            claimName: llama-cpp-scratch
+            claimName: llama-cpp-models

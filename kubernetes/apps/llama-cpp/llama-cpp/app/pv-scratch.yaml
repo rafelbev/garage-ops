@@ -16,7 +16,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
   nodeAffinity:
-    required:
+    requiredNodeAffinity:
       nodeSelectorTerms:
         - matchExpressions:
             - key: kubernetes.io/hostname
