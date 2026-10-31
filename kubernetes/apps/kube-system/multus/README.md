@@ -24,12 +24,13 @@ the default interface to Cilium and adds a per-pod secondary interface on reques
   the `bridge` plugin but not `macvlan` — see the official Sidero Talos Multus guide. Pods opt in
   via annotation.
 - **IPAM (DHCP):** each pod's secondary interface gets its IP (and netmask) from the **DHCP
-  server** on that VLAN, keyed by the interface's MAC. The NAD declares
-  `capabilities.mac`, so each pod pins its MAC via the annotation; the DHCP server maps that MAC
-  to a fixed IP. This gives deterministic, duplicate-free IPs with **no cross-node coordination**
-  (unlike `host-local`, which is per-node and hands the same first IP to every node). Backed by a
-  per-node `dhcp` daemon (`dhcp-daemon` DaemonSet) and the `dhcp` CNI binary (installed by the
-  DaemonSet's init container — see below).
+  server** on that VLAN, keyed by the interface's MAC. The `bridge` CNI generates a **random MAC**
+  per pod (no `mac` field needed); the DHCP server assigns a **random IP** per MAC. This gives
+  duplicate-free IPs with **no cross-node coordination** (unlike `host-local`, which is per-node
+  and hands the same first IP to every node). Optionally, a pod can pin its MAC via the annotation
+  (`capabilities.mac`) and reserve that MAC → IP on the DHCP server for a deterministic address.
+  Backed by a per-node `dhcp` daemon (`dhcp-daemon` DaemonSet) and the `dhcp` CNI binary
+  (installed by the DaemonSet's init container — see below).
 
 ## Talos node config
 
@@ -65,8 +66,26 @@ they define the address space.
 
 The NADs live in `kube-system`, so reference them by fully-qualified `<namespace>/<name>` —
 Multus resolves NADs in the pod's own namespace by default, so an unqualified `vlan-20` from
-another namespace is not found. Because IPAM is DHCP, **pin the MAC** so the DHCP server maps it
-to a known IP. Use the JSON form of the annotation with a `mac` field per network:
+another namespace is not found. The simplest form (no `mac` field) lets the `bridge` CNI generate
+a random MAC and the DHCP server assign a random IP:
+
+```yaml
+metadata:
+    annotations:
+        k8s.v1.cni.cncf.io/networks: kube-system/vlan-20
+```
+
+Multiple networks: a comma-separated list, e.g. `kube-system/vlan-20,kube-system/vlan-40`.
+Without an explicit name Multus auto-assigns `net1`, `net2`, …; to pin a name use the
+`<nad>@<ifname>` form, e.g. `kube-system/vlan-20@eth1`. Verify with:
+
+```bash
+kubectl get pod <p> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.cncf\.io/network-status}'
+```
+
+**Pinning a specific IP (optional):** if you need a **deterministic IP** for a pod (e.g. a service
+that must be addressable from the LAN), pin the MAC via the annotation's `mac` field (the NADs
+declare `capabilities.mac`) and reserve that MAC → IP on the DHCP server. Use the JSON form:
 
 ```yaml
 metadata:
@@ -74,21 +93,8 @@ metadata:
         k8s.v1.cni.cncf.io/networks: '[{"name":"kube-system/vlan-20","mac":"aa:bb:cc:00:00:01"}]'
 ```
 
-Multiple networks: a JSON list, e.g.
-`'[{"name":"kube-system/vlan-20","mac":"..."},{"name":"kube-system/vlan-40","mac":"..."}]'`.
-Without an explicit name Multus auto-assigns `net1`, `net2`, …; to pin a name add `"interface"`,
-e.g. `{"name":"kube-system/vlan-20","interface":"eth1","mac":"..."}`. Verify with:
-
-```bash
-kubectl get pod <p> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.cncf\.io/network-status}'
-```
-
-**Pinning the MAC per pod:** the MAC is what the DHCP server keys on, so each pod needs a
-**unique, stable MAC**. For a Deployment/StatefulSet, set the MAC in the pod template (one MAC
-per replica — for a StatefulSet, derive it from the ordinal). For a DaemonSet (one pod per
-node), the pod template is identical across nodes, so pin a **per-node MAC** in each node's pod
-(see the netshoot example below). The DHCP server is configured with a `MAC → IP` reservation for
-each MAC.
+The DHCP server is configured with a `MAC → IP` reservation for that MAC. See the "Example:
+pinning a specific IP to a pod" section below.
 
 ## Example: pinning a specific IP to a pod (DHCP + MAC)
 
@@ -160,35 +166,13 @@ talosctl -n <node> files ls -l /opt/cni/bin/   # should list dhcp (0755)
 The `dhcp-daemon` DaemonSet's main container then runs the host's `/opt/cni/bin/dhcp` in daemon
 mode, listening on `/run/cni/dhcp.sock` (the socket path the NADs reference).
 
-## netshoot + mac-webhook (random MAC per pod)
+## netshoot (random MAC per pod)
 
 The `troubleshooting/netshoot` DaemonSet (`kubernetes/apps/troubleshooting/netshoot/app/daemonset.yaml`)
-is the test pod: one per node, attached to both VLANs. Because it is a DaemonSet (identical pod
-template on every node), the MAC is **not** pinned per node in the manifest. Instead, the pod
-annotation carries **placeholders** (`<MAC-VLAN20>` / `<MAC-VLAN40>`), and a **mutating webhook**
-(`mac-webhook`) replaces each placeholder with a **random** locally-administered unicast MAC
-(`02:xx:xx:xx:xx:xx`) at pod creation. The DHCP server then assigns each pod a **random IP** keyed
-by that MAC (no reservation needed — the DHCP server hands out an IP from its pool).
-
-The webhook is a minimal Go server (`webhook/main.go`, built via `webhook/Dockerfile`):
-
-- **Deployment + Service** (`app/webhook-deployment.yaml`, `app/webhook-service.yaml`): runs the
-  webhook in `kube-system`, exposed on port 443.
-- **MutatingWebhookConfiguration** (`app/webhook-configuration.yaml`): intercepts pod `CREATE`
-  operations, calls the webhook, and applies the JSON patch (the MAC annotation).
-  `failurePolicy: Ignore` (fail open — if the webhook is down, pods are created without the MAC).
-- **cert-manager Issuer + Certificate** (`app/webhook-service.yaml`): self-signed TLS cert for the
-  webhook. The `caBundle` in the MutatingWebhookConfiguration is set by
-  `webhook-cabundle-update.sh` after the Certificate is issued.
-
-**Setup steps** (one-time):
-
-1. Build and push the webhook image: `docker build -t <registry>/mac-webhook:latest webhook/`
-   and update the image tag in `app/webhook-deployment.yaml`.
-2. Apply the manifests (via Flux, on PR merge).
-3. Run `webhook-cabundle-update.sh` to set the `caBundle` (after the Certificate is ready).
-4. The netshoot pods are recreated; the webhook injects a random MAC per pod; the DHCP server
-   assigns a random IP per MAC.
+is the test pod: one per node, attached to both VLANs. The annotation carries **no `mac` field** —
+the `bridge` CNI generates a **random** MAC per pod, and the DHCP server assigns a **random IP**
+per MAC. Every pod gets a unique MAC and a unique IP, with no webhook, no per-node pinning, and
+no DHCP reservations.
 
 Verify:
 
@@ -197,6 +181,10 @@ kubectl -n troubleshooting get pod <pod> -o jsonpath='{.metadata.annotations.k8s
 # e.g. [{"name":"kube-system/vlan-20","interface":"net1","ips":["172.20.16.42"],"mac":"02:ab:cd:ef:01:02",...},
 #       {"name":"kube-system/vlan-40","interface":"net2","ips":["172.20.18.77"],"mac":"02:34:56:78:9a:bc",...}]
 ```
+
+If you need a **specific, deterministic IP** for a pod (e.g. a service that must be addressable
+from the LAN), pin the MAC via the annotation's `mac` field (the NADs declare `capabilities.mac`)
+and reserve that MAC → IP on the DHCP server. See the "Attaching a pod to a VLAN" section above.
 
 ## Image & resources
 
@@ -234,11 +222,12 @@ kubectl -n troubleshooting get pod <pod> -o jsonpath='{.metadata.annotations.k8s
   daemon is not running or the binary is missing, the pod fails with `failed to find plugin
   "dhcp" in path [/opt/cni/bin]` or a socket connection error, and crash-loops on
   `FailedCreatePodSandBox`.
-- **The MAC is the DHCP key — pin a unique, stable MAC per pod.** The DHCP server maps each MAC
-  to a fixed IP. If two pods share a MAC, the DHCP server hands both the same IP (duplicate).
-  For a DaemonSet the pod template is identical across nodes, so pin a **per-node MAC** in each
-  node's pod (see the netshoot example). The DHCP server must have a `MAC → IP` reservation for
-  every MAC you use.
+- **The MAC is the DHCP key.** The DHCP server maps each MAC to an IP. The `bridge` CNI
+  generates a **random MAC** per pod by default (no `mac` field needed), so every pod gets a
+  unique MAC and the DHCP server hands out a unique IP. If you pin a MAC (via the annotation's
+  `mac` field) for a deterministic IP, make sure it is **unique and stable** — if two pods share
+  a MAC, the DHCP server hands both the same IP (duplicate). A pinned MAC needs a `MAC → IP`
+  reservation on the DHCP server.
 - **The `host-local` IPAM is per-node and persistent.** (Retained for reference — we switched to
   DHCP.) Each node allocates from its own store, so two nodes sharing a range can hand the same
   IP to two pods. The store is persistent (on `/var`), so a pod's IP survives a reboot, but a
