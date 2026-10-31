@@ -1,0 +1,68 @@
+---
+# Secondary (multi-homed) networks on the trunk NIC. Each NAD attaches a macvlan
+# interface to the Talos 802.1Q VLAN sub-interface (trunk0.<id>). Pods opt in via:
+#   metadata.annotations["k8s.v1.cni.cncf.io/networks"] = "vlan-20"
+#
+# IPAM is host-local with a PERSISTENT store (dataDir on /var/lib/cni, NOT the
+# tmpfs /run/cni) so allocations survive node reboots: the same pod keeps its
+# IP across a reboot. `reserve` pins specific IPs to specific pods by name for
+# deterministic allocation — fill in the pod-name -> IP entries as you add pods.
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: vlan-20
+spec:
+  config: |-
+    {
+        "cniVersion": "0.3.1",
+        "name": "vlan-20",
+        "type": "macvlan",
+        "master": "trunk0.20",
+        "mode": "bridge",
+        "ipam": {
+            "type": "host-local",
+            "subnet": "172.20.16.224/28",
+            "rangeStart": "172.20.16.225",
+            "rangeEnd": "172.20.16.238",
+            "gateway": "172.20.16.1",
+            "dataDir": "/var/lib/cni/networks/vlan-20",
+            "reserve": {
+                "*": [
+                    "172.20.16.225", "172.20.16.226", "172.20.16.227", "172.20.16.228",
+                    "172.20.16.229", "172.20.16.230", "172.20.16.231", "172.20.16.232",
+                    "172.20.16.233", "172.20.16.234", "172.20.16.235", "172.20.16.236",
+                    "172.20.16.237", "172.20.16.238"
+                ]
+            }
+        }
+    }
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: vlan-40
+spec:
+  config: |-
+    {
+        "cniVersion": "0.3.1",
+        "name": "vlan-40",
+        "type": "macvlan",
+        "master": "trunk0.40",
+        "mode": "bridge",
+        "ipam": {
+            "type": "host-local",
+            "subnet": "172.20.19.224/28",
+            "rangeStart": "172.20.19.225",
+            "rangeEnd": "172.20.19.238",
+            "gateway": "172.20.18.1",
+            "dataDir": "/var/lib/cni/networks/vlan-40",
+            "reserve": {
+                "*": [
+                    "172.20.19.225", "172.20.19.226", "172.20.19.227", "172.20.19.228",
+                    "172.20.19.229", "172.20.19.230", "172.20.19.231", "172.20.19.232",
+                    "172.20.19.233", "172.20.19.234", "172.20.19.235", "172.20.19.236",
+                    "172.20.19.237", "172.20.19.238"
+                ]
+            }
+        }
+    }

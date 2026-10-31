@@ -29,6 +29,7 @@ nodes:
       installDisk: "/dev/sda"
       installDiskSerial: ""
       macAddr: "bc:24:11:17:c6:79"
+      trunkMacAddr: "bc:24:11:59:28:13"
       mtu: 1500
       encryptDisk: false
       kernelModules:
@@ -44,6 +45,7 @@ nodes:
       installDisk: "/dev/sda"
       installDiskSerial: ""
       macAddr: "bc:24:11:dd:78:ed"
+      trunkMacAddr: "bc:24:11:ef:54:b9"
       mtu: 1500
       encryptDisk: false
       kernelModules:
@@ -59,6 +61,7 @@ nodes:
       installDisk: "/dev/sda"
       installDiskSerial: ""
       macAddr: "bc:24:11:d1:9e:a0"
+      trunkMacAddr: "bc:24:11:fe:43:0a"
       mtu: 1500
       encryptDisk: false
       kernelModules:
@@ -74,6 +77,7 @@ nodes:
       installDisk: "/dev/sda"
       installDiskSerial: ""
       macAddr: "bc:24:11:63:48:b9"
+      trunkMacAddr: "bc:24:11:34:49:17"
       mtu: 1500
       encryptDisk: false
       kernelModules:
@@ -91,6 +95,7 @@ nodes:
       installDisk: "/dev/sda"
       installDiskSerial: ""
       macAddr: "bc:24:11:13:80:b8"
+      trunkMacAddr: "bc:24:11:5e:b1:fe"
       mtu: 1500
       encryptDisk: false
       kernelModules:
