@@ -51,11 +51,11 @@ spec:
           resources:
             requests:
               nvidia.com/gpu: "1"
-              memory: 8Gi
+              memory: 16Gi
               cpu: "1"
             limits:
               nvidia.com/gpu: "1"
-              memory: 22Gi
+              memory: 16Gi
           startupProbe:
             httpGet:
               path: /health
