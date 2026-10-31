@@ -15,7 +15,8 @@ spec:
       annotations:
         # Attach a secondary interface on the trunk NIC for each VLAN (Multus).
         # eth0 = Cilium (default), eth1 = macvlan on trunk0.20, eth2 = macvlan on trunk0.40.
-        k8s.v1.cni.cncf.io/networks: vlan-20,vlan-40
+        # The NADs live in kube-system, so reference them by fully-qualified <namespace>/<name>.
+        k8s.v1.cni.cncf.io/networks: kube-system/vlan-20,kube-system/vlan-40
       labels:
         app: netshoot
     spec:
