@@ -896,6 +896,18 @@ This use case covers migrating an application from an existing cluster (e.g., k3
   wired up in this PR.
 - **LLM features are off** by default (`OPENAI_API_KEY` unset), so `/extract`
   and LLM-backed formats are unavailable until the key is added to the secret.
+- **Right-size the requests.** The upstream example's requests (api 4Gi,
+  workers 3Gi, nuq-worker 5×3Gi ≈ 15.6 Gi) leave pods `Pending` on a home
+  cluster — the worker nodes' allocatable is already filled by other apps'
+  memory _requests_ (not actual usage). Right-size everything down (total
+  ≈ 5.3 Gi, ≈ 2.2 CPU, nuq-worker 1 replica) so the stack schedules.
+- **Postgres `emptyDir` + non-root needs a chown initContainer.** Running
+  `nuq-postgres` as UID 999 on a root-owned `emptyDir` fails `initdb` with
+  "could not change permissions ... Operation not permitted". `fsGroup: 999`
+  is not enough (it sets the group, but `chmod` needs UID ownership). Add a
+  root `initContainer` that `chown`s the data dir to `999:999`, and drop
+  `runAsNonRoot` from the pod securityContext (it would reject the root
+  initContainer); the main container still runs as 999 via `runAsUser`.
 
 ### Migration Script Template
 
