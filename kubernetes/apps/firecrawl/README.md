@@ -40,6 +40,16 @@ in-cluster `redis` and the Compose path's RabbitMQ. If a persistent,
 user-data database is ever added to Firecrawl (e.g. Supabase-backed auth),
 it must be moved off-cluster per the standing rule.
 
+### Redis persistence (iSCSI PVC)
+
+Redis runs on a 1Gi `truenas-iscsi` PVC mounted at `/data` (the RDB snapshot
+dir). The pod sets `fsGroup: 997` (matching `runAsUser`) so the redis process
+can write the temp RDB files. Without a writable volume, Redis's background save
+fails with "Permission denied" — the image bakes `/data` owned by a UID that
+does not match the pod's `runAsUser` — which disables writes
+(`stop-writes-on-bgsave-error`) and crash-loops the worker and extract paths
+that queue jobs in Redis.
+
 ## Configuration
 
 - **ConfigMap `firecrawl-config`** — non-secret env: `REDIS_URL`,

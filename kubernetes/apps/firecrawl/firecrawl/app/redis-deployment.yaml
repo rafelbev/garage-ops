@@ -22,6 +22,7 @@ spec:
         runAsNonRoot: true
         runAsUser: 997
         runAsGroup: 997
+        fsGroup: 997
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -44,3 +45,10 @@ spec:
             limits:
               memory: "256Mi"
               cpu: "500m"
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+      volumes:
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis
