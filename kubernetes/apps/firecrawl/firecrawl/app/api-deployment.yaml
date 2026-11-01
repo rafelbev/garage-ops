@@ -40,11 +40,11 @@ spec:
                 name: firecrawl
           resources:
             requests:
-              memory: "4Gi"
-              cpu: "2000m"
+              memory: "2Gi"
+              cpu: "500m"
             limits:
-              memory: "6Gi"
-              cpu: "2000m"
+              memory: "4Gi"
+              cpu: "1000m"
           livenessProbe:
             httpGet:
               path: /v0/health/liveness

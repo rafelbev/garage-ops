@@ -37,10 +37,10 @@ spec:
                 name: firecrawl
           resources:
             requests:
-              memory: "3Gi"
-              cpu: "1000m"
+              memory: "1Gi"
+              cpu: "500m"
             limits:
-              memory: "4Gi"
+              memory: "2Gi"
               cpu: "1000m"
           livenessProbe:
             httpGet:
