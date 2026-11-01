@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: honcho
+  labels:
+    app: honcho
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: honcho
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: honcho
+    spec:
+      restartPolicy: Always
+      containers:
+        - name: honcho
+          image: ghcr.io/plastic-labs/honcho:v3.5.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              # Install a compatible NumPy version (pre-built wheel, no AVX baseline)
+              uv pip install --python /app/.venv/bin/python --force-reinstall 'numpy==2.1.0' --only-binary :all: --no-cache-dir
+              # Install honcho and uvicorn in the venv
+              uv pip install --python /app/.venv/bin/python honcho uvicorn --no-cache-dir
+              # Run the normal honcho entrypoint
+              uvicorn src.main:app --host 0.0.0.0 --port 8000
+          envFrom:
+            - secretRef:
+                name: honcho-env
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
