@@ -16,7 +16,7 @@ data:
 # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
 talosVersion: v1.14.1
 # renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
-kubernetesVersion: v1.37.1
+kubernetesVersion: v1.37.2
 
 secretsPath: secrets.sops.yaml
 
