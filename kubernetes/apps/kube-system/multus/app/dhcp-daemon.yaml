@@ -71,6 +71,7 @@ spec:
             - /bin/sh
             - -c
             - |
+              rm -f /run/cni/dhcp.sock
               mkdir -p /run/cni
               /opt/cni/bin/dhcp daemon -pidfile /run/cni/dhcp.pid -hostprefix /host
           securityContext:
