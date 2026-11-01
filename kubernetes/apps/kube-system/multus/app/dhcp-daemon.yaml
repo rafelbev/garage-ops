@@ -93,6 +93,7 @@ spec:
         - name: host-run
           hostPath:
             path: /run
+            mountPropagation: HostToContainer
         - name: hostroot
           hostPath:
             path: /
