@@ -45,10 +45,12 @@ it must be moved off-cluster per the standing rule.
 - **ConfigMap `firecrawl-config`** — non-secret env: `REDIS_URL`,
   `PLAYWRIGHT_MICCURRENT_SERVICE_URL`, `USE_DB_AUTHENTICATION=false`,
   concurrency knobs (`CRAWL_CONCURRENT_REQUESTS`, `MAX_CONCURRENT_JOBS`,
-  `BROWSER_POOL_SIZE`) tuned down from upstream defaults for a home cluster.
+  `BROWSER_POOL_SIZE`) tuned down from upstream defaults for a home cluster,
+  and `OPENAI_BASE_URL` (the self-hosted LiteLLM proxy, for LLM features).
 - **Secret `firecrawl`** (SOPS-encrypted) — `POSTGRES_PASSWORD`,
-  `BULL_AUTH_KEY` (queue admin UI gate), and `NUQ_DATABASE_URL` (the DSN,
-  which embeds the password, so it lives in the secret not the ConfigMap).
+  `BULL_AUTH_KEY` (queue admin UI gate), `NUQ_DATABASE_URL` (the DSN, which
+  embeds the password, so it lives in the secret not the ConfigMap), and
+  `OPENAI_API_KEY` (reuses the LiteLLM key; enables LLM features).
 
 ### Authentication
 
@@ -92,9 +94,12 @@ From inside the cluster, agents can call the service directly:
   SearXNG instead (no external calls), set `SEARXNG_ENDPOINT` in the
   ConfigMap **and** enable the JSON format on the SearXNG app (it currently
   runs with the default config, JSON format off). Not wired up here.
-- **LLM features are off.** `OPENAI_API_KEY` is not set, so `/extract` and
-  other LLM-backed formats are unavailable. Add the key to the secret to
-  enable them.
+- **LLM features are on via LiteLLM.** `OPENAI_API_KEY` (in the secret) and
+  `OPENAI_BASE_URL` (in the ConfigMap, `https://litellm.garage.neo-tix.com/v1`)
+  point Firecrawl's LLM-backed features (`/extract`, LLM markdown) at the
+  self-hosted LiteLLM proxy. The key reuses the existing LiteLLM key, so no
+  new secret is introduced. If LiteLLM is unavailable, LLM-backed formats
+  fail (scrape/search still work).
 - **Queue state is ephemeral.** Restarting `nuq-postgres` drops in-flight
   jobs (by design, see the database decision above).
 - **Resource sizing** is tuned for a home cluster: `nuq-worker` runs 1

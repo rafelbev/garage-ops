@@ -20,3 +20,7 @@ data:
   CRAWL_CONCURRENT_REQUESTS: "10"
   MAX_CONCURRENT_JOBS: "5"
   BROWSER_POOL_SIZE: "5"
+  # OpenAI-compatible endpoint for Firecrawl's LLM-backed features
+  # (/extract, LLM markdown). Points at the self-hosted LiteLLM proxy;
+  # the matching key lives in the SOPS secret as OPENAI_API_KEY.
+  OPENAI_BASE_URL: "https://litellm.garage.neo-tix.com/v1"
