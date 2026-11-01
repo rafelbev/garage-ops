@@ -22,6 +22,10 @@ spec:
         runAsNonRoot: true
         runAsUser: 999
         runAsGroup: 999
+        # Group-own the emptyDir to GID 999 so initdb can chmod the data
+        # directory (a root-owned emptyDir fails initdb with "Operation not
+        # permitted" when the container runs as 999).
+        fsGroup: 999
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -51,10 +55,10 @@ spec:
               mountPath: /var/lib/postgresql/data
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: "256Mi"
+              cpu: "100m"
             limits:
-              memory: "1Gi"
+              memory: "512Mi"
               cpu: "500m"
       volumes:
         # Ephemeral by design: this is the NUQ job queue (scrape/crawl
