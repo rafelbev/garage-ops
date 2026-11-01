@@ -1,0 +1,60 @@
+# Database migration manifest for the consolidated PostgreSQL instance.
+#
+# One row per source database that will be converged into the target instance.
+# Columns (tab-separated):
+#   target_db    name the database will have in the consolidated instance
+#   role         the Postgres role that owns it (== the app's DB user)
+#   source       source instance: a k3s LoadBalancer IP, or "internal:pgvector"
+#                / "internal:immich" for the two cluster-internal instances
+#   source_db    the database name on the source (differs from target_db only
+#                where a rename resolved a name conflict)
+#   size         approximate source size (for planning / verification)
+#   notes        conflict handling, extensions, owner
+#
+# Name conflicts (a database name present on more than one source instance
+# cannot exist twice in one server) are resolved by renaming the LEGACY copy
+# (the one whose app is no longer running) and preserving it so no data is lost:
+#   - homeassistant: 121 (186M) stays `homeassistant`; 129 (824M) -> `homeassistant_129`
+#   - penpot:        138 (36M)  stays `penpot`;      129 (9M)  -> `penpot_129`
+# Both k3s `homeassistant` DBs and the `penpot` server are no longer running on
+# k3s (HA migrated to Talos using SQLite; penpot ns has only an exporter), so
+# these renamed copies are preserved for safety, not actively wired to an app.
+#
+# The per-source `postgres` template/maintenance DB is intentionally NOT listed
+# (it is not application data).
+
+target_db	role	source	source_db	size	notes
+gitea		gitea		172.20.0.121	gitea		337M	owned by forgejo (Talos); role+password must match app.ini
+firefly		firefly		172.20.0.121	firefly		16M	firefly-iii (Talos)
+authelia	authelia	172.20.0.121	authelia	7.7M	authelia (Talos) user store
+wiki		wiki		172.20.0.121	wiki		7.6M	mediawiki (k3s)
+homeassistant_121	homeassistant_121	172.20.0.121	homeassistant	186M	CONFLICT rename; NO live conns (pg_stat_activity) - legacy, preserved
+dendrite_roomserver	dendrite	172.20.0.129	dendrite_roomserver	3215M	matrix/dendrite (k3s)
+dendrite_syncapi	dendrite	172.20.0.129	dendrite_syncapi	1750M	matrix/dendrite (k3s)
+dendrite_keyserver	dendrite	172.20.0.129	dendrite_keyserver	383M	matrix/dendrite (k3s)
+dendrite_federationapi	dendrite	172.20.0.129	dendrite_federationapi	145M	matrix/dendrite (k3s)
+dendrite_userapi_accounts	dendrite	172.20.0.129	dendrite_userapi_accounts	46M	matrix/dendrite (k3s)
+whatsapp	whatsapp	172.20.0.129	whatsapp	33M	mautrix-whatsapp (k3s)
+dendrite_mediaapi	dendrite	172.20.0.129	dendrite_mediaapi	14M	matrix/dendrite (k3s)
+mealie	mealie	172.20.0.129	mealie	10M	mealie (k3s)
+planka	planka	172.20.0.129	planka	9M	planka (k3s)
+mastodon	mastodon	172.20.0.129	mastodon	8M	mastodon (k3s)
+dendrite_userapi_devices	dendrite	172.20.0.129	dendrite_userapi_devices	8M	matrix/dendrite (k3s)
+dendrite_appservice	dendrite	172.20.0.129	dendrite_appservice	8M	matrix/dendrite (k3s)
+dendrite_relayapi	dendrite	172.20.0.129	dendrite_relayapi	8M	matrix/dendrite (k3s)
+dendrite_naffka	dendrite	172.20.0.129	dendrite_naffka	8M	matrix/dendrite (k3s)
+homeassistant	homeassistant	172.20.0.129	homeassistant	824M	CONFLICT with 121; primary - HAS live conns (pg_stat_activity 3)
+penpot_129	penpot_129	172.20.0.129	penpot	9M	CONFLICT rename; legacy (penpot server not running)
+lidarr-main	lidarr	172.20.0.135	lidarr-main	804M	LEGACY - Talos lidarr uses SQLite in its PVC, not this DB; preserved, not wired
+sonarr-main	sonarr	172.20.0.135	sonarr-main	68M	LEGACY - Talos sonarr uses SQLite in its PVC, not this DB; preserved, not wired
+lidarr-log	lidarr	172.20.0.135	lidarr-log	37M	LEGACY - Talos lidarr uses SQLite in its PVC, not this DB; preserved, not wired
+sonarr-log	sonarr	172.20.0.135	sonarr-log	17M	LEGACY - Talos sonarr uses SQLite in its PVC, not this DB; preserved, not wired
+piped		piped		172.20.0.135	piped		8.4M	piped (k3s)
+litellm		litellm		172.20.0.138	litellm		4109M	litellm (Talos); largest DB
+penpot		penpot		172.20.0.138	penpot		36M	CONFLICT with 129; primary copy kept
+ghostfolio	ghostfolio	172.20.0.138	ghostfolio	10M	ghostfolio (Talos)
+acmedns		acmedns		172.20.0.138	acmedns		7.7M	acmedns (k3s)
+n8n		n8n		172.20.0.138	n8n		7.4M	n8n (Talos)
+honcho		honcho		172.20.0.138	honcho		7.4M	honcho (k3s)
+honcho_pgvector	honcho	internal:pgvector	postgres	37M	owner role honcho; vector ext; likely honcho's real DB (pg16 honcho has no live conns); verify before wiring
+immich	immich	internal:immich	immich	571M	immich (Talos); extensions vector,cube,earthdistance,pg_trgm,unaccent,uuid-ossp
