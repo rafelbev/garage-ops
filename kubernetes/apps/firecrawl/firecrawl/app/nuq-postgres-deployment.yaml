@@ -19,7 +19,9 @@ spec:
         app: firecrawl-nuq-postgres
     spec:
       securityContext:
-        runAsNonRoot: true
+        # No runAsNonRoot: the chown initContainer must run as root (uid 0)
+        # to take ownership of the root-owned emptyDir; the main container
+        # still runs as 999 via runAsUser below.
         runAsUser: 999
         runAsGroup: 999
         # fsGroup only sets the group; chmod needs UID ownership, so a root
