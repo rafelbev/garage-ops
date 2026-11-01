@@ -1,0 +1,46 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: firecrawl
+  labels:
+    app: firecrawl-redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: firecrawl-redis
+  template:
+    metadata:
+      labels:
+        app: firecrawl-redis
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 997
+        runAsGroup: 997
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          command: ["redis-server", "--bind", "0.0.0.0"]
+          ports:
+            - containerPort: 6379
+              name: redis
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

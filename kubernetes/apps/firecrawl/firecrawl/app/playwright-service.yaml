@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: playwright-service
+  namespace: firecrawl
+  labels:
+    app: firecrawl-playwright
+spec:
+  type: ClusterIP
+  selector:
+    app: firecrawl-playwright
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP

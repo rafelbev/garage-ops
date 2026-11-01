@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nuq-postgres
+  namespace: firecrawl
+  labels:
+    app: firecrawl-nuq-postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: firecrawl-nuq-postgres
+  template:
+    metadata:
+      labels:
+        app: firecrawl-nuq-postgres
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nuq-postgres
+          image: ghcr.io/firecrawl/nuq-postgres:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: firecrawl
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: "postgres"
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+      volumes:
+        # Ephemeral by design: this is the NUQ job queue (scrape/crawl
+        # job state), not a user database. Matches the upstream
+        # cluster-install example, which also uses an emptyDir. Lost on
+        # pod restart — in-flight jobs are dropped, no user data.
+        - name: postgres-storage
+          emptyDir: {}

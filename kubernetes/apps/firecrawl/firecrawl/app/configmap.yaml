@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: firecrawl-config
+  namespace: firecrawl
+data:
+  HOST: "0.0.0.0"
+  REDIS_URL: "redis://redis:6379"
+  REDIS_RATE_LIMIT_URL: "redis://redis:6379"
+  PLAYWRIGHT_MICROSERVICE_URL: "http://playwright-service:3000"
+  # Database-backed auth (Supabase) is not available self-hosted; requests
+  # need no API key. Public traffic is 2FA-gated by Authelia instead.
+  USE_DB_AUTHENTICATION: "false"
+  ENV: "production"
+  IS_KUBERNETES: "true"
+  LOGGING_LEVEL: "info"
+  # Concurrency tuned down from the upstream compose defaults for a
+  # home cluster (see README).
+  CRAWL_CONCURRENT_REQUESTS: "10"
+  MAX_CONCURRENT_JOBS: "5"
+  BROWSER_POOL_SIZE: "5"

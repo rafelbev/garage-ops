@@ -858,6 +858,45 @@ This use case covers migrating an application from an existing cluster (e.g., k3
   running processes keep the old keys/certs in memory and mTLS keeps
   failing until they reload the new secrets.
 
+### Key Learnings from the Firecrawl Installation
+
+- **Firecrawl is a multi-process stack, not one container.** The Docker
+  Compose path runs one `api` container that spawns workers; the Kubernetes
+  path (followed here) splits it into separate deployments all running the
+  same `ghcr.io/firecrawl/firecrawl` image with different entrypoints:
+  `api` (port 3002), `worker` (3005), `nuq-worker` (3006), plus
+  `playwright-service` (3000), `nuq-postgres` (5432), and `redis` (6379).
+  **No RabbitMQ** on the K8s path — the job queue runs on Postgres via
+  `NUQ_DATABASE_URL`. See `kubernetes/apps/firecrawl/README.md`.
+- **`nuq-postgres` is a job queue, not a user database.** It stores
+  in-flight scrape/crawl job state and is run on an ephemeral `emptyDir`
+  (matching the upstream cluster-install example). This is a deliberate,
+  documented **exception** to the no-in-cluster-databases rule: it is
+  transient state like the in-cluster Redis, and a pod restart drops
+  in-flight jobs but no user data. If Firecrawl ever gains a persistent
+  user-data DB (Supabase-backed auth), move it off-cluster.
+- **Upstream only version-tags the API image.** `ghcr.io/firecrawl/firecrawl`
+  has a real version tag (`2.11.162`), but `playwright-service` and
+  `nuq-postgres` publish only `latest` / `linux-amd64` / sha tags (no
+  version tags). Pin the API to the version tag; the other two stay on
+  `latest` (Renovate tracks them by digest), matching the upstream example.
+- **The firecrawl node image runs as root** (no `USER` directive in the image
+  config), so `api` / `worker` / `nuq-worker` pods do **not** set the
+  restricted `securityContext` (`runAsNonRoot` would break startup). The
+  `nuq-postgres` (postgres:999), `redis` (redis:997), and
+  `playwright-service` (uid 1000) pods do set it. The cluster PSA is in
+  WARN mode, so the root node pods are admitted with warnings.
+- **Self-hosted Firecrawl has no API-key auth** (`USE_DB_AUTHENTICATION=false`
+  — Supabase-backed auth is unavailable self-hosted). Public traffic is
+  gated by Authelia 2FA via the catch-all rule; Firecrawl is **not** in the
+  bypass whitelist (no app-level login). LAN/headscale sources bypass as usual.
+- **`/search` uses Google by default.** Pointing it at the in-cluster SearXNG
+  requires setting `SEARXNG_ENDPOINT` **and** enabling SearXNG's JSON format
+  (the searxng app currently runs with the default config, JSON off). Not
+  wired up in this PR.
+- **LLM features are off** by default (`OPENAI_API_KEY` unset), so `/extract`
+  and LLM-backed formats are unavailable until the key is added to the secret.
+
 ### Migration Script Template
 
 See `kubernetes/apps/sonarr/migrate-config.sh` for a working example. Key patterns:

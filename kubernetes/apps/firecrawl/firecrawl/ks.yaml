@@ -1,0 +1,43 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: firecrawl
+spec:
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: api
+      namespace: firecrawl
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: worker
+      namespace: firecrawl
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: nuq-worker
+      namespace: firecrawl
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: playwright-service
+      namespace: firecrawl
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: nuq-postgres
+      namespace: firecrawl
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: redis
+      namespace: firecrawl
+  interval: 1h
+  path: ./kubernetes/apps/firecrawl/firecrawl/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: firecrawl

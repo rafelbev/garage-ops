@@ -1,0 +1,53 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: firecrawl
+  labels:
+    app: firecrawl-worker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: firecrawl-worker
+  template:
+    metadata:
+      labels:
+        app: firecrawl-worker
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: worker
+          image: ghcr.io/firecrawl/firecrawl:2.11.162
+          imagePullPolicy: IfNotPresent
+          command: ["node"]
+          args: ["--max-old-space-size=3072", "dist/src/services/queue-worker.js"]
+          env:
+            - name: FLY_PROCESS_GROUP
+              value: "worker"
+            - name: PORT
+              value: "3005"
+          envFrom:
+            - configMapRef:
+                name: firecrawl-config
+            - secretRef:
+                name: firecrawl
+          resources:
+            requests:
+              memory: "3Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 3005
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
