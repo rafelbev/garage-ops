@@ -97,7 +97,7 @@ From inside the cluster, agents can call the service directly:
   enable them.
 - **Queue state is ephemeral.** Restarting `nuq-postgres` drops in-flight
   jobs (by design, see the database decision above).
-- **Resource sizing** is tuned for a home cluster: `nuq-worker` runs 2
-  replicas (upstream runs 5), and all requests are right-sized down (total
-  ≈ 6.3 Gi memory, ≈ 2.7 CPU) so the stack schedules on the worker nodes
+- **Resource sizing** is tuned for a home cluster: `nuq-worker` runs 1
+  replica (upstream runs 5), and all requests are right-sized down (total
+  ≈ 5.3 Gi memory, ≈ 2.2 CPU) so the stack schedules on the worker nodes
   (cluster-3 / cluster-4).
