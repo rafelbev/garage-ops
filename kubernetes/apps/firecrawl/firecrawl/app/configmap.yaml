@@ -24,3 +24,7 @@ data:
   # (/extract, LLM markdown). Points at the self-hosted LiteLLM proxy;
   # the matching key lives in the SOPS secret as OPENAI_API_KEY.
   OPENAI_BASE_URL: "https://litellm.garage.neo-tix.com/v1"
+  # Firecrawl's LLM calls default to gpt-4o-mini; MODEL_NAME overrides that
+  # with the model the LiteLLM proxy actually serves (see generic-ai.js
+  # getModel: `config.MODEL_NAME || name`).
+  MODEL_NAME: "garage/qwen3.8:27B"

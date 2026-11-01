@@ -104,12 +104,15 @@ From inside the cluster, agents can call the service directly:
   SearXNG instead (no external calls), set `SEARXNG_ENDPOINT` in the
   ConfigMap **and** enable the JSON format on the SearXNG app (it currently
   runs with the default config, JSON format off). Not wired up here.
-- **LLM features are on via LiteLLM.** `OPENAI_API_KEY` (in the secret) and
-  `OPENAI_BASE_URL` (in the ConfigMap, `https://litellm.garage.neo-tix.com/v1`)
+- **LLM features are on via LiteLLM.** `OPENAI_API_KEY` (in the secret),
+  `OPENAI_BASE_URL` (in the ConfigMap, `https://litellm.garage.neo-tix.com/v1`),
+  and `MODEL_NAME` (`garage/qwen3.8:27B`, the model the LiteLLM proxy serves)
   point Firecrawl's LLM-backed features (`/extract`, LLM markdown) at the
-  self-hosted LiteLLM proxy. The key reuses the existing LiteLLM key, so no
-  new secret is introduced. If LiteLLM is unavailable, LLM-backed formats
-  fail (scrape/search still work).
+  self-hosted LiteLLM proxy. Firecrawl's LLM calls default to `gpt-4o-mini`,
+  so `MODEL_NAME` overrides that with a model LiteLLM actually serves (without
+  it, every LLM call fails with "no healthy deployments for gpt-4o-mini"). The
+  key reuses the existing LiteLLM key, so no new secret is introduced. If
+  LiteLLM is unavailable, LLM-backed formats fail (scrape/search still work).
 - **Queue state is ephemeral.** Restarting `nuq-postgres` drops in-flight
   jobs (by design, see the database decision above).
 - **Resource sizing** is tuned for a home cluster: `nuq-worker` runs 1
