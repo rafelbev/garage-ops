@@ -18,9 +18,8 @@ the default interface to Cilium and adds a per-pod secondary interface on reques
   Cilium is picked. No manual `primaryCniConfigFile` is needed.
 - **Host layer 2:** Talos creates one 802.1Q VLAN sub-interface per target VLAN on the trunk NIC
   (see the Talos config below). The trunk NIC is aliased to the stable name `trunk0` via a
-  MAC-based `LinkAliasConfig`. The per-VLAN `BridgeConfig`s (`br-vlan20`/`br-vlan40`) are
-  retained for now but are no longer used by the NADs (the `macvlan` interfaces parent on the
-  VLAN sub-interfaces directly).
+  MAC-based `LinkAliasConfig`. The sub-interfaces are plain UP links — **no `BridgeConfig`** (the
+  kernel refuses macvlan creation on a bridge port).
 - **Secondary interface:** a `macvlan` CNI via a `NetworkAttachmentDefinition` (NAD) parented
   on the 802.1Q VLAN sub-interface (`trunk0.20`/`trunk0.40`) in `mode: bridge`. Each pod
   interface gets its **own MAC directly on the VLAN** (the kernel generates a random MAC when
@@ -46,11 +45,11 @@ Managed in `talos/` (applied via `just talos apply`):
 - `talos/all/23-vlan-subinterfaces.yaml.tpl` — `VLANConfig` docs `trunk0.20` (VLAN 20) and
   `trunk0.40` (VLAN 40), parented on `trunk0`, `up: true`. The host sub-interface only needs to be
   UP — pods get their own IPs from the macvlan CNI, so no host address is set. The sub-interfaces
-  are the **master** links the `macvlan` NADs parent on.
-- `talos/all/24-vlan-bridges.yaml.tpl` — `BridgeConfig` docs `br-vlan20` (link `trunk0.20`) and
-  `br-vlan40` (link `trunk0.40`), each an L2 bridge with no address of its own. **No longer used
-  by the NADs** (the `macvlan` interfaces parent on the VLAN sub-interfaces directly) — retained
-  for now; can be removed in a follow-up.
+  are the **master** links the `macvlan` NADs parent on. They must **not** be enslaved to a
+  `BridgeConfig`: the kernel refuses macvlan creation on a bridge port
+  (`netdev_is_rx_handler_busy` → `-EBUSY`, "failed to create macvlan: device or resource busy").
+  The former `talos/all/24-vlan-bridges.yaml.tpl` (`br-vlan20`/`br-vlan40`) was removed for this
+  reason.
 - `talos/topf.yaml` — `nodes[].data.trunkMacAddr` (the trunk NIC MAC per node).
 
 Verify the sub-interfaces are up: `talosctl get linkstatuses -o yaml` shows `trunk0.20` /
