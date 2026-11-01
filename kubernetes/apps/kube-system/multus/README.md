@@ -238,6 +238,13 @@ and reserve that MAC → IP on the DHCP server. See the "Attaching a pod to a VL
   daemon is not running or the binary is missing, the pod fails with `failed to find plugin
   "dhcp" in path [/opt/cni/bin]` or a socket connection error, and crash-loops on
   `FailedCreatePodSandBox`.
+- **`mountPropagation` belongs on the `volumeMount`, not on the `hostPath` volume source.**
+  `spec.volumes[].hostPath.mountPropagation` is **not** a field of the `apps/v1` schema — the API
+  server rejects it (`field not declared in schema`) in a server-side apply, and Flux's
+  SSA-fallback to client-side apply **silently drops it** (the Kustomization stays Ready while the
+  field never lands in the cluster). The valid field is `spec.template.spec.containers[].
+  volumeMounts[].mountPropagation` — that is where `HostToContainer` is set for the `/run` and
+  `/host` mounts of the `dhcp-daemon` DaemonSet.
 - **The MAC is the DHCP key.** The DHCP server maps each MAC to an IP. The `macvlan` CNI
   generates a **random MAC** per pod by default (no `mac` field needed), so every pod gets a
   unique MAC and the DHCP server hands out a unique IP. If you pin a MAC (via the annotation's

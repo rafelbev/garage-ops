@@ -83,6 +83,7 @@ spec:
               mountPath: /opt/cni/bin
             - name: host-run
               mountPath: /run
+              mountPropagation: HostToContainer
             - name: hostroot
               mountPath: /host
               mountPropagation: HostToContainer
@@ -94,7 +95,6 @@ spec:
         - name: host-run
           hostPath:
             path: /run
-            mountPropagation: HostToContainer
         - name: hostroot
           hostPath:
             path: /
