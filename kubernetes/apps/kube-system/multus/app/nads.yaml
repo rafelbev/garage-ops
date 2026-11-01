@@ -1,18 +1,28 @@
 ---
 # Secondary (multi-homed) networks on the trunk NIC. Each NAD attaches a
-# `bridge` CNI interface to the Talos L2 bridge (br-vlan<id>) that sits on the
-# matching 802.1Q VLAN sub-interface (trunk0.<id>). Pods opt in via:
+# `macvlan` CNI interface to the 802.1Q VLAN sub-interface (trunk0.<id>) that
+# sits on the trunk port. Every pod interface gets its own MAC directly on
+# the VLAN, and the DHCP server on that VLAN keys its leases by that MAC —
+# so each container has a dedicated MAC and gets its own IP from the
+# existing DHCP server. Pods opt in via:
 #   metadata.annotations["k8s.v1.cni.cncf.io/networks"] = "kube-system/vlan-20"
 #
-# The `bridge` CNI (bundled in the Multus thick image) is used instead of
-# `macvlan` (not bundled) — see the official Sidero Talos Multus guide.
+# The `macvlan` binary is NOT in the Multus thick image — the `dhcp-daemon`
+# DaemonSet's init container installs it (alongside the `dhcp` binary) from
+# the containernetworking/plugins release.
 #
 # IPAM is DHCP: the pod's interface gets its IP (and netmask) from the DHCP
 # server on that VLAN, keyed by the interface's MAC. `capabilities.mac` lets
 # each pod pin its MAC via the annotation (`{"name": ..., "mac": "..."}`), so
 # the DHCP server can map a known MAC to a known IP (deterministic, no
-# cross-node coordination, no duplicate IPs). See the README for the MAC
-# scheme and the dhcp daemon / SystemExtension that back this.
+# cross-node coordination, no duplicate IPs).
+#
+# `request` and `provide` are options of the `dhcp` IPAM plugin (they live
+# inside the `ipam` object, not at the top level):
+#   - `request` keeps the default requested options (IP, netmask, routers, …)
+#   - `provide` sends the pod name as the DHCP hostname (option 12), so the
+#     DHCP server can log/track which pod holds each lease.
+# See the README for the MAC scheme and the dhcp daemon that backs this.
 apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
@@ -22,12 +32,24 @@ spec:
     {
         "cniVersion": "0.3.1",
         "name": "vlan-20",
-        "type": "bridge",
-        "bridge": "br-vlan20",
+        "type": "macvlan",
+        "master": "trunk0.20",
+        "mode": "bridge",
         "capabilities": { "mac": true },
         "ipam": {
             "type": "dhcp",
-            "daemonSocketPath": "/run/cni/dhcp.sock"
+            "daemonSocketPath": "/run/cni/dhcp.sock",
+            "request": [
+                {
+                    "skipDefault": false
+                }
+            ],
+            "provide": [
+                {
+                    "option": "host-name",
+                    "fromArg": "K8S_POD_NAME"
+                }
+            ]
         }
     }
 ---
@@ -40,11 +62,23 @@ spec:
     {
         "cniVersion": "0.3.1",
         "name": "vlan-40",
-        "type": "bridge",
-        "bridge": "br-vlan40",
+        "type": "macvlan",
+        "master": "trunk0.40",
+        "mode": "bridge",
         "capabilities": { "mac": true },
         "ipam": {
             "type": "dhcp",
-            "daemonSocketPath": "/run/cni/dhcp.sock"
+            "daemonSocketPath": "/run/cni/dhcp.sock",
+            "request": [
+                {
+                    "skipDefault": false
+                }
+            ],
+            "provide": [
+                {
+                    "option": "host-name",
+                    "fromArg": "K8S_POD_NAME"
+                }
+            ]
         }
     }

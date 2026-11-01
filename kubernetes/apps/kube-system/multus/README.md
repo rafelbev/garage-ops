@@ -16,21 +16,26 @@ the default interface to Cilium and adds a per-pod secondary interface on reques
   primary CNI config: it lists the CNI configs, excludes `00-multus*`, sorts lexically, and takes
   the first — `05-cilium.conflist` (Cilium) sorts before the leftover `10-flannel.conflist`, so
   Cilium is picked. No manual `primaryCniConfigFile` is needed.
-- **Host layer 2:** Talos creates one 802.1Q VLAN sub-interface per target VLAN on the trunk NIC,
-  and an L2 `BridgeConfig` per VLAN that sits on that sub-interface (see the Talos config below).
-  The trunk NIC is aliased to the stable name `trunk0` via a MAC-based `LinkAliasConfig`.
-- **Secondary interface:** a `bridge` CNI via a `NetworkAttachmentDefinition` (NAD) on the Talos
-  L2 bridge. The `bridge` CNI is used (not `macvlan`) because the Multus **thick** image bundles
-  the `bridge` plugin but not `macvlan` — see the official Sidero Talos Multus guide. Pods opt in
-  via annotation.
+- **Host layer 2:** Talos creates one 802.1Q VLAN sub-interface per target VLAN on the trunk NIC
+  (see the Talos config below). The trunk NIC is aliased to the stable name `trunk0` via a
+  MAC-based `LinkAliasConfig`. The per-VLAN `BridgeConfig`s (`br-vlan20`/`br-vlan40`) are
+  retained for now but are no longer used by the NADs (the `macvlan` interfaces parent on the
+  VLAN sub-interfaces directly).
+- **Secondary interface:** a `macvlan` CNI via a `NetworkAttachmentDefinition` (NAD) parented
+  on the 802.1Q VLAN sub-interface (`trunk0.20`/`trunk0.40`) in `mode: bridge`. Each pod
+  interface gets its **own MAC directly on the VLAN** (the kernel generates a random MAC when
+  none is pinned). The `macvlan` binary is **not** in the Multus thick image — it is installed
+  on the nodes by the `dhcp-daemon` DaemonSet's init container (see below). Pods opt in via
+  annotation.
 - **IPAM (DHCP):** each pod's secondary interface gets its IP (and netmask) from the **DHCP
-  server** on that VLAN, keyed by the interface's MAC. The `bridge` CNI generates a **random MAC**
-  per pod (no `mac` field needed); the DHCP server assigns a **random IP** per MAC. This gives
-  duplicate-free IPs with **no cross-node coordination** (unlike `host-local`, which is per-node
-  and hands the same first IP to every node). Optionally, a pod can pin its MAC via the annotation
-  (`capabilities.mac`) and reserve that MAC → IP on the DHCP server for a deterministic address.
-  Backed by a per-node `dhcp` daemon (`dhcp-daemon` DaemonSet) and the `dhcp` CNI binary
-  (installed by the DaemonSet's init container — see below).
+  server** on that VLAN, keyed by the interface's MAC. This gives each container a dedicated
+  MAC and a distinct IP with **no cross-node coordination** (unlike `host-local`, which is
+  per-node and hands the same first IP to every node). Optionally, a pod can pin its MAC via
+  the annotation (`capabilities.mac`) and reserve that MAC → IP on the DHCP server for a
+  deterministic address. The NAD's `ipam` object also carries `dhcp`-plugin options:
+  `request` (keep the default requested options) and `provide` (send the pod name as the DHCP
+  hostname, option 12). Backed by a per-node `dhcp` daemon (`dhcp-daemon` DaemonSet) and the
+  `dhcp` CNI binary (installed by the DaemonSet's init container — see below).
 
 ## Talos node config
 
@@ -40,10 +45,12 @@ Managed in `talos/` (applied via `just talos apply`):
   per-node `trunkMacAddr` from `topf.yaml`.
 - `talos/all/23-vlan-subinterfaces.yaml.tpl` — `VLANConfig` docs `trunk0.20` (VLAN 20) and
   `trunk0.40` (VLAN 40), parented on `trunk0`, `up: true`. The host sub-interface only needs to be
-  UP — pods get their own IPs from the bridge CNI, so no host address is set.
+  UP — pods get their own IPs from the macvlan CNI, so no host address is set. The sub-interfaces
+  are the **master** links the `macvlan` NADs parent on.
 - `talos/all/24-vlan-bridges.yaml.tpl` — `BridgeConfig` docs `br-vlan20` (link `trunk0.20`) and
-  `br-vlan40` (link `trunk0.40`), each an L2 bridge with no address of its own. The `bridge` CNI
-  attaches each pod's interface to the matching bridge.
+  `br-vlan40` (link `trunk0.40`), each an L2 bridge with no address of its own. **No longer used
+  by the NADs** (the `macvlan` interfaces parent on the VLAN sub-interfaces directly) — retained
+  for now; can be removed in a follow-up.
 - `talos/topf.yaml` — `nodes[].data.trunkMacAddr` (the trunk NIC MAC per node).
 
 Verify the sub-interfaces are up: `talosctl get linkstatuses -o yaml` shows `trunk0.20` /
@@ -57,17 +64,17 @@ MAC via the annotation. The subnets (`172.20.16.0/24` for VLAN 20, `172.20.18.0/
 are the L2 subnets the DHCP servers serve — they are not used for IPAM (DHCP assigns the IP), but
 they define the address space.
 
-| NAD       | bridge      | VLAN subnet      | DHCP server |
+| NAD       | master      | VLAN subnet      | DHCP server |
 | --------- | ----------- | ---------------- | ----------- |
-| `vlan-20` | `br-vlan20` | `172.20.16.0/24` | VLAN 20     |
-| `vlan-40` | `br-vlan40` | `172.20.18.0/23` | VLAN 40     |
+| `vlan-20` | `trunk0.20` | `172.20.16.0/24` | VLAN 20     |
+| `vlan-40` | `trunk0.40` | `172.20.18.0/23` | VLAN 40     |
 
 ## Attaching a pod to a VLAN
 
 The NADs live in `kube-system`, so reference them by fully-qualified `<namespace>/<name>` —
 Multus resolves NADs in the pod's own namespace by default, so an unqualified `vlan-20` from
-another namespace is not found. The simplest form (no `mac` field) lets the `bridge` CNI generate
-a random MAC and the DHCP server assign a random IP:
+another namespace is not found. The simplest form (no `mac` field) lets the `macvlan` CNI
+generate a random MAC and the DHCP server assign an IP per MAC:
 
 ```yaml
 metadata:
@@ -125,7 +132,7 @@ the NAD (IPAM is DHCP). Instead:
    DHCP server hands `172.20.16.x` (whatever you reserved) to that MAC.
 
 The pod then comes up with two interfaces: `eth0` (Cilium, the pod network) and `net1` (the
-`bridge` CNI interface on `br-vlan20`, carrying the DHCP-assigned IP with the VLAN 20 netmask
+`macvlan` interface on `trunk0.20`, carrying the DHCP-assigned IP with the VLAN 20 netmask
 `/24` and gateway `172.20.16.1`).
 
 Because the IP is keyed by the MAC (not by the node), **every pod gets a distinct IP** even when
@@ -140,14 +147,15 @@ kubectl -n <ns> get pod <pod> -o jsonpath='{.metadata.annotations.k8s\.v1\.cni\.
 #       {"name":"kube-system/vlan-20","interface":"net1","ips":["172.20.16.25"],"mac":"aa:bb:cc:00:00:01",...}]
 ```
 
-## DHCP CNI binary (init-container install)
+## CNI binaries (init-container install)
 
-The `dhcp` CNI binary is **not** in the Multus thick image. It is installed on the nodes by the
-`dhcp-daemon` DaemonSet's **init container** (`install-dhcp-binary`), which downloads the
-`dhcp` binary from the [containernetworking/plugins release](https://github.com/containernetworking/plugins/releases)
-(v1.9.1, `cni-plugins-linux-amd64-v1.9.1.tgz`, which bundles the `dhcp` binary) and installs it
-to `/opt/cni/bin/dhcp` on the host (via a hostPath volume). The init container skips the download
-if the binary is already present, so a pod recreation does not re-fetch it.
+The `dhcp` and `macvlan` CNI binaries are **not** in the Multus thick image. They are installed
+on the nodes by the `dhcp-daemon` DaemonSet's **init container** (`install-dhcp-binary`), which
+downloads both binaries from the [containernetworking/plugins
+release](https://github.com/containernetworking/plugins/releases) (v1.9.1,
+`cni-plugins-linux-amd64-v1.9.1.tgz`, which bundles `dhcp` and `macvlan`) and installs them to
+`/opt/cni/bin/` on the host (via a hostPath volume). The init container skips the download if
+**both** binaries are already present, so a pod recreation does not re-fetch the ~55 MB tarball.
 
 This approach was chosen over a Talos SystemExtension because a SystemExtension's `rootfs` is
 restricted to a fixed list of allowed paths (`/usr/local`, `/usr/lib/firmware`, …) and
@@ -159,8 +167,8 @@ parts than the init-container.)
 Verify on a node:
 
 ```bash
-# the init container installs the binary; confirm it is present and executable
-talosctl -n <node> files ls -l /opt/cni/bin/   # should list dhcp (0755)
+# the init container installs the binaries; confirm they are present and executable
+talosctl -n <node> list -l /opt/cni/bin/   # should list dhcp and macvlan (0755)
 ```
 
 The `dhcp-daemon` DaemonSet's main container then runs the host's `/opt/cni/bin/dhcp` in daemon
@@ -170,9 +178,9 @@ mode, listening on `/run/cni/dhcp.sock` (the socket path the NADs reference).
 
 The `troubleshooting/netshoot` DaemonSet (`kubernetes/apps/troubleshooting/netshoot/app/daemonset.yaml`)
 is the test pod: one per node, attached to both VLANs. The annotation carries **no `mac` field** —
-the `bridge` CNI generates a **random** MAC per pod, and the DHCP server assigns a **random IP**
-per MAC. Every pod gets a unique MAC and a unique IP, with no webhook, no per-node pinning, and
-no DHCP reservations.
+the `macvlan` CNI generates a **random** MAC per pod, and the DHCP server assigns an IP per MAC.
+Every pod gets a unique MAC and an IP from the DHCP server, with no webhook, no per-node
+pinning, and no DHCP reservations.
 
 Verify:
 
@@ -196,11 +204,19 @@ and reserve that MAC → IP on the DHCP server. See the "Attaching a pod to a VL
 
 ## Pitfalls
 
-- **Use the `bridge` CNI, not `macvlan`.** The Multus **thick** image bundles the `bridge` CNI
-  plugin (and `host-local`, `passthru`, …) but **not** `macvlan`. A NAD with `"type": "macvlan"`
-  fails with `failed to find plugin "macvlan" in path [/opt/cni/bin]` and the pod crash-loops on
-  `FailedCreatePodSandBox`. The `bridge` CNI needs a Talos `BridgeConfig` per VLAN (see the Talos
-  config above); that is why `br-vlan20`/`br-vlan40` exist.
+- **The `macvlan` binary must be installed on the nodes.** The Multus **thick** image bundles the
+  `bridge` CNI plugin (and `host-local`, `passthru`, …) but **not** `macvlan`. A NAD with
+  `"type": "macvlan"` fails with `failed to find plugin "macvlan" in path [/opt/cni/bin]` and the
+  pod crash-loops on `FailedCreatePodSandBox` until the `macvlan` binary is present — the
+  `dhcp-daemon` DaemonSet's init container installs it (see "CNI binaries" above). Verify on a
+  node: `talosctl -n <node> list -l /opt/cni/bin/` lists `macvlan` (0755).
+- **`macvlan` NAD config schema.** The `macvlan` plugin reads `master` (the parent link — here the
+  VLAN sub-interface `trunk0.<id>`), `mode` (`bridge`, `private`, `vepa`, `passthru`; empty
+  defaults to `bridge`), and `mac` (optional, via the config or the CNI `mac` arg that Multus
+  passes from the annotation). There is **no `bridge` field** (that belongs to the `bridge`
+  plugin) — an extra `"bridge"` key is silently ignored but signals a copy/paste from the old
+  config. The `request`/`provide`/`daemonSocketPath` keys belong **inside the `ipam` object**
+  (they are options of the `dhcp` IPAM plugin), not at the top level of the CNI config.
 - **NADs are namespaced — reference them by fully-qualified name.** Multus resolves NADs in the
   pod's own namespace by default, so a pod in `troubleshooting` cannot see `vlan-20` in
   `kube-system` by bare name (`NoNetworkFound`). Use `kube-system/vlan-20` in the annotation.
@@ -222,7 +238,7 @@ and reserve that MAC → IP on the DHCP server. See the "Attaching a pod to a VL
   daemon is not running or the binary is missing, the pod fails with `failed to find plugin
   "dhcp" in path [/opt/cni/bin]` or a socket connection error, and crash-loops on
   `FailedCreatePodSandBox`.
-- **The MAC is the DHCP key.** The DHCP server maps each MAC to an IP. The `bridge` CNI
+- **The MAC is the DHCP key.** The DHCP server maps each MAC to an IP. The `macvlan` CNI
   generates a **random MAC** per pod by default (no `mac` field needed), so every pod gets a
   unique MAC and the DHCP server hands out a unique IP. If you pin a MAC (via the annotation's
   `mac` field) for a deterministic IP, make sure it is **unique and stable** — if two pods share
