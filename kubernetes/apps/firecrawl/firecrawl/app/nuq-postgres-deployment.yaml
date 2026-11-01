@@ -22,12 +22,25 @@ spec:
         runAsNonRoot: true
         runAsUser: 999
         runAsGroup: 999
-        # Group-own the emptyDir to GID 999 so initdb can chmod the data
-        # directory (a root-owned emptyDir fails initdb with "Operation not
-        # permitted" when the container runs as 999).
+        # fsGroup only sets the group; chmod needs UID ownership, so a root
+        # initContainer chowns the root-owned emptyDir to 999:999 (see below).
         fsGroup: 999
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        # The emptyDir is created root-owned (uid 0) by the kubelet. Running
+        # the container as uid 999, initdb fails with "could not change
+        # permissions ... Operation not permitted" because it can't chmod a
+        # root-owned dir. This root initContainer chowns it to 999:999 first.
+        - name: chown-data
+          image: ghcr.io/firecrawl/nuq-postgres:latest
+          imagePullPolicy: IfNotPresent
+          command: ["chown", "-R", "999:999", "/var/lib/postgresql/data"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
       containers:
         - name: nuq-postgres
           image: ghcr.io/firecrawl/nuq-postgres:latest
