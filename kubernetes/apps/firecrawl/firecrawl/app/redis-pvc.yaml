@@ -1,0 +1,19 @@
+# iSCSI (single-writer block volume) for Redis's RDB snapshot dir (/data).
+# Redis runs as UID 997 (runAsUser) with fsGroup 997, so it can write the temp
+# RDB files here. 1Gi is generous for the rate-limit + cache state. Without a
+# writable volume, Redis's background RDB save fails with "Permission denied"
+# (the image bakes /data owned by the image's redis user, which does not match
+# the pod's runAsUser), which disables writes (stop-writes-on-bgsave-error) and
+# crash-loops the worker/extract paths that queue jobs in Redis.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis
+  namespace: firecrawl
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 1Gi
