@@ -7,9 +7,11 @@ metadata:
   labels:
     app: firecrawl-nuq-worker
 spec:
-  # Upstream runs 5; 2 is right-sized for a home cluster. These consume
-  # the NUQ job queue (scrape/crawl/map jobs) off Postgres.
-  replicas: 2
+  # Upstream runs 5; 1 is right-sized for a home cluster (the worker nodes'
+  # allocatable is already filled by other apps' requests, so a 2nd replica
+  # can't schedule). These consume the NUQ job queue (scrape/crawl/map jobs)
+  # off Postgres.
+  replicas: 1
   selector:
     matchLabels:
       app: firecrawl-nuq-worker
