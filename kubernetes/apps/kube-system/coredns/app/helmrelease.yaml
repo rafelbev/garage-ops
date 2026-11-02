@@ -20,6 +20,27 @@ spec:
       clusterIP: "172.20.64.10"
     replicaCount: 2
     priorityClassName: system-cluster-critical
+    resources:
+      limits:
+        cpu: 250m
+        memory: 256Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 120
+      periodSeconds: 10
+      timeoutSeconds: 10
+      failureThreshold: 5
+      successThreshold: 1
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 60
+      periodSeconds: 10
+      timeoutSeconds: 10
+      failureThreshold: 3
+      successThreshold: 1
     servers:
       - zones:
           - zone: .
