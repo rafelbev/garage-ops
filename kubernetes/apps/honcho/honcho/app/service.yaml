@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: honcho
+  labels:
+    app: honcho
+spec:
+  type: ClusterIP
+  selector:
+    app: honcho
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+      protocol: TCP
