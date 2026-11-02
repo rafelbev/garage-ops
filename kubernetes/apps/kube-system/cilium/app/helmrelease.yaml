@@ -64,6 +64,7 @@ spec:
         trustCRDsExist: true
     rollOutCiliumPods: true
     routingMode: native
+    tunnelProtocol: geneve
     securityContext:
       capabilities:
         ciliumAgent:
