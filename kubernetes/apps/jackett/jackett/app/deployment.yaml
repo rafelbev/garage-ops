@@ -21,7 +21,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: jackett
-          image: linuxserver/jackett:0.24.2985
+          image: linuxserver/jackett:0.24.2994
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9117
