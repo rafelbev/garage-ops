@@ -20,14 +20,73 @@ Benefits:
 
 | Source instance         | k3s LB IP    | PG ver | Databases (size)                                                                                          |
 | ----------------------- | ------------ | ------ | --------------------------------------------------------------------------------------------------------- |
-| `postgresql`            | 172.20.0.121 | 14     | gitea 337M, homeassistant 186M, firefly 16M, authelia 7.7M, wiki 7.6M                                     |
+| `postgresql`            | 172.20.0.121 | 11     | gitea 337M, homeassistant 186M, firefly 16M, authelia 7.7M, wiki 7.6M                                     |
 | `postgresql12`          | 172.20.0.129 | 12     | dendrite_* (≈5.4G total), homeassistant 824M, whatsapp 33M, mealie 10M, penpot 9M, planka 9M, mastodon 8M |
 | `postgresql14`          | 172.20.0.135 | 14     | lidarr-main 804M, sonarr-main 68M, lidarr-log 37M, sonarr-log 17M, piped 8.4M                             |
 | `postgresql16`          | 172.20.0.138 | 16     | litellm 4.1G, penpot 36M, ghostfolio 10M, acmedns 7.7M, n8n 7.4M, honcho 7.4M                             |
 | `postgresql16-pgvector` | (internal)   | 16     | postgres 37M (vector) — **owner unknown**                                                                 |
-| `immich` (CNPG)         | (internal)   | 15/16  | immich 571M (vector, cube, earthdistance, pg_trgm, unaccent, uuid-ossp)                                   |
+| `immich` (CNPG)         | (internal)   | 16     | immich 571M (vector, cube, earthdistance, pg_trgm, unaccent, uuid-ossp)                                   |
 
 Total ≈ **12 GiB**.
+
+> Source versions verified from the live k3s cluster images (2026-11-02):
+> `postgresql` is **PG11** (`bitnamilegacy/postgresql:11.14.0`), not PG14; the
+> `immich` CNPG image is PG16 (`cloudnative-pgvecto.rs:16.5`). The newest source
+> is therefore PG16 and the oldest is PG11.
+
+## Postgres version compatibility (why PG16, not PG18)
+
+The consolidated image is **PostgreSQL 16** (`pgvector/pgvector/pg16`). The
+target version is chosen as the **lowest version that satisfies every
+constraint**, not the newest available. This answers the review question of
+why PG16 and not the latest-supported PG18.
+
+1. **The target must be ≥ the newest source.** The sources run PG11, 12, 14
+   and 16 (verified above). The newest is PG16, so the target must be ≥ 16 —
+   PG16 is the minimum version that satisfies this.
+2. **Forward-compatible restore.** `pg_dump` custom-format dumps are
+   forward-compatible: a dump taken from PG11/12/14/15/16 restores cleanly into
+   PG16. No source requires a target newer than itself, and no source requires
+   PG17+.
+3. **No app needs a PG17+ feature.** Every consuming application's supported
+   range is fully satisfied by PG16:
+
+    | App (cluster)          | Min supported PG | Needs PG17+? |
+    | ---------------------- | ---------------- | ------------ |
+    | firefly-iii (Talos)    | 9.5              | no           |
+    | ghostfolio (Talos)     | 10               | no           |
+    | cryptofolio (Talos)    | 10               | no           |
+    | immich (Talos)         | 14 (uses vector) | no           |
+    | forgejo/gitea (Talos)  | 11               | no           |
+    | n8n (Talos)            | 10               | no           |
+    | litellm (Talos)        | 9.6              | no           |
+    | authelia (Talos)       | 10               | no           |
+    | mastodon (k3s)         | 12               | no           |
+    | dendrite (k3s)         | 11               | no           |
+    | mealie (k3s)           | 11               | no           |
+    | planka (k3s)           | 11               | no           |
+    | whatsapp/mautrix (k3s) | 11               | no           |
+    | piped (k3s)            | 13               | no           |
+    | honcho (k3s)           | 13               | no           |
+    | acmedns (k3s)          | 11               | no           |
+    | wiki/mediawiki (k3s)   | 12               | no           |
+    | penpot (k3s)           | 11               | no           |
+
+    (The `*arr` `postgresql14` DBs are legacy/SQLite-on-Talos and preserved, not
+    wired, so they impose no requirement.)
+
+4. **All required extensions are present.** The `pgvector/pgvector/pg16` image
+   bundles the `vector` extension (immich, honcho) plus every contrib module the
+   sources use — `cube`, `earthdistance`, `pg_trgm`, `unaccent`, `uuid-ossp` —
+   so no app is left without an extension it needs.
+
+**Why not PG18:** no application requires any PG17/18 feature, so moving to 18
+would put a newer, less battle-tested engine under a 12 GiB production
+consolidation with zero functional benefit. PG16 is a mature, long-supported
+release with a widely-used `pgvector` image, and it is the safe, minimal
+choice that keeps every app and every source compatible. If a future app ever
+needs a PG17+ feature, the target can be bumped then — nothing in this
+consolidation requires it today.
 
 ## Name conflicts (resolved in `manifest.tsv`)
 
