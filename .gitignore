@@ -9,6 +9,9 @@
 /deploy.key.pub
 /flux-webhook-token.txt
 /github-push-token.txt
+# DB consolidation: local-only secrets (superuser + role passwords) — NEVER commit
+migration/database-consolidation/creds.env
+migration/database-consolidation/initdb/
 # Template config files
 /cluster.toml
 # Kubernetes
