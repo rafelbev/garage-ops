@@ -8,6 +8,9 @@ spec:
     kind: OCIRepository
     name: coredns
   interval: 1h
+  # Give CoreDNS enough time to complete its initial API sync + rollout before
+  # the Helm --wait times out and rolls back (default is 5m).
+  timeout: 15m
   values:
     fullnameOverride: coredns
     image:
@@ -74,7 +77,7 @@ spec:
             parameters: 0.0.0.0:9153
           - name: log
             configBlock: |-
-              class error
+              class debug
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
