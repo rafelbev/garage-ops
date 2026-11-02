@@ -107,3 +107,20 @@ nodes:
         - nvidia_uvm
         - nvidia_drm
         - nvidia_modeset
+  # Standard worker node (no GPU). Uses the same schematic as cluster-3.
+  - host: "cluster-5"
+    ip: "172.20.17.198"
+    role: worker
+    schematicId: "dc7b152cb3ea99b821fcb7340ce7168313ce393d663740b791c36f6e95fc8586"
+    data:
+      installDisk: "/dev/sda"
+      installDiskSerial: ""
+      macAddr: "bc:24:11:26:85:d1"
+      trunkMacAddr: "bc:24:11:26:f7:6f"
+      mtu: 1500
+      encryptDisk: false
+      kernelModules:
+        - iscsi_tcp
+        - libiscsi
+        - libiscsi_tcp
+        - scsi_transport_iscsi
