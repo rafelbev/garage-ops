@@ -17,6 +17,7 @@ following key settings (see `app/helmrelease.yaml`):
 | `l2announcements.enabled`  | `true`   | Announces LoadBalancer IPs on the LAN via ARP                            |
 | `socketLB.enabled`         | `true`   | eBPF socket-level load balancing                                         |
 | `routingMode`              | `native` | Native routing (no tunnel for pod-to-pod traffic)                        |
+| `tunnelProtocol`           | `geneve` | Required for DSR+Geneve dispatch (LB return path only)                   |
 
 ### DSR + L2-Announcer + Cross-Node Backends
 
@@ -34,10 +35,17 @@ VIP as source IP, but the reply's source MAC is the **remote node's** MAC. The
 client's ARP cache for the VIP points at the **local** node (the L2-announcer
 lease holder), so the reply's MAC is asymmetric and the packet is dropped.
 
-**Fix:** `loadBalancer.dsrDispatch: geneve`. In Geneve dispatch mode the DSR
-reply is Geneve-encapsulated and tunneled back through the original receiving
-node, which re-egresses it to the client with the correct source MAC. This
-makes the return path symmetric and eliminates the intermittent failures.
+**Fix:** `loadBalancer.dsrDispatch: geneve` **plus** `tunnelProtocol: geneve`.
+In Geneve dispatch mode the DSR reply is Geneve-encapsulated and tunneled back
+through the original receiving node, which re-egresses it to the client with
+the correct source MAC. This makes the return path symmetric and eliminates the
+intermittent failures.
+
+> **Note:** `dsrDispatch: geneve` **requires** `tunnelProtocol: geneve` —
+> Cilium rejects the agent at startup with _"Node Port 'dsr' mode with
+> 'geneve' dispatch requires geneve tunnel protocol"_ if it is missing. With
+> `routingMode: native`, the Geneve tunnel is used **only** on the LB DSR
+> return path; pod-to-pod routing stays native (no overlay).
 
 **Trade-off:** Geneve adds a 16-byte header, reducing effective MTU by ~16
 bytes on encapsulated paths. Negligible on a home LAN, but the main risk.
