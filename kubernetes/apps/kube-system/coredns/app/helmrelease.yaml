@@ -77,7 +77,7 @@ spec:
             parameters: 0.0.0.0:9153
           - name: log
             configBlock: |-
-              class debug
+              class error
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
