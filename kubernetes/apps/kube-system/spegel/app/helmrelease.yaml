@@ -12,6 +12,18 @@ spec:
     spegel:
       containerdSock: /run/containerd/containerd.sock
       containerdRegistryConfigPath: /etc/cri/conf.d/hosts
+      # Give P2P peer resolution more headroom before falling back to upstream.
+      # Default 20ms is tight; peer resolution is sub-5ms when it succeeds, so a
+      # larger window converts would-be upstream pulls into fast LAN peer pulls.
+      mirrorResolveTimeout: 200ms
+      mirrorResolveRetries: 5
+    # Spegel streams blobs and sets GOMEMLIMIT from limits.memory. 128Mi is tight
+    # for concurrent/large pulls; give it headroom to avoid GC pressure and OOM.
+    resources:
+      requests:
+        memory: 256Mi
+      limits:
+        memory: 512Mi
     service:
       registry:
         hostPort: 29999
