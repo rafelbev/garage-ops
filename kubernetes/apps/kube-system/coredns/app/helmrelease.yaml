@@ -53,9 +53,11 @@ spec:
         plugins:
           - name: errors
           - name: health
+            parameters: ":8080"
             configBlock: |-
               lameduck 5s
           - name: ready
+            parameters: ":8181"
           - name: kubernetes
             parameters: cluster.local in-addr.arpa ip6.arpa
             configBlock: |-
