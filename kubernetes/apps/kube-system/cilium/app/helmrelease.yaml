@@ -64,7 +64,7 @@ spec:
       # new pods) are deleted by the watcher before their CiliumEndpoints
       # are created, causing a restart loop.
       unmanagedPodWatcher:
-        intervalSeconds: 60
+        intervalSeconds: 300
     prometheus:
       enabled: true
       serviceMonitor:
