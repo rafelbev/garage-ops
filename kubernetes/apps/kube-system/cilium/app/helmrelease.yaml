@@ -65,6 +65,13 @@ spec:
       # are created, causing a restart loop.
       unmanagedPodWatcher:
         intervalSeconds: 300
+        # Disable the restart feature. The cilium-agent is not creating
+        # CiliumEndpoints for coredns pods (despite the CNI being called),
+        # so the unmanaged-pod-watcher keeps deleting them in a restart
+        # loop. Disabling restart lets the cilium-agent create the
+        # CiliumEndpoints at its own pace; once created, the pods are
+        # "managed" and the watcher skips them.
+        restart: false
     prometheus:
       enabled: true
       serviceMonitor:
