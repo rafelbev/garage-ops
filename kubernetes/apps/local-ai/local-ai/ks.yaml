@@ -1,0 +1,23 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: local-ai
+spec:
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: local-ai
+      namespace: local-ai
+  interval: 1h
+  path: ./kubernetes/apps/local-ai/local-ai/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: local-ai

@@ -1,0 +1,22 @@
+---
+# Dynamic PVC for the LocalAI models library (iSCSI, single-writer).
+#
+# iSCSI is the right fit: a single pod is the sole writer of the models
+# directory, and block storage gives low-latency access to multi-GB GGUF
+# files. No pre-existing TrueNAS export is required (self-contained).
+#
+# Size 50Gi matches the upstream LocalAI k8s example and comfortably holds a
+# 27B GGUF plus a drafter and headroom for additional models. Expand if needed
+# (allowVolumeExpansion: true on the truenas-iscsi StorageClass).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-ai-models
+  namespace: local-ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 50Gi

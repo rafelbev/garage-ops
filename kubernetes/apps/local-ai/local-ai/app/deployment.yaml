@@ -1,0 +1,100 @@
+---
+# Single-replica LocalAI deployment on the GPU-capable worker cluster-4.
+#
+# LocalAI is an OpenAI-compatible, self-hosted LLM/agent platform (llama.cpp,
+# diffusers, whisper, coqui, transformers, vLLM backends) with a built-in web
+# UI. It is intended to be the CUDA-based replacement for the llama-cpp
+# workload; it runs in its OWN namespace and does not touch llama-cpp.
+#
+# GPU: 1x nvidia.com/gpu (RTX 2080Ti, Turing sm_75) on cluster-4, satisfied by
+# the GPU Operator's device plugin. runtimeClassName: nvidia is created by the
+# GPU Operator (see ../gpu-operator/README.md).
+#
+# NOTE ON GPU CONTENTION: cluster-4 has a single GPU. While llama-cpp runs
+# (it holds nvidia.com/gpu: 1), this pod is unschedulable (Pending) and
+# llama-cpp is undisturbed. Once llama-cpp is decommissioned, this pod
+# schedules and takes the GPU. This is deliberate staging for the cutover.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-ai
+  labels:
+    app: local-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-ai
+  # Recreate (no surge): a single-writer iSCSI PVC must not be mounted by two
+  # pods at once, and a GPU pod must not run two copies of a 27B model.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: local-ai
+    spec:
+      restartPolicy: Always
+      runtimeClassName: nvidia
+      containers:
+        - name: local-ai
+          # Pinned, version-specific CUDA 13 build (Turing sm_75 supported).
+          # Renovate tracks the version tag for upgrades.
+          image: quay.io/go-skynet/local-ai:v4.12.1-gpu-nvidia-cuda-13
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+            - name: DEBUG
+              value: "true"
+            - name: LOCALAI_MODELS_PATH
+              value: /build/models
+            - name: LOCALAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: local-ai
+                  key: API_KEY
+          resources:
+            requests:
+              nvidia.com/gpu: "1"
+              memory: 8Gi
+              cpu: "1"
+            limits:
+              nvidia.com/gpu: "1"
+              memory: 24Gi
+          # Probes are the source-verified LocalAI endpoints
+          # (core/http/routes/health.go):
+          #   /healthz  - liveness, always 200 once the process is up
+          #                (deliberately independent of readiness so a long
+          #                model preload never reads as a hung process)
+          #   /readyz   - readiness, 503 while the startup preload is in
+          #                progress, 200 once serving
+          # The startup probe therefore uses /readyz with a long budget
+          # (first boot downloads + loads the model from the PVC).
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          volumeMounts:
+            - name: models
+              mountPath: /build/models
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: local-ai-models
