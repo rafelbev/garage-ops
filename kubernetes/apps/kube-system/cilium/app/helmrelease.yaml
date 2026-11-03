@@ -57,6 +57,14 @@ spec:
           enabled: true
       replicas: 2
       rollOutPods: true
+      # Give the cilium-agent time to create CiliumEndpoints before the
+      # unmanaged-pod-watcher checks for unmanaged pods. The default 15s
+      # interval is too short — the agent needs longer to detect new pods
+      # and create their endpoints. Without this, coredns pods (and other
+      # new pods) are deleted by the watcher before their CiliumEndpoints
+      # are created, causing a restart loop.
+      unmanagedPodWatcher:
+        intervalSeconds: 60
     prometheus:
       enabled: true
       serviceMonitor:
