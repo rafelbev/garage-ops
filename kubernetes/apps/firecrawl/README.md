@@ -23,8 +23,10 @@ entrypoint:
 | `nuq-postgres`       | 1        | Postgres job queue (port 5432)                  | `ghcr.io/firecrawl/nuq-postgres:latest`       |
 | `redis`              | 1        | Rate limiting + cache (port 6379)               | `redis:alpine`                                |
 
-- **No RabbitMQ** on the K8s path — the job queue runs on Postgres
-  (`NUQ_DATABASE_URL`), unlike the Docker Compose path.
+- **No RabbitMQ for the job queue** on the K8s path — the NUQ job queue
+  runs on Postgres (`NUQ_DATABASE_URL`), unlike the Docker Compose path.
+  A standalone RabbitMQ (`NUQ_RABBITMQ_URL`) is used only by the legacy
+  `/v2/extract` and webhook queues.
 - The three `firecrawl` node deployments all run the same image; only the
   `args` (entrypoint) and `FLY_PROCESS_GROUP` differ.
 
@@ -61,9 +63,10 @@ that queue jobs in Redis.
   (embedding model behind the semantic ranker).
 - **Secret `firecrawl`** (SOPS-encrypted) — `POSTGRES_PASSWORD`,
   `BULL_AUTH_KEY` (queue admin UI gate), `NUQ_DATABASE_URL` (the DSN, which
-  embeds the password, so it lives in the secret not the ConfigMap), and
-  `OPENAI_API_KEY` (a dedicated LiteLLM key Firecrawl uses to call the
-  proxy, so its traffic is auditable/revocable on its own).
+  embeds the password, so it lives in the secret not the ConfigMap),
+  `NUQ_RABBITMQ_URL` (RabbitMQ DSN for the legacy extract + webhook
+  queues), and `OPENAI_API_KEY` (a dedicated LiteLLM key Firecrawl uses to
+  call the proxy, so its traffic is auditable/revocable on its own).
 
 ### Authentication
 
