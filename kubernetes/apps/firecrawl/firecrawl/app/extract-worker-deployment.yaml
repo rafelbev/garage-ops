@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: extract-worker
+  namespace: firecrawl
+  labels:
+    app: firecrawl-extract-worker
+spec:
+  # Consumes the legacy RabbitMQ extract queue (and the webhook queues).
+  # Upstream runs this as part of the api/worker harness; on K8s it is a
+  # standalone process. 1 replica is right-sized for a home cluster.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firecrawl-extract-worker
+  template:
+    metadata:
+      labels:
+        app: firecrawl-extract-worker
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: extract-worker
+          image: ghcr.io/firecrawl/firecrawl:2.11.672
+          imagePullPolicy: IfNotPresent
+          command: ["node"]
+          args: ["--max-old-space-size=3072", "dist/src/services/extract-worker.js"]
+          env:
+            - name: FLY_PROCESS_GROUP
+              value: "extract-worker"
+            - name: EXTRACT_WORKER_PORT
+              value: "3004"
+          envFrom:
+            - configMapRef:
+                name: firecrawl-config
+            - secretRef:
+                name: firecrawl
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 3004
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3004
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3

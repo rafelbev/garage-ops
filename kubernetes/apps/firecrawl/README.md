@@ -14,20 +14,21 @@ in the Docker Compose world; on Kubernetes they run as separate deployments
 sharing the same `ghcr.io/firecrawl/firecrawl` image, each with its own
 entrypoint:
 
-| Deployment           | Replicas | Role                                            | Image                                         |
-| -------------------- | -------- | ----------------------------------------------- | --------------------------------------------- |
-| `api`                | 1        | HTTP API (scrape/crawl/map/search), port 3002   | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
-| `worker`             | 1        | Legacy queue worker, port 3005                  | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
-| `nuq-worker`         | 2        | NUQ job-queue workers (consume Postgres jobs)   | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
-| `playwright-service` | 1        | Headless Chromium for JS-heavy pages, port 3000 | `ghcr.io/firecrawl/playwright-service:latest` |
-| `nuq-postgres`       | 1        | Postgres job queue (port 5432)                  | `ghcr.io/firecrawl/nuq-postgres:latest`       |
-| `redis`              | 1        | Rate limiting + cache (port 6379)               | `redis:alpine`                                |
+| Deployment           | Replicas | Role                                                      | Image                                         |
+| -------------------- | -------- | --------------------------------------------------------- | --------------------------------------------- |
+| `api`                | 1        | HTTP API (scrape/crawl/map/search), port 3002             | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `worker`             | 1        | Legacy queue worker, port 3005                            | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `extract-worker`     | 1        | Consumes the RabbitMQ extract + webhook queues, port 3004 | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `nuq-worker`         | 1        | NUQ job-queue workers (consume Postgres jobs)             | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `playwright-service` | 1        | Headless Chromium for JS-heavy pages, port 3000           | `ghcr.io/firecrawl/playwright-service:latest` |
+| `nuq-postgres`       | 1        | Postgres job queue (port 5432)                            | `ghcr.io/firecrawl/nuq-postgres:latest`       |
+| `redis`              | 1        | Rate limiting + cache (port 6379)                         | `redis:alpine`                                |
 
 - **No RabbitMQ for the job queue** on the K8s path — the NUQ job queue
   runs on Postgres (`NUQ_DATABASE_URL`), unlike the Docker Compose path.
   A standalone RabbitMQ (`NUQ_RABBITMQ_URL`) is used only by the legacy
   `/v2/extract` and webhook queues.
-- The three `firecrawl` node deployments all run the same image; only the
+- The four `firecrawl` node deployments all run the same image; only the
   `args` (entrypoint) and `FLY_PROCESS_GROUP` differ.
 
 ### Database decision (deviation from the no-in-cluster-databases rule)
@@ -122,9 +123,15 @@ From inside the cluster, agents can call the service directly:
   The key is a dedicated per-service LiteLLM key (not the proxy master
   key). If LiteLLM is unavailable, LLM-backed formats fail (scrape/search
   still work).
+- **`/v2/extract` is async and needs the `extract-worker` pod.** The
+  endpoint only enqueues the job onto RabbitMQ and returns a job `id`
+  (poll `GET /v2/extract/:jobId`); the actual scrape + LLM extraction runs
+  in the `extract-worker` deployment. Without that pod, jobs sit in the
+  queue forever at `status: "processing"`. The endpoint is deprecated
+  upstream — `/v2/scrape` with a `json` format does the same thing inline.
 - **Queue state is ephemeral.** Restarting `nuq-postgres` drops in-flight
   jobs (by design, see the database decision above).
 - **Resource sizing** is tuned for a home cluster: `nuq-worker` runs 1
   replica (upstream runs 5), and all requests are right-sized down (total
-  ≈ 5.3 Gi memory, ≈ 2.2 CPU) so the stack schedules on the worker nodes
+  ≈ 6.3 Gi memory, ≈ 2.7 CPU) so the stack schedules on the worker nodes
   (cluster-3 / cluster-4).
