@@ -31,5 +31,7 @@ resources:
   - ./radarr-securitypolicy.yaml
   - ./sonarr-auth-httproute.yaml
   - ./sonarr-securitypolicy.yaml
+  - ./tika-auth-httproute.yaml
+  - ./tika-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
