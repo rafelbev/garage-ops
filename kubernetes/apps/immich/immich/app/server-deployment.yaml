@@ -42,12 +42,11 @@ spec:
                   key: db_password
             # Redis is hosted on redis.intranet.neo-tix.com (172.20.17.17)
             # as a standalone Docker Redis (migrated from the k3s `redis`
-            # namespace; same password, AOF enabled). The intranet DNS name
-            # does not resolve inside the cluster, so the IP is used.
-            # The password is unchanged, so the existing `immich-redis`
-            # secret continues to work.
+            # namespace; same password, AOF enabled). The password is
+            # unchanged, so the existing `immich-redis` secret continues
+            # to work.
             - name: REDIS_HOSTNAME
-              value: 172.20.17.17
+              value: redis.intranet.neo-tix.com
             - name: REDIS_PORT
               value: "6379"
             - name: REDIS_PASSWORD
