@@ -40,13 +40,14 @@ spec:
                 secretKeyRef:
                   name: immich-db
                   key: db_password
-            # Redis is hosted on fileserver (172.20.0.10) in a Docker Compose
-            # stack at /mnt/storage/apps/redis/ (migrated from the k3s
-            # `redis` namespace; same image, password, and AOF-only setup).
+            # Redis is hosted on redis.intranet.neo-tix.com (172.20.17.17)
+            # as a standalone Docker Redis (migrated from the k3s `redis`
+            # namespace; same password, AOF enabled). The intranet DNS name
+            # does not resolve inside the cluster, so the IP is used.
             # The password is unchanged, so the existing `immich-redis`
             # secret continues to work.
             - name: REDIS_HOSTNAME
-              value: 172.20.0.10
+              value: 172.20.17.17
             - name: REDIS_PORT
               value: "6379"
             - name: REDIS_PASSWORD
