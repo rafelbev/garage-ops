@@ -40,11 +40,14 @@ spec:
                 secretKeyRef:
                   name: immich-db
                   key: db_password
-            # Redis is not migrated to Talos - it stays on the k3s cluster
-            # and is exposed via the LoadBalancer service `redis-external`
-            # in the k3s `redis` namespace (MetalLB-pinned IP).
+            # Redis is hosted on redis.intranet.neo-tix.com (172.20.17.17)
+            # as a standalone Docker Redis (migrated from the k3s `redis`
+            # namespace; same password, AOF enabled). The intranet DNS name
+            # does not resolve inside the cluster, so the IP is used.
+            # The password is unchanged, so the existing `immich-redis`
+            # secret continues to work.
             - name: REDIS_HOSTNAME
-              value: 172.20.0.139
+              value: 172.20.17.17
             - name: REDIS_PORT
               value: "6379"
             - name: REDIS_PASSWORD
