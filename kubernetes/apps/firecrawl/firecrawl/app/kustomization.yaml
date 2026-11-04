@@ -9,6 +9,7 @@ resources:
   - ./worker-deployment.yaml
   - ./extract-worker-deployment.yaml
   - ./nuq-worker-deployment.yaml
+  - ./nuq-prefetch-worker-deployment.yaml
   - ./playwright-deployment.yaml
   - ./playwright-service.yaml
   - ./nuq-postgres-deployment.yaml

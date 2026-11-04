@@ -14,21 +14,25 @@ in the Docker Compose world; on Kubernetes they run as separate deployments
 sharing the same `ghcr.io/firecrawl/firecrawl` image, each with its own
 entrypoint:
 
-| Deployment           | Replicas | Role                                                      | Image                                         |
-| -------------------- | -------- | --------------------------------------------------------- | --------------------------------------------- |
-| `api`                | 1        | HTTP API (scrape/crawl/map/search), port 3002             | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
-| `worker`             | 1        | Legacy queue worker, port 3005                            | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
-| `extract-worker`     | 1        | Consumes the RabbitMQ extract + webhook queues, port 3004 | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
-| `nuq-worker`         | 1        | NUQ job-queue workers (consume Postgres jobs)             | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
-| `playwright-service` | 1        | Headless Chromium for JS-heavy pages, port 3000           | `ghcr.io/firecrawl/playwright-service:latest` |
-| `nuq-postgres`       | 1        | Postgres job queue (port 5432)                            | `ghcr.io/firecrawl/nuq-postgres:latest`       |
-| `redis`              | 1        | Rate limiting + cache (port 6379)                         | `redis:alpine`                                |
+| Deployment            | Replicas | Role                                                      | Image                                         |
+| --------------------- | -------- | --------------------------------------------------------- | --------------------------------------------- |
+| `api`                 | 1        | HTTP API (scrape/crawl/map/search), port 3002             | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `worker`              | 1        | Legacy queue worker, port 3005                            | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `extract-worker`      | 1        | Consumes the RabbitMQ extract + webhook queues, port 3004 | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `nuq-worker`          | 1        | NUQ job-queue workers (consume scrape/crawl jobs)         | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `nuq-prefetch-worker` | 1        | Claims queued jobs from Postgres, republishes to RabbitMQ | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
+| `playwright-service`  | 1        | Headless Chromium for JS-heavy pages, port 3000           | `ghcr.io/firecrawl/playwright-service:latest` |
+| `nuq-postgres`        | 1        | Postgres job queue (port 5432)                            | `ghcr.io/firecrawl/nuq-postgres:latest`       |
+| `redis`               | 1        | Rate limiting + cache (port 6379)                         | `redis:alpine`                                |
 
-- **No RabbitMQ for the job queue** on the K8s path — the NUQ job queue
-  runs on Postgres (`NUQ_DATABASE_URL`), unlike the Docker Compose path.
-  A standalone RabbitMQ (`NUQ_RABBITMQ_URL`) is used only by the legacy
-  `/v2/extract` and webhook queues.
-- The four `firecrawl` node deployments all run the same image; only the
+- **RabbitMQ is the NUQ job-queue transport.** The NUQ job queue is backed
+  by Postgres (`NUQ_DATABASE_URL`) for durability, but `NUQ_RABBITMQ_URL`
+  turns it into a pull model: `nuq-prefetch-worker` polls Postgres for
+  queued jobs, marks them `active`, and republishes them onto RabbitMQ;
+  `nuq-worker` then consumes them from RabbitMQ (and — with
+  `NUQ_RABBITMQ_URL` set — no longer polls Postgres directly). The legacy
+  `/v2/extract` and webhook queues also use RabbitMQ.
+- The five `firecrawl` node deployments all run the same image; only the
   `args` (entrypoint) and `FLY_PROCESS_GROUP` differ.
 
 ### Database decision (deviation from the no-in-cluster-databases rule)
@@ -65,9 +69,10 @@ that queue jobs in Redis.
 - **Secret `firecrawl`** (SOPS-encrypted) — `POSTGRES_PASSWORD`,
   `BULL_AUTH_KEY` (queue admin UI gate), `NUQ_DATABASE_URL` (the DSN, which
   embeds the password, so it lives in the secret not the ConfigMap),
-  `NUQ_RABBITMQ_URL` (RabbitMQ DSN for the legacy extract + webhook
-  queues), and `OPENAI_API_KEY` (a dedicated LiteLLM key Firecrawl uses to
-  call the proxy, so its traffic is auditable/revocable on its own).
+  `NUQ_RABBITMQ_URL` (RabbitMQ DSN for the NUQ job queue, legacy extract
+  and webhook queues), and `OPENAI_API_KEY` (a dedicated LiteLLM key
+  Firecrawl uses to call the proxy, so its traffic is auditable/revocable
+  on its own).
 
 ### Authentication
 
@@ -129,6 +134,13 @@ From inside the cluster, agents can call the service directly:
   in the `extract-worker` deployment. Without that pod, jobs sit in the
   queue forever at `status: "processing"`. The endpoint is deprecated
   upstream — `/v2/scrape` with a `json` format does the same thing inline.
+- **The `nuq-prefetch-worker` pod is required when `NUQ_RABBITMQ_URL` is
+  set.** The extract path enqueues a scrape job onto the NUQ queue
+  (Postgres). With RabbitMQ enabled, `nuq-worker` reads jobs only from
+  RabbitMQ, so without the prefetch worker (which republishes queued
+  Postgres jobs onto RabbitMQ) every extract fails with
+  `SCRAPE_TIMEOUT` ("timed out after waiting in the concurrency limit
+  queue") and `nuq.queue_scrape` fills up with stuck `queued` rows.
 - **Queue state is ephemeral.** Restarting `nuq-postgres` drops in-flight
   jobs (by design, see the database decision above).
 - **Resource sizing** is tuned for a home cluster: `nuq-worker` runs 1
