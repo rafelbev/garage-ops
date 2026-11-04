@@ -28,3 +28,8 @@ data:
   # with the model the LiteLLM proxy actually serves (see generic-ai.js
   # getModel: `config.MODEL_NAME || name`).
   MODEL_NAME: "garage/qwen3.8:27B"
+  # Firecrawl's embedding calls default to text-embedding-3-small;
+  # MODEL_EMBEDDING_NAME overrides that with the embedding model the
+  # LiteLLM proxy serves (see generic-ai.ts getEmbeddingModel). This drives
+  # the semantic ranker used to rerank search/crawl results.
+  MODEL_EMBEDDING_NAME: "garage/granite-embedding"
