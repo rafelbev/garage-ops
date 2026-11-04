@@ -951,6 +951,52 @@ After each migration, update this document with:
 
 This ensures future migrations benefit from the experience gained.
 
+### Key Learnings from the Redis Migration
+
+The Redis cluster (bitnami chart: 1 master + 2 replicas, AOF-only) ran in the
+k3s `redis` namespace. It was migrated to a **standalone Docker Redis on
+fileserver** (`redis.intranet.neo-tix.com`, host `172.20.17.17` /
+`172.20.17.150`, port 6379) in 2026-11. The k3s `redis` namespace was
+deleted afterwards.
+
+**Migration method — live replication, no file transfer:**
+
+1. On the target (empty) server: `CONFIG SET masterauth <password>` and
+   `REPLICAOF <k3s-master-LB-IP> 6379` — a full sync copies all data live.
+2. Verify `DBSIZE`/keyspace matches the source, then `REPLICAOF NO ONE`
+   (two words) to promote in place — no restart needed.
+3. Enable persistence on the target **before** the sync so replicated writes
+   are logged: `CONFIG SET appendonly yes`.
+
+**Pitfalls:**
+
+- **Check every logical DB**: immich uses db0, penpot uses db1. Verify
+  `dbsize` per DB (`redis-cli -n <db>`) — the keyspace summary only shows
+  non-empty DBs.
+- **The cluster upstream DNS is `172.20.0.3`** (see `upstreamDNS` in
+  `talos/topf.yaml`), not `172.20.0.10`. New intranet records must exist on
+  `172.20.0.3` or pods get `SERVFAIL` via CoreDNS even though direct
+  `dig @172.20.0.10` works. CoreDNS `serve_stale` can keep serving stale
+  negative answers for a while after a record is added.
+- **Runtime `CONFIG SET` is not persisted**: `appendonly yes` and
+  `masterauth` set at runtime are lost on restart. The standalone Docker
+  Redis must carry `appendonly yes` in its own config file / compose
+  environment to survive restarts.
+- **Dormant consumers still need updating**: penpot (k3s, 0/0) and honcho
+  (k3s, disabled) still referenced the old in-cluster service; a cluster-wide
+  scan for `redis-master` / the old LB IP is required before decommissioning.
+  The `penpot-exporter` URI was also missing its password — fixed during the
+  migration.
+- A backup of the old AOF data was kept as a tarball on the workstation
+  before the k3s `redis` namespace (and its NFS PVC) was deleted.
+
+**Current consumers of `redis.intranet.neo-tix.com:6379`:**
+
+- `immich` (Talos): `REDIS_HOSTNAME=redis.intranet.neo-tix.com` in
+  `kubernetes/apps/immich/immich/app/server-deployment.yaml`
+- `penpot` (k3s, dormant): `PENPOT_REDIS_URI` in the `penpot-backend` and
+  `penpot-exporter` deployments (db1)
+
 ## Use Case 6: Self-Hosted GitHub Runners (ARC Scale Sets)
 
 Self-hosted GitHub Actions runners for all repos are deployed via the
