@@ -1,0 +1,66 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nuq-prefetch-worker
+  namespace: firecrawl
+  labels:
+    app: firecrawl-nuq-prefetch-worker
+spec:
+  # Upstream runs 1. This poller bridges Postgres and RabbitMQ: it claims
+  # queued scrape/crawl-finished jobs from nuq.queue_scrape and republishes
+  # them onto the "nuq.queue_scrape.prefetch" RabbitMQ queue, which the
+  # nuq-worker consumes. Without it, jobs pile up in Postgres and the
+  # worker (which only reads RabbitMQ when NUQ_RABBITMQ_URL is set) never
+  # sees them.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firecrawl-nuq-prefetch-worker
+  template:
+    metadata:
+      labels:
+        app: firecrawl-nuq-prefetch-worker
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: nuq-prefetch-worker
+          image: ghcr.io/firecrawl/firecrawl:2.11.672
+          imagePullPolicy: IfNotPresent
+          command: ["node"]
+          args: ["--max-old-space-size=3072", "dist/src/services/worker/nuq-prefetch-worker.js"]
+          env:
+            - name: FLY_PROCESS_GROUP
+              value: "nuq-prefetch-worker"
+            - name: NUQ_PREFETCH_WORKER_PORT
+              value: "3011"
+          envFrom:
+            - configMapRef:
+                name: firecrawl-config
+            - secretRef:
+                name: firecrawl
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3011
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3011
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
