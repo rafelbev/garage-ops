@@ -56,11 +56,14 @@ that queue jobs in Redis.
   `PLAYWRIGHT_MICCURRENT_SERVICE_URL`, `USE_DB_AUTHENTICATION=false`,
   concurrency knobs (`CRAWL_CONCURRENT_REQUESTS`, `MAX_CONCURRENT_JOBS`,
   `BROWSER_POOL_SIZE`) tuned down from upstream defaults for a home cluster,
-  and `OPENAI_BASE_URL` (the self-hosted LiteLLM proxy, for LLM features).
+  and the LLM backend wiring: `OPENAI_BASE_URL` (the self-hosted LiteLLM
+  proxy), `MODEL_NAME` (reasoning LLM) and `MODEL_EMBEDDING_NAME`
+  (embedding model behind the semantic ranker).
 - **Secret `firecrawl`** (SOPS-encrypted) — `POSTGRES_PASSWORD`,
   `BULL_AUTH_KEY` (queue admin UI gate), `NUQ_DATABASE_URL` (the DSN, which
   embeds the password, so it lives in the secret not the ConfigMap), and
-  `OPENAI_API_KEY` (reuses the LiteLLM key; enables LLM features).
+  `OPENAI_API_KEY` (a dedicated LiteLLM key Firecrawl uses to call the
+  proxy, so its traffic is auditable/revocable on its own).
 
 ### Authentication
 
@@ -106,13 +109,16 @@ From inside the cluster, agents can call the service directly:
   runs with the default config, JSON format off). Not wired up here.
 - **LLM features are on via LiteLLM.** `OPENAI_API_KEY` (in the secret),
   `OPENAI_BASE_URL` (in the ConfigMap, `https://litellm.garage.neo-tix.com/v1`),
-  and `MODEL_NAME` (`garage/qwen3.8:27B`, the model the LiteLLM proxy serves)
-  point Firecrawl's LLM-backed features (`/extract`, LLM markdown) at the
-  self-hosted LiteLLM proxy. Firecrawl's LLM calls default to `gpt-4o-mini`,
-  so `MODEL_NAME` overrides that with a model LiteLLM actually serves (without
-  it, every LLM call fails with "no healthy deployments for gpt-4o-mini"). The
-  key reuses the existing LiteLLM key, so no new secret is introduced. If
-  LiteLLM is unavailable, LLM-backed formats fail (scrape/search still work).
+  `MODEL_NAME` (`garage/qwen3.8:27B`) and `MODEL_EMBEDDING_NAME`
+  (`garage/granite-embedding`) point Firecrawl's LLM-backed features —
+  reasoning (`/extract`, LLM markdown), embeddings and the semantic
+  reranking of search/crawl results — at the self-hosted LiteLLM proxy.
+  Firecrawl's calls default to `gpt-4o-mini` / `text-embedding-3-small`, so
+  both vars override those with models LiteLLM actually serves (without
+  them, every LLM/embedding call fails with "no healthy deployments").
+  The key is a dedicated per-service LiteLLM key (not the proxy master
+  key). If LiteLLM is unavailable, LLM-backed formats fail (scrape/search
+  still work).
 - **Queue state is ephemeral.** Restarting `nuq-postgres` drops in-flight
   jobs (by design, see the database decision above).
 - **Resource sizing** is tuned for a home cluster: `nuq-worker` runs 1
