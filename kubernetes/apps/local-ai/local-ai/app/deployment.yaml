@@ -52,6 +52,10 @@ spec:
               value: "true"
             - name: LOCALAI_MODELS_PATH
               value: /build/models
+            # Avoid probing remote gallery GGUF metadata during container
+            # startup (disables the background VRAM-estimate warm-up).
+            - name: LOCALAI_VRAM_WARM_LIMIT
+              value: "0"
             - name: LOCALAI_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -94,7 +98,27 @@ spec:
           volumeMounts:
             - name: models
               mountPath: /build/models
+            - name: images
+              mountPath: /tmp/generated/images
+            - name: data
+              mountPath: /data
+            - name: backends
+              mountPath: /backends
+            - name: configuration
+              mountPath: /configuration
       volumes:
         - name: models
           persistentVolumeClaim:
             claimName: local-ai-models
+        - name: images
+          persistentVolumeClaim:
+            claimName: local-ai-images
+        - name: data
+          persistentVolumeClaim:
+            claimName: local-ai-data
+        - name: backends
+          persistentVolumeClaim:
+            claimName: local-ai-backends
+        - name: configuration
+          persistentVolumeClaim:
+            claimName: local-ai-configuration

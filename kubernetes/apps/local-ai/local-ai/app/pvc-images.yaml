@@ -1,0 +1,19 @@
+---
+# Dynamic PVC for generated images (diffusion/image backends).
+#
+# LocalAI writes generated images to /tmp/generated/images (see the upstream
+# docker-compose "images" volume). Single-writer, so iSCSI block storage.
+# Expand if the image library grows (allowVolumeExpansion: true on the
+# truenas-iscsi StorageClass).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-ai-images
+  namespace: local-ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 10Gi
