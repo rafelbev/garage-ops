@@ -1,0 +1,18 @@
+---
+# Dynamic PVC for the LocalAI configuration directory.
+#
+# LocalAI's configuration directory (/configuration, the upstream
+# docker-compose "configuration" volume): runtime-written model/agent configs.
+# Small by design; single-writer, so iSCSI block storage.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-ai-configuration
+  namespace: local-ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 1Gi

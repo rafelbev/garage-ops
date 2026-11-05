@@ -12,17 +12,18 @@ they cannot run at the same time (see [GPU cutover](#gpu-cutover)).
 
 ## Architecture
 
-| Component      | Detail                                                                                                               |
-| -------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Workload       | single-replica Deployment, `runtimeClassName: nvidia`, `strategy: Recreate`                                          |
-| GPU            | 1x `nvidia.com/gpu` (RTX 2080Ti on `cluster-4`) via the [GPU Operator](../gpu-operator/README.md) device plugin      |
-| Image          | `quay.io/go-skynet/local-ai:v4.12.1-gpu-nvidia-cuda-13` (pinned CUDA 13 build; Renovate tracks the version)          |
-| Model storage  | dynamic `truenas-iscsi` PVC `local-ai-models` (50Gi, RWO) mounted at `/build/models` (LocalAI's default models path) |
-| Models         | installed at runtime via the web UI gallery, the `local-ai` CLI, or by dropping a GGUF + YAML config into the PVC    |
-| Exposure       | `HTTPRoute` `local-ai.garage.neo-tix.com` → `envoy-external` gateway (API-key auth via `LOCALAI_API_KEY`)            |
-| Traffic policy | route-scoped `BackendTrafficPolicy` disabling response compression (see [Pitfalls](#pitfalls))                       |
-| Auth           | `LOCALAI_API_KEY` from SOPS-encrypted Secret `local-ai` (key `API_KEY`) — Bearer token required on API + web UI      |
-| Probes         | startup `/readyz` (long budget), liveness `/healthz`, readiness `/readyz` (source-verified endpoints)                |
+| Component      | Detail                                                                                                                                                                                                                                                                            |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Workload       | single-replica Deployment, `runtimeClassName: nvidia`, `strategy: Recreate`                                                                                                                                                                                                       |
+| GPU            | 1x `nvidia.com/gpu` (RTX 2080Ti on `cluster-4`) via the [GPU Operator](../gpu-operator/README.md) device plugin                                                                                                                                                                   |
+| Image          | `quay.io/go-skynet/local-ai:v4.12.1-gpu-nvidia-cuda-13` (pinned CUDA 13 build; Renovate tracks the version)                                                                                                                                                                       |
+| Storage        | dynamic `truenas-iscsi` PVCs (RWO, single-writer): `local-ai-models` (200Gi → `/build/models`), `local-ai-images` (10Gi → `/tmp/generated/images`), `local-ai-data` (10Gi → `/data`), `local-ai-backends` (10Gi → `/backends`), `local-ai-configuration` (1Gi → `/configuration`) |
+| Models         | installed at runtime via the web UI gallery, the `local-ai` CLI, or by dropping a GGUF + YAML config into the PVC                                                                                                                                                                 |
+| Startup        | `LOCALAI_VRAM_WARM_LIMIT=0` — no remote gallery GGUF metadata probing at container startup (see [Startup](#startup))                                                                                                                                                              |
+| Exposure       | `HTTPRoute` `local-ai.garage.neo-tix.com` → `envoy-external` gateway (API-key auth via `LOCALAI_API_KEY`)                                                                                                                                                                         |
+| Traffic policy | route-scoped `BackendTrafficPolicy` disabling response compression (see [Pitfalls](#pitfalls))                                                                                                                                                                                    |
+| Auth           | `LOCALAI_API_KEY` from SOPS-encrypted Secret `local-ai` (key `API_KEY`) — Bearer token required on API + web UI                                                                                                                                                                   |
+| Probes         | startup `/readyz` (long budget), liveness `/healthz`, readiness `/readyz` (source-verified endpoints)                                                                                                                                                                             |
 
 ### Requesting the GPU
 
@@ -75,6 +76,30 @@ threads: 1
 f16: true
 gpu_layers: 999 # offload every layer to the GPU
 ```
+
+### Storage
+
+LocalAI writes to several directories beyond the models path. Each is backed
+by a dedicated `truenas-iscsi` PVC (`ReadWriteOnce`, single-writer — one pod
+is the sole writer, matching the models volume). The mount paths mirror the
+upstream `docker-compose.yaml` named volumes:
+
+| PVC                      | Mount path              | Size  | Contents                                                    |
+| ------------------------ | ----------------------- | ----- | ----------------------------------------------------------- |
+| `local-ai-models`        | `/build/models`         | 200Gi | model weights + configs (LocalAI's models path)             |
+| `local-ai-images`        | `/tmp/generated/images` | 10Gi  | images generated by the diffusion/image backends            |
+| `local-ai-data`          | `/data`                 | 10Gi  | runtime data + caches (e.g. the remote VRAM-estimate cache) |
+| `local-ai-backends`      | `/backends`             | 10Gi  | backend files installed at runtime                          |
+| `local-ai-configuration` | `/configuration`        | 1Gi   | runtime-written model/agent configurations                  |
+
+All PVCs expand on demand (`allowVolumeExpansion: true` on `truenas-iscsi`).
+
+### Startup
+
+`LOCALAI_VRAM_WARM_LIMIT=0` disables the background VRAM-estimate warm-up so
+container startup does **not** probe remote gallery GGUF metadata (upstream
+sets this same defensive default in its `docker-compose.yaml`). Remove the
+override or set a positive limit to opt back into warming.
 
 ### Probes
 

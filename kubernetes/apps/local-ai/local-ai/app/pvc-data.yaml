@@ -1,0 +1,18 @@
+---
+# Dynamic PVC for the LocalAI data directory.
+#
+# LocalAI's runtime data directory (/data, the upstream docker-compose "data"
+# volume): runtime state and caches, including the remote VRAM-estimate cache
+# used by the model gallery. Single-writer, so iSCSI block storage.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-ai-data
+  namespace: local-ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 10Gi

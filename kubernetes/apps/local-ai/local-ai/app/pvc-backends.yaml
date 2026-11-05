@@ -1,0 +1,18 @@
+---
+# Dynamic PVC for the LocalAI backends directory.
+#
+# LocalAI's backends directory (/backends, the upstream docker-compose
+# "backends" volume): backend files installed at runtime. Single-writer, so
+# iSCSI block storage.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: local-ai-backends
+  namespace: local-ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 10Gi

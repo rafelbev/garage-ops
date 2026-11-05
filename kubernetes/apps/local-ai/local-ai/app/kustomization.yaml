@@ -7,4 +7,8 @@ resources:
   - ./httproute.yaml
   - ./backendtrafficpolicy.yaml
   - ./pvc-models.yaml
+  - ./pvc-images.yaml
+  - ./pvc-data.yaml
+  - ./pvc-backends.yaml
+  - ./pvc-configuration.yaml
   - ./secret.sops.yaml
