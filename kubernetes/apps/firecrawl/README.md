@@ -27,8 +27,8 @@ entrypoint:
 - **Redis is out-of-cluster.** Firecrawl's rate limiting / cache now uses the
   shared out-of-cluster Redis at `redis.intranet.neo-tix.com` (database index
   `2`), configured via `REDIS_URL` / `REDIS_RATE_LIMIT_URL` in the SOPS secret.
-  See the "Redis" section below and `AGENTS.md` for the per-app index
-  allocation.
+  See the "Redis" section below and `docs/redis.md` for the authoritative
+  per-app database-index allocation.
 
 - **RabbitMQ is the NUQ job-queue transport.** The NUQ job queue is backed
   by Postgres (`NUQ_DATABASE_URL`) for durability, but `NUQ_RABBITMQ_URL`
