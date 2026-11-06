@@ -8,6 +8,7 @@ data:
     general_settings:
       store_model_in_db: true
       store_prompts_in_spend_logs: false
+      disable_env_credential_login: true
     # In your config.yaml for the Litellm proxy
     litellm_settings:
       drop_params:
