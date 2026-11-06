@@ -993,9 +993,20 @@ deleted afterwards.
 **Current consumers of `redis.intranet.neo-tix.com:6379`:**
 
 - `immich` (Talos): `REDIS_HOSTNAME=redis.intranet.neo-tix.com` in
-  `kubernetes/apps/immich/immich/app/server-deployment.yaml`
+  `kubernetes/apps/immich/immich/app/server-deployment.yaml` (db0)
 - `penpot` (k3s, dormant): `PENPOT_REDIS_URI` in the `penpot-backend` and
   `penpot-exporter` deployments (db1)
+- `firecrawl` (Talos): `REDIS_URL` / `REDIS_RATE_LIMIT_URL` in the SOPS
+  secret `firecrawl` (db2) — `redis://:…@redis.intranet.neo-tix.com:6379/2`
+
+**Standing rule — one logical DB per app:** every app that uses the shared
+out-of-cluster Redis gets its **own database index** (the `/N` suffix in the
+connection URL, or the app's db config) so key spaces never collide. The
+allocation so far: db0 = immich, db1 = penpot, db2 = firecrawl. When adding a
+new Redis consumer, pick the **next free index** and record it here (and in the
+app's README). Verify each index is free with `redis-cli -n <db> DBSIZE`
+before assigning it — the keyspace summary only lists non-empty DBs, and a
+dormant app (0/0 replicas) can still "own" an index that shows 0 keys.
 
 ## Use Case 6: Self-Hosted GitHub Runners (ARC Scale Sets)
 
