@@ -52,6 +52,8 @@ The LLM base URL is re-pointed from the k3s litellm
 (`litellm.garage.neo-tix.com/v1`). The `LLM_OPENAI_COMPATIBLE_API_KEY`
 is set to the real OpenAI-compatible key in the `honcho-env` SOPS secret
 (it was empty on the k3s source and carried over as-is during migration).
+The `LLM_EMBEDDING_MODEL` is `garage/granite-embedding`, served by the same
+Talos litellm proxy (replacing the original `nomic-ai/nomic-embed-text-v1`).
 
 ## Image
 
