@@ -6,8 +6,9 @@ metadata:
   namespace: firecrawl
 data:
   HOST: "0.0.0.0"
-  REDIS_URL: "redis://redis:6379"
-  REDIS_RATE_LIMIT_URL: "redis://redis:6379"
+  # Redis moved to the shared out-of-cluster instance (see the SOPS secret
+  # for REDIS_URL / REDIS_RATE_LIMIT_URL, and the README / AGENTS.md for the
+  # per-app db-index allocation).
   PLAYWRIGHT_MICROSERVICE_URL: "http://playwright-service:3000"
   # Database-backed auth (Supabase) is not available self-hosted; requests
   # need no API key. Public traffic is 2FA-gated by Authelia instead.

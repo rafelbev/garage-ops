@@ -23,7 +23,12 @@ entrypoint:
 | `nuq-prefetch-worker` | 1        | Claims queued jobs from Postgres, republishes to RabbitMQ | `ghcr.io/firecrawl/firecrawl:2.11.162`        |
 | `playwright-service`  | 1        | Headless Chromium for JS-heavy pages, port 3000           | `ghcr.io/firecrawl/playwright-service:latest` |
 | `nuq-postgres`        | 1        | Postgres job queue (port 5432)                            | `ghcr.io/firecrawl/nuq-postgres:latest`       |
-| `redis`               | 1        | Rate limiting + cache (port 6379)                         | `redis:alpine`                                |
+
+- **Redis is out-of-cluster.** Firecrawl's rate limiting / cache now uses the
+  shared out-of-cluster Redis at `redis.intranet.neo-tix.com` (database index
+  `2`), configured via `REDIS_URL` / `REDIS_RATE_LIMIT_URL` in the SOPS secret.
+  See the "Redis" section below and `AGENTS.md` for the per-app index
+  allocation.
 
 - **RabbitMQ is the NUQ job-queue transport.** The NUQ job queue is backed
   by Postgres (`NUQ_DATABASE_URL`) for durability, but `NUQ_RABBITMQ_URL`
@@ -43,24 +48,29 @@ forgejo / immich learnings in `AGENTS.md`). Firecrawl's `nuq-postgres` is an
 job state, not user data. It is run on an **ephemeral `emptyDir`** (matching
 the upstream cluster-install example), so a pod restart drops in-flight jobs
 but no user data is lost. This is the same class of transient state as the
-in-cluster `redis` and the Compose path's RabbitMQ. If a persistent,
+out-of-cluster Redis cache and the Compose path's RabbitMQ. If a persistent,
 user-data database is ever added to Firecrawl (e.g. Supabase-backed auth),
 it must be moved off-cluster per the standing rule.
 
-### Redis persistence (iSCSI PVC)
+### Redis (out-of-cluster)
 
-Redis runs on a 1Gi `truenas-iscsi` PVC mounted at `/data` (the RDB snapshot
-dir). The pod sets `fsGroup: 997` (matching `runAsUser`) so the redis process
-can write the temp RDB files. Without a writable volume, Redis's background save
-fails with "Permission denied" — the image bakes `/data` owned by a UID that
-does not match the pod's `runAsUser` — which disables writes
-(`stop-writes-on-bgsave-error`) and crash-loops the worker and extract paths
-that queue jobs in Redis.
+Firecrawl's rate limiting / cache uses the shared out-of-cluster Redis at
+`redis.intranet.neo-tix.com:6379` — the same instance all cluster apps now use
+(see `AGENTS.md` for the per-app database-index allocation). Firecrawl takes
+**database index `2`** (db `0` is immich's, db `1` is penpot's), so its keys
+never collide with the other apps. The connection URLs live in the SOPS secret
+as `REDIS_URL` and `REDIS_RATE_LIMIT_URL` (both
+`redis://:…@redis.intranet.neo-tix.com:6379/2`);
+they are full connection strings because Firecrawl reads a single URL and does
+not split host/port/password, so the shared Redis password travels in the URL.
+The old in-cluster `redis` deployment / service / PVC were removed. The data
+is transient (rate-limit counters + cache), so dropping the in-cluster
+instance loses nothing.
 
 ## Configuration
 
-- **ConfigMap `firecrawl-config`** — non-secret env: `REDIS_URL`,
-  `PLAYWRIGHT_MICCURRENT_SERVICE_URL`, `USE_DB_AUTHENTICATION=false`,
+- **ConfigMap `firecrawl-config`** — non-secret env:
+  `PLAYWRIGHT_MICROSERVICE_URL`, `USE_DB_AUTHENTICATION=false`,
   concurrency knobs (`CRAWL_CONCURRENT_REQUESTS`, `MAX_CONCURRENT_JOBS`,
   `BROWSER_POOL_SIZE`) tuned down from upstream defaults for a home cluster,
   and the LLM backend wiring: `OPENAI_BASE_URL` (the self-hosted LiteLLM
@@ -70,9 +80,11 @@ that queue jobs in Redis.
   `BULL_AUTH_KEY` (queue admin UI gate), `NUQ_DATABASE_URL` (the DSN, which
   embeds the password, so it lives in the secret not the ConfigMap),
   `NUQ_RABBITMQ_URL` (RabbitMQ DSN for the NUQ job queue, legacy extract
-  and webhook queues), and `OPENAI_API_KEY` (a dedicated LiteLLM key
+  and webhook queues), `OPENAI_API_KEY` (a dedicated LiteLLM key
   Firecrawl uses to call the proxy, so its traffic is auditable/revocable
-  on its own).
+  on its own), and `REDIS_URL` / `REDIS_RATE_LIMIT_URL` (the full
+  connection URLs to the shared out-of-cluster Redis, db index `2` —
+  see the "Redis" section above).
 
 ### Authentication
 
@@ -110,8 +122,8 @@ From inside the cluster, agents can call the service directly:
 - **The firecrawl node image runs as root** (no `USER` directive), so the
   `api` / `worker` / `nuq-worker` pods do not set the restricted
   `securityContext` (`runAsNonRoot` would break startup). The
-  `nuq-postgres` (postgres:999), `redis` (redis:997), and
-  `playwright-service` (uid 1000) pods do set it.
+  `nuq-postgres` (postgres:999) and `playwright-service` (uid 1000)
+  pods do set it.
 - **`/search` uses Google by default.** To point it at the in-cluster
   SearXNG instead (no external calls), set `SEARXNG_ENDPOINT` in the
   ConfigMap **and** enable the JSON format on the SearXNG app (it currently
