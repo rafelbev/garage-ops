@@ -14,7 +14,4 @@ resources:
   - ./playwright-service.yaml
   - ./nuq-postgres-deployment.yaml
   - ./nuq-postgres-service.yaml
-  - ./redis-deployment.yaml
-  - ./redis-pvc.yaml
-  - ./redis-service.yaml
   - ./httproute.yaml
