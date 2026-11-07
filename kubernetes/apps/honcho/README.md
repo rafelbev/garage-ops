@@ -55,6 +55,48 @@ is set to the real OpenAI-compatible key in the `honcho-env` SOPS secret
 The `LLM_EMBEDDING_MODEL` is `garage/granite-embedding`, served by the same
 Talos litellm proxy (replacing the original `nomic-ai/nomic-embed-text-v1`).
 
+## Embedding model change (nomic → granite)
+
+The embedding model was switched from `nomic-ai/nomic-embed-text-v1` (1024-dim)
+to `garage/granite-embedding` (768-dim), served by the same Talos litellm proxy.
+This required:
+
+1. **DB schema migration**: The deployed v3.5.0 image expects the v3.5.0 schema
+   (notably `messages.deleted_at`). The DB was at an older alembic revision
+   (`e4eba9cfaa6f`), so the v3.5.0 tag's Alembic migrations were applied to
+   bring the schema in line. The migration scripts were taken from the v3.5.0
+   git tag (not master), to match the deployed image.
+2. **Embedding column resize**: The `messages.embedding` and
+   `message_embeddings.embedding` columns were resized from `vector(1024)` to
+   `vector(768)` to match the new model's output dimension.
+3. **Backfill**: All 5,848 existing messages were re-embedded with the new
+   model (10,083 embeddings total; some long messages are chunked into
+   multiple embeddings).
+
+### Backfill details
+
+The backfill uses the image's `/app/scripts/generate_message_embeddings.py`
+script, run inside the honcho pod. Key gotchas:
+
+- **Env var mapping**: The deployed image's `embedding_client` reads
+  `settings.EMBEDDING.MODEL_CONFIG` (from `EMBEDDING_MODEL_CONFIG`) and
+  `settings.LLM.OPENAI_API_KEY` (from `LLM_OPENAI_API_KEY`), but the pod is
+  provisioned with the older `LLM_EMBEDDING_MODEL` /
+  `LLM_OPENAI_COMPATIBLE_API_KEY` / `LLM_OPENAI_COMPATIBLE_BASE_URL` names.
+  The backfill script maps them:
+  `EMBEDDING_MODEL_CONFIG` is set to a JSON with the model, transport, and
+  base URL; `LLM_OPENAI_API_KEY` is set to the value of
+  `LLM_OPENAI_COMPATIBLE_API_KEY`.
+- **Token limit**: The `garage/granite-embedding` backend has a physical batch
+  size of 512 tokens per request. The client tokenizes with `cl100k_base`
+  (tiktoken fallback, since `garage/granite-embedding` is not a known tiktoken
+  model), but the backend uses the granite tokenizer — a variable ~2–3×
+  mismatch. So `EMBEDDING_MAX_INPUT_TOKENS` and
+  `EMBEDDING_MAX_TOKENS_PER_REQUEST` are set to 100 (client) → ~300 tokens
+  (backend), safely under 512.
+- **Vector dimensions**: `EMBEDDING_VECTOR_DIMENSIONS=768` is set to match the
+  model's output dimension.
+
 ## Image
 
 Pinned to `ghcr.io/plastic-labs/honcho:v3.5.0` (the latest current release).
