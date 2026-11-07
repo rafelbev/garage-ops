@@ -57,11 +57,32 @@ Talos litellm proxy (replacing the original `nomic-ai/nomic-embed-text-v1`).
 
 ## Image
 
-Pinned to `ghcr.io/plastic-labs/honcho:v3.5.0` (the latest current release).
-The container's boot command keeps the source's `uv pip install ...` lines;
-they fail harmlessly (`uv` is not in the image) because the image ships
-`uvicorn` pre-installed and the app runs from the local `src/main.py`, so
-`uvicorn src.main:app` starts directly.
+Pinned to `ghcr.io/plastic-labs/honcho:v3.6.0`. The container's boot command
+keeps the source's `uv pip install ...` lines; they fail harmlessly (`uv` is
+not in the image) because the image ships `uvicorn` pre-installed and the app
+runs from the local `src/main.py`, so `uvicorn src.main:app` starts directly.
+
+### v3.6.0 embedding-dimension validator
+
+Honcho v3.6.0 adds a startup validator
+(`src/startup/embedding_validator.py`) that **fails closed** — the process
+exits at boot — if the pgvector column dimension does not match the configured
+`EMBEDDING_VECTOR_DIMENSIONS`. That setting (the `EMBEDDING_`-prefixed
+`VECTOR_DIMENSIONS` config) **defaults to 1536**.
+
+This deployment's database columns (`public.documents.embedding` and
+`public.message_embeddings.embedding`) are `vector(768)`, and the embedding
+model (`garage/granite-embedding`) emits 768-dim vectors. Without the pin,
+v3.6.0 crash-loops on boot with:
+
+```
+StartupValidationError: public.documents.embedding dim (768) does not match
+EMBEDDING_VECTOR_DIMENSIONS (1536).
+```
+
+The fix is `EMBEDDING_VECTOR_DIMENSIONS: "768"` in the `honcho-env` secret,
+matching the physical schema and the model output. (Do **not** widen the DB
+columns to 1536 — the model only emits 768 dims, so 768 is the correct value.)
 
 ## Verification
 
