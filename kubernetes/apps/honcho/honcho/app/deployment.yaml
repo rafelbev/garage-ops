@@ -23,7 +23,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: honcho
-          image: ghcr.io/plastic-labs/honcho:v3.5.0
+          image: ghcr.io/plastic-labs/honcho:v3.6.0
           imagePullPolicy: IfNotPresent
           command:
             - sh
