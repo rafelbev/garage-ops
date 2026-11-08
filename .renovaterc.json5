@@ -2,12 +2,6 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["github>home-operations/renovate-presets#11.0.0"],
   schedule: ["at any time"],
-  // Self-hosted runs commit as the bot account, not as Mend's default
-  // renovate[bot] identity (flagged "Unverified" by Vigilant Mode).
-  // Default branchPrefix (renovate/) is kept on purpose so self-hosted
-  // runs adopt the branches/PRs left behind by the former hosted app.
-  gitAuthor: "rafelbev-renovate-bot <rafelbev-renovate-bot@users.noreply.github.com>",
-  username: "rafelbev-renovate-bot",
   lockFileMaintenance: {
     enabled: true,
     schedule: ["before 3am on the first day of the month"],
