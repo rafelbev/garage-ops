@@ -1463,6 +1463,22 @@ npx -y renovate@44.158.2-config-validator .renovaterc.json5 --strict
   creating PRs). Use `"at any time"` for a daily schedule (the explicit default),
   or a cron expression such as `* * * * *`. Validate with the config validator
   after any change (above).
+- **CI must run on `renovate/**` branch pushes**: the shared preset
+  (`github>home-operations/renovate-presets`) enables `internalChecksFilter` —
+  Renovate pushes the update branch, then waits for status checks to pass on that
+  branch before opening the PR. If a check workflow only triggers on
+  `pull_request` (and push to `main`), the checks never run on the branch
+  (no PR exists yet to trigger them), so the update stalls in the dashboard's
+  "Pending Status Checks" section forever and no PR is ever opened. Every check
+  workflow (`flate.yaml`, `zizmor.yaml`) therefore also has
+  `push: branches: [renovate/**]`.
+- **Stale Docker Hub tags on linuxserver images**: `linuxserver/lidarr` and
+  `linuxserver/qbittorrent` both carry ancient tags on Docker Hub that coerce
+  into semver values above the real latest release (`8.1.2135`, `20.04.1`).
+  Renovate picks the highest valid semver tag as "latest", so it proposed those
+  versions. `allowedVersions` pins each image to its current major (`^3\.`,
+  `^5\.`); bump the pin when the app crosses a major, otherwise Renovate stops
+  proposing updates for that image.
 
 ## Important Files Reference
 

@@ -83,6 +83,17 @@
       addLabels: ["renovate/github-release"],
     },
     {
+      description: "linuxserver images: both carry ancient tags on Docker Hub that coerce into semver values above the real latest (lidarr 8.1.2135, qbittorrent 20.04.1), which Renovate would otherwise pick as 'latest'. Pin to the current major; bump when the app crosses a major.",
+      matchDatasources: ["docker"],
+      matchPackageNames: ["linuxserver/lidarr"],
+      allowedVersions: "^3\\.",
+    },
+    {
+      matchDatasources: ["docker"],
+      matchPackageNames: ["linuxserver/qbittorrent"],
+      allowedVersions: "^5\\.",
+    },
+    {
       description: "Low-risk auto-merge: minor/patch/digest/pin updates that are not pre-1.0 and not flagged breaking in the changelog/release notes. Branch-merged (no PR) once CI is green — automergeType is inherited from the :automergeBranch preset. Majors and 0.x are deliberately excluded (they can break at any time).",
       matchUpdateTypes: ["minor", "patch", "digest", "pin"],
       matchJsonata: ["isBreaking != true"],

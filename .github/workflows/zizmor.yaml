@@ -9,6 +9,9 @@ on:
   push:
     branches:
       - main
+      # renovate/**: the shared Renovate preset gates branch progression on
+      # status checks (internalChecksFilter) — see flate.yaml.
+      - renovate/**
   workflow_dispatch:
 
 concurrency:
