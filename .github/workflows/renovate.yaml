@@ -27,5 +27,6 @@ jobs:
         # Config: .renovaterc.json5 at the repo root is picked up automatically.
         env:
           GITHUB_TOKEN: ${{ secrets.RENOVATE_BOT_TOKEN }}
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_BOT_TOKEN }}
           RENOVATE_VERSION: 44.222.4
         uses: renovatebot/github-action@1c0cf989c02653fba0efe7ca5772338860ca71dc # v46.3.12
