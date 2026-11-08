@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: "Renovate"
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    # Manual runs from the Actions tab replace the hosted-app "run now" button.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Renovate
+        # Self-hosted replacement for the hosted Mend.io Renovate app, which
+        # ran this repo on an uncontrolled cadence (2-12h discovery gaps).
+        # Auth: dedicated bot PAT stored as the RENOVATE_BOT_TOKEN repo secret.
+        # Config: .renovaterc.json5 at the repo root is picked up automatically.
+        env:
+          GITHUB_TOKEN: ${{ secrets.RENOVATE_BOT_TOKEN }}
+          RENOVATE_VERSION: 44.222.4
+        uses: renovatebot/github-action@1c0cf989c02653fba0efe7ca5772338860ca71dc # v46.3.12
