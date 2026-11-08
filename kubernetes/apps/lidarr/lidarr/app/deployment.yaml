@@ -21,7 +21,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: lidarr
-          image: linuxserver/lidarr:3.1.6
+          image: linuxserver/lidarr:8.1.2135
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8686
