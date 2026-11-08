@@ -1394,7 +1394,14 @@ talosctl logs <service> --nodes <ip> --tail 100
 
 - Renovate automatically opens PRs for dependency updates
 - Renovate is configured in `.renovaterc.json5`
-- This repo runs Renovate **every day** (`schedule: ["at any time"]`)
+- This repo runs Renovate **self-hosted** via `.github/workflows/renovate.yaml`
+  (every 30 minutes + manual `workflow_dispatch`). It replaced the hosted
+  Mend.io Renovate app, which ran this repo on an uncontrolled cadence with
+  2-12h discovery gaps. The bot authenticates with the `RENOVATE_BOT_TOKEN`
+  repo secret (a fine-grained PAT of the `rafelbev-renovate-bot` account,
+  scoped to this repo: Contents read & write, Pull requests read & write). The hosted
+  app must stay uninstalled for this repo while the workflow is active — two
+  Renovate instances on one repo fight over the same branches and PRs.
 - Merging a Renovate PR typically triggers Flux to apply the update
 
 ### Low-risk auto-merge
