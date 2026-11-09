@@ -1394,8 +1394,13 @@ talosctl logs <service> --nodes <ip> --tail 100
 
 - Renovate automatically opens PRs for dependency updates
 - Renovate is configured in `.renovaterc.json5`
-- This repo runs Renovate **self-hosted** via `.github/workflows/renovate.yaml`
-  (every 30 minutes + manual `workflow_dispatch`). It replaced the hosted
+- This repo runs Renovate **self-hosted** via `.github/workflows/renovate.yaml`.
+  Cadence is driven by a **host crontab entry** that triggers the workflow
+  every 30 minutes — GitHub's `schedule` trigger is best-effort (it skipped
+  ~91% of slots in practice and can be silently deactivated). The workflow's
+  `concurrency` group serializes all triggers (`cancel-in-progress: true`), so
+  a new tick always replaces an in-flight run. Manual `workflow_dispatch` also
+  works. It replaced the hosted
   Mend.io Renovate app, which ran this repo on an uncontrolled cadence with
   2-12h discovery gaps. The bot authenticates with the `RENOVATE_BOT_TOKEN`
   repo secret (a fine-grained PAT of the `rafelbev-renovate-bot` account,
@@ -1427,6 +1432,7 @@ These are encoded in `.renovaterc.json5`:
   matchJsonata: ["isBreaking != true"],
   matchCurrentVersion: "!/^0/",
   automerge: true,
+  automergeType: "pr",
 },
 {
   matchIsBreaking: true,
@@ -1434,10 +1440,12 @@ These are encoded in `.renovaterc.json5`:
 }
 ```
 
-- The inherited `:automergeBranch` preset supplies `automergeType: "branch"`, so
-  a low-risk update is **pushed straight to the base branch** (no PR to click)
-  once CI is green. `config:recommended` / `config:base` do **not** enable
-  `automerge`, so nothing auto-merges unless a rule explicitly sets it.
+- The low-risk rule sets `automergeType: "pr"`, so a low-risk update is
+  **merged as a PR once CI is green** — visible in the PR history and gated
+  by the check workflows. Auto-merges cascade across runs: each merge moves
+  `main`, so the remaining PRs are caught up and merged one or two per run.
+  `config:recommended` / `config:base` do **not** enable `automerge`, so
+  nothing auto-merges unless a rule explicitly sets it.
 - `isBreaking` is decided independently of the update type from release-notes /
   changelog analysis, so a `minor` bump whose notes describe a breaking change is
   held for a human (the second `packageRule` re-asserts `automerge: false` to stay
