@@ -1476,9 +1476,22 @@ npx -y renovate@44.158.2-config-validator .renovaterc.json5 --strict
   `linuxserver/qbittorrent` both carry ancient tags on Docker Hub that coerce
   into semver values above the real latest release (`8.1.2135`, `20.04.1`).
   Renovate picks the highest valid semver tag as "latest", so it proposed those
-  versions. `allowedVersions` pins each image to its current major (`^3\.`,
-  `^5\.`); bump the pin when the app crosses a major, otherwise Renovate stops
-  proposing updates for that image.
+  versions. `allowedVersions` pins each image to its current major (`/^3\./`,
+  `/^5\./`); bump the pin when the app crosses a major, otherwise Renovate
+  stops proposing updates for that image.
+- **`allowedVersions` regexes must use the `/regex/` form**: a bare string
+  like `"^3\\."` is treated as a **semver range**, not a regex. An
+  unparseable value invalidates the **whole** config — Renovate opens an
+  "Action Required: Fix Renovate Configuration" issue and stops creating
+  PRs entirely. Write regex pins as `"/^3\\./"` (slash-wrapped); the config
+  validator does not catch this one, so verify the value against the pinned
+  Renovate version's lookup/filter code path before shipping.
+- **GitHub can deactivate a workflow's `schedule` trigger**: cron runs stop
+  firing silently (only a few scattered `schedule` runs left in the run
+  history) while `workflow_dispatch` runs keep working. Per the GitHub docs,
+  a commit that changes the `cron` schedule by a user with `write` access
+  re-activates the deactivated workflow — fix it by changing the cron string
+  to a semantically identical one (e.g. `*/30 * * * *` → `0,30 * * * *`).
 
 ## Important Files Reference
 

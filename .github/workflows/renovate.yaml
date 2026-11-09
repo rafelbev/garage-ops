@@ -4,7 +4,10 @@ name: "Renovate"
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    # '0,30' is semantically identical to '*/30'; the string change re-arms
+    # the schedule trigger, which GitHub had deactivated (cron runs stopped
+    # firing while workflow_dispatch kept working).
+    - cron: "0,30 * * * *"
   workflow_dispatch:
     # Manual runs from the Actions tab replace the hosted-app "run now" button.
 
