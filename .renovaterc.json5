@@ -102,6 +102,27 @@
       automergeType: "pr",
     },
     {
+      description: "jackett is pre-1.0 (0.x) but mature and stable: give it the same low-risk auto-merge as non-0.x packages. The general rule's '!/^0/' exclusion would otherwise block it; this rule re-grants it for minor/patch/digest/pin that aren't flagged breaking. Majors and breaking changes to jackett stay manual.",
+      matchPackageNames: ["linuxserver/jackett"],
+      matchUpdateTypes: ["minor", "patch", "digest", "pin"],
+      matchJsonata: ["isBreaking != true"],
+      automerge: true,
+      automergeType: "pr",
+    },
+    {
+      description: "open-terminal, readarr, n8n-sandbox-service, and echo are pre-1.0 (0.x) but mature and stable: same low-risk auto-merge as non-0.x packages (see the jackett rule above). Majors and breaking changes stay manual.",
+      matchPackageNames: [
+        "ghcr.io/open-webui/open-terminal",
+        "ghcr.io/faustvii/readarr",
+        "n8n-sandbox-service",
+        "ghcr.io/home-operations/charts/echo",
+      ],
+      matchUpdateTypes: ["minor", "patch", "digest", "pin"],
+      matchJsonata: ["isBreaking != true"],
+      automerge: true,
+      automergeType: "pr",
+    },
+    {
       description: "Never auto-merge updates Renovate flags as breaking from the changelog/release notes — these require a human to read the release notes before merging.",
       matchIsBreaking: true,
       automerge: false,
