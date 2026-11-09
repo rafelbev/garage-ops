@@ -6,6 +6,13 @@ on:
   pull_request:
     branches:
       - main
+  # The shared Renovate preset gates branch progression on status checks
+  # (internalChecksFilter), so Flate must also run on renovate branch pushes —
+  # otherwise updates stall in "Pending Status Checks" forever (no PR is
+  # opened until checks pass, and checks only run on PRs).
+  push:
+    branches:
+      - renovate/**
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
