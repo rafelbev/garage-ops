@@ -18,6 +18,7 @@ resources:
   - ./scale-set-intellij-mattermost-plugin.yaml
   - ./scale-set-justgage.yaml
   - ./scale-set-k8s-at-home-charts.yaml
+  - ./scale-set-localai-beellama-backend.yaml
   - ./scale-set-logback-mattermost-appender.yaml
   - ./scale-set-metube.yaml
   - ./scale-set-netty-collector.yaml
