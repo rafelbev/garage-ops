@@ -22,6 +22,11 @@
       versioning: "regex:^jetty-v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
     },
     {
+      description: "go-skynet/local-ai publishes its release tags with a '-gpu-nvidia-cuda-<N>' suffix (e.g. v4.12.1-gpu-nvidia-cuda-13). The suffix is a semver prerelease under the default docker versioning, so every tag is filtered out and Renovate reports no-result (releases: []) for the pinned tag. The registry's tag list is also dominated by commit-SHA tags, so the default release detection finds nothing. Define the tag shape here so the pinned GPU-suffixed semver tags are parsed as major.minor.patch.",
+      matchPackageNames: ["quay.io/go-skynet/local-ai"],
+      versioning: "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-gpu-nvidia-cuda-\\d+$",
+    },
+    {
       description: "GitHub Actions Group",
       matchManagers: ["github-actions"],
       groupName: "github-actions",
