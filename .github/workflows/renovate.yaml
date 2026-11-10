@@ -52,7 +52,7 @@ jobs:
       - name: Restore Renovate cache
         id: cache-restore
         if: ${{ github.event.inputs.repoCache != 'disabled' && github.event.inputs.repoCache != 'reset' }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.renovate-cache-dir }}
           # Unique per run so each run saves its own snapshot; restore-keys
@@ -94,7 +94,7 @@ jobs:
         # Skip the save when the restore was an exact hit (cache-hit=true): the
         # snapshot is already up to date and re-saving it would be a no-op.
         if: ${{ github.event.inputs.repoCache != 'disabled' && steps.cache-restore.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.renovate-cache-dir }}
           key: ${{ env.renovate-cache-key }}-${{ github.run_id }}-${{ github.run_attempt }}
