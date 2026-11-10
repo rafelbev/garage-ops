@@ -10,6 +10,17 @@ on:
     - cron: "0,30 * * * *"
   workflow_dispatch:
     # Manual runs from the Actions tab replace the hosted-app "run now" button.
+    # The repoCache input lets a manual run disable or reset the persisted
+    # Renovate cache if it ever needs a cold start.
+    inputs:
+      repoCache:
+        description: "enabled | disabled | reset (persisted Renovate cache)"
+        type: choice
+        default: enabled
+        options:
+          - enabled
+          - disabled
+          - reset
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -18,11 +29,45 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  # The dir Renovate uses for its on-disk cache. Two caches live here:
+  #   renovate-cache-v1/  file-based package cache (the docker tag-list
+  #                       lookups — the expensive registry API calls)
+  #   repository/         per-repo JSON cache that speeds up extractions
+  # Persisting it across runs stops every run from re-fetching all ~250
+  # docker tag lists from a cold cache. That cold-cache burst is what trips
+  # GHCR's per-IP rate limit (429 TOOMANYREQUESTS, "allowed: 44000/minute"),
+  # which surfaces as "Invalid registry response" + "Package lookup
+  # failures" in the logs. With a warm cache, consecutive runs reuse the
+  # cached lookups and only re-fetch what changed, so the burst (and the 429s)
+  # largely disappears.
+  renovate-cache-dir: /tmp/renovate/cache/renovate
+  renovate-cache-key: renovate-cache
+
 jobs:
   renovate:
     name: Renovate
     runs-on: ubuntu-latest
     steps:
+      - name: Restore Renovate cache
+        id: cache-restore
+        if: ${{ github.event.inputs.repoCache != 'disabled' && github.event.inputs.repoCache != 'reset' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.renovate-cache-dir }}
+          # Unique per run so each run saves its own snapshot; restore-keys
+          # falls back to the most recent prior snapshot.
+          key: ${{ env.renovate-cache-key }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ${{ env.renovate-cache-key }}-
+
+      - name: Fix restored cache ownership
+        if: steps.cache-restore.outputs.cache-matched-key != ''
+        run: |
+          # actions/cache restores files owned by the runner (root), but
+          # Renovate reads them inside its container as user 12021.
+          sudo chown -R 12021:0 /tmp/renovate/
+
       - name: Run Renovate
         # Self-hosted replacement for the hosted Mend.io Renovate app, which
         # ran this repo on an uncontrolled cadence (2-12h discovery gaps).
@@ -40,4 +85,16 @@ jobs:
           RENOVATE_GIT_AUTHOR: "Renovate Bot <rafelbev-renovate-bot@users.noreply.github.com>"
           RENOVATE_USERNAME: rafelbev-renovate-bot
           RENOVATE_VERSION: 44.222.4
+          # Enables the per-repo JSON extraction cache; the file-based package
+          # cache (docker lookups) is always written to the cache dir above.
+          RENOVATE_REPOSITORY_CACHE: ${{ github.event.inputs.repoCache || 'enabled' }}
         uses: renovatebot/github-action@1c0cf989c02653fba0efe7ca5772338860ca71dc # v46.3.12
+
+      - name: Save Renovate cache
+        # Skip the save when the restore was an exact hit (cache-hit=true): the
+        # snapshot is already up to date and re-saving it would be a no-op.
+        if: ${{ github.event.inputs.repoCache != 'disabled' && steps.cache-restore.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ env.renovate-cache-dir }}
+          key: ${{ env.renovate-cache-key }}-${{ github.run_id }}-${{ github.run_attempt }}
