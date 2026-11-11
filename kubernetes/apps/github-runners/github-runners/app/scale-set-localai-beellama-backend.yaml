@@ -23,6 +23,12 @@ spec:
     githubConfigSecret: gha-credentials
     minRunners: 0
     maxRunners: 2
+    # dind mode: the backend repo's CI builds + pushes a container image
+    # on these runners, so the runner pod needs a docker daemon. The chart
+    # adds a dind sidecar + init containers and wires DOCKER_HOST into the
+    # runner container (the template below is merged with the dind pod spec).
+    containerMode:
+      type: dind
     template:
       spec:
         containers:
