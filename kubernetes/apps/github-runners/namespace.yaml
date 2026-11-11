@@ -3,3 +3,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: github-runners
+  labels:
+    # dind-based runners (e.g. localai-beellama-backend) run a Docker daemon in a
+    # privileged container; the namespace must allow privileged pods, otherwise
+    # PodSecurityAdmission (default "baseline") rejects the ephemeral runner pods.
+    pod-security.kubernetes.io/enforce: privileged
