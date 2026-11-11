@@ -81,7 +81,7 @@ jobs:
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_BOT_TOKEN }}
           GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_BOT_TOKEN }}
           RENOVATE_PLATFORM: github
-          RENOVATE_REPOSITORIES: rafelbev/garage-ops
+          RENOVATE_REPOSITORIES: rafelbev/garage-ops rafelbev/localai-beellama-backend
           RENOVATE_GIT_AUTHOR: "Renovate Bot <rafelbev-renovate-bot@users.noreply.github.com>"
           RENOVATE_USERNAME: rafelbev-renovate-bot
           RENOVATE_VERSION: 44.222.4
