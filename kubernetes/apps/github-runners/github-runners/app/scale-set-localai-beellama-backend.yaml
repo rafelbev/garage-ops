@@ -15,11 +15,9 @@ spec:
       version: "0.15.1"
   interval: 1h
   values:
-    # containerMode "none" tells the chart NOT to inject its own dind sidecar;
-    # we define the sidecar explicitly below so we control the image, the
-    # privileged securityContext, the shared socket volume, and DOCKER_HOST.
-    containerMode:
-      type: none
+    # No containerMode set: the chart defaults to "none", so it uses the
+    # explicit containers below (our dind sidecar + runner) instead of
+    # injecting its own dind sidecar.
     controllerServiceAccount:
       name: gha-runner-scale-set-controller-gha-rs-controller
       namespace: github-runners
