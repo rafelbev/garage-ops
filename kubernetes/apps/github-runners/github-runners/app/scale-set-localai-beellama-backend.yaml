@@ -15,6 +15,9 @@ spec:
       version: "0.15.1"
   interval: 1h
   values:
+    # No containerMode set: the chart defaults to "none", so it uses the
+    # explicit containers below (our dind sidecar + runner) instead of
+    # injecting its own dind sidecar.
     controllerServiceAccount:
       name: gha-runner-scale-set-controller-gha-rs-controller
       namespace: github-runners
@@ -32,11 +35,47 @@ spec:
     template:
       spec:
         containers:
+          # Docker sidecar: runs dockerd in the same Pod; the runner talks to it
+          # over the shared socket instead of spawning its own dockerd.
+          # DOCKER_TLS_CERTDIR="" disables TLS (and the TCP listener) so the
+          # daemon is only reachable over the unix socket, which is what the
+          # runner uses via DOCKER_HOST.
+          - name: dind
+            image: docker:27-dind
+            command:
+              - dockerd-entrypoint.sh
+            securityContext:
+              privileged: true
+            env:
+              - name: DOCKER_HOST
+                value: unix:///var/run/docker.sock
+              - name: TEST_DOCKER_HOST
+                value: unix:///var/run/docker.sock
+              - name: DOCKER_BUILDKIT
+                value: "1"
+              - name: DOCKER_GIT_REF
+                value: v27.5.1
+              - name: DOCKER_TLS_CERTDIR
+                value: ""
+            volumeMounts:
+              - name: dind-sock
+                mountPath: /var/run
+          # The runner talks to the sidecar's daemon via DOCKER_HOST; its
+          # entrypoint does not spawn its own dockerd.
           - name: runner
             image: ghcr.io/actions/actions-runner:2.338.2
+            env:
+              - name: DOCKER_HOST
+                value: unix:///var/run/docker.sock
             resources:
               requests:
                 cpu: 250m
                 memory: 512Mi
               limits:
                 memory: 8Gi
+            volumeMounts:
+              - name: dind-sock
+                mountPath: /var/run
+        volumes:
+          - name: dind-sock
+            emptyDir: {}
