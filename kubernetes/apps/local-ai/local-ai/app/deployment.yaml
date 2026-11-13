@@ -61,6 +61,30 @@ spec:
                 secretKeyRef:
                   name: local-ai
                   key: API_KEY
+            # --- Backend gallery (beellama) ---
+            # Extends (does NOT replace) the built-in backend gallery with the
+            # private beellama gallery. JSON list of Gallery entries; `url`
+            # and `name` are required. The github: URI resolves to
+            # raw.githubusercontent.com/rafelbev/localai-beellama-backend/main/gallery.yaml
+            - name: LOCALAI_BACKEND_GALLERIES
+              value: '[{"url":"github:rafelbev/localai-beellama-backend/gallery.yaml@main","name":"beellama"}]'
+            # Credentials file (mounted from the local-ai Secret) granting
+            # access to the private gallery (raw.githubusercontent.com) and
+            # the private backend image (ghcr.io). Entries use bearer_env so
+            # the actual tokens live only in the GITHUB_TOKEN / GHCR_TOKEN
+            # secret keys.
+            - name: LOCALAI_CREDENTIALS_FILE
+              value: /credentials/credentials.yaml
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: local-ai
+                  key: GITHUB_TOKEN
+            - name: GHCR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: local-ai
+                  key: GHCR_TOKEN
           resources:
             requests:
               nvidia.com/gpu: "1"
@@ -106,6 +130,9 @@ spec:
               mountPath: /backends
             - name: configuration
               mountPath: /configuration
+            - name: credentials
+              mountPath: /credentials
+              readOnly: true
       volumes:
         - name: models
           persistentVolumeClaim:
@@ -122,3 +149,9 @@ spec:
         - name: configuration
           persistentVolumeClaim:
             claimName: local-ai-configuration
+        - name: credentials
+          secret:
+            secretName: local-ai
+            items:
+              - key: CREDENTIALS_FILE
+                path: credentials.yaml

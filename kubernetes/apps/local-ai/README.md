@@ -120,6 +120,41 @@ so `/healthz` and `/readyz` do not require the Bearer token even with
 `LOCALAI_API_KEY` set. This is why the kubelet probes work while the API and
 web UI stay gated.
 
+### Backend gallery (beellama)
+
+LocalAI's built-in backend gallery (`DefaultBackendGalleriesJSON`) only lists
+the upstream public backends. Our **beellama backend** (beellama.cpp with
+KVarN KV-cache, published as a private image on GHCR) is not upstream, so the
+deployment **extends** the gallery with a second one — the built-in gallery
+is NOT replaced, only appended to:
+
+- `LOCALAI_BACKEND_GALLERIES` — JSON list of gallery entries (`url` and
+  `name` required). The `github:` URI
+  `github:rafelbev/localai-beellama-backend/gallery.yaml@main` resolves to
+  `raw.githubusercontent.com/rafelbev/localai-beellama-backend/main/gallery.yaml`,
+  a file in the private backend repo.
+- `LOCALAI_CREDENTIALS_FILE` — a YAML credentials file mounted from the
+  `local-ai` Secret (key `CREDENTIALS_FILE`) at `/credentials/credentials.yaml`.
+  Each entry has a `match` host (optionally with a path prefix) and exactly
+  one of `basic`/`bearer`/`header` auth; parsing is strict (unknown fields
+  make LocalAI exit). The entries use `bearer_env`, so the actual tokens live
+  only in the Secret's `GITHUB_TOKEN` / `GHCR_TOKEN` keys — the mounted file
+  contains no secret material:
+  - `match: github.com/rafelbev` → `GITHUB_TOKEN` (fine-grained PAT) grants
+    read access to the private gallery file. LocalAI maps
+    `raw.githubusercontent.com/<org>` onto `github.com/<org>`, so one rule
+    covers the raw host.
+  - `match: ghcr.io` → `GHCR_TOKEN` grants read access to the private
+    `ghcr.io/rafelbev/localai-beellama-backend` image when LocalAI pulls it
+    as a backend.
+
+**Adding a backend to the gallery in the future:** add a `GalleryBackend`
+entry to `gallery.yaml` in the backend repo (fields: `name`, `description`,
+`uri`, `alias`, `tags`, `version`), push, and bump the image tag in the
+`uri` field. If the backend is served from a new private host, add a
+credentials entry for that host in the Secret's `CREDENTIALS_FILE` key
+(re-encrypt with sops) and add the matching env key to the deployment.
+
 ## GPU cutover
 
 `cluster-4` has a **single GPU**. llama-cpp currently holds
