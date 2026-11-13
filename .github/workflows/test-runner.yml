@@ -1,0 +1,9 @@
+name: Test Runner
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: [garage-ops]
+    steps:
+      - name: Hello
+        run: echo "Hello from garage-ops runner"
