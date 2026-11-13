@@ -85,7 +85,9 @@ spec:
               - name: dind-sock
                 mountPath: /var/run
         volumes:
-          - name: dind-sock
-            emptyDir: {}
+          # dind-sock is provided by the chart's dind containerMode; only
+          # add the extra /var/lib/docker volume here (nested overlayfs
+          # doesn't work — dockerd needs a real filesystem for image storage).
+          # See: https://github.com/siderolabs/talos/discussions/8936
           - name: dind-data
             emptyDir: {}
