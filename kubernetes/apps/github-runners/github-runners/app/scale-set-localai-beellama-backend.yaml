@@ -40,12 +40,18 @@ spec:
           # DOCKER_TLS_CERTDIR="" disables TLS (and the TCP listener) so the
           # daemon is only reachable over the unix socket, which is what the
           # runner uses via DOCKER_HOST.
+          #
+          # /var/lib/docker MUST be a volume mount (emptyDir): the container
+          # rootfs is overlayfs, and nested overlayfs mounts don't work —
+          # dockerd needs a real filesystem for its image storage.
+          # See: https://github.com/siderolabs/talos/discussions/8936
           - name: dind
             image: docker:27-dind
             command:
               - dockerd-entrypoint.sh
             securityContext:
               privileged: true
+              allowPrivilegeEscalation: true
             env:
               - name: DOCKER_HOST
                 value: unix:///var/run/docker.sock
@@ -60,6 +66,8 @@ spec:
             volumeMounts:
               - name: dind-sock
                 mountPath: /var/run
+              - name: dind-data
+                mountPath: /var/lib/docker
           # The runner talks to the sidecar's daemon via DOCKER_HOST; its
           # entrypoint does not spawn its own dockerd.
           - name: runner
@@ -78,4 +86,6 @@ spec:
                 mountPath: /var/run
         volumes:
           - name: dind-sock
+            emptyDir: {}
+          - name: dind-data
             emptyDir: {}
