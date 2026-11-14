@@ -36,6 +36,15 @@ spec:
     spec:
       restartPolicy: Always
       runtimeClassName: nvidia
+      # Force IPv4 for raw.githubusercontent.com: the cluster DNS returns
+      # IPv6-only addresses, and the pod's network has no IPv6 egress, so Go's
+      # pure-Go DNS resolver (default) dials an unreachable v6 address and
+      # the gallery fetch 404s. GODEBUG=netdns=cgo makes Go use the cgo
+      # resolver (NSS: files dns), which honours hostAliases below.
+      hostAliases:
+        - ip: 185.199.108.133
+          hostnames:
+            - raw.githubusercontent.com
       containers:
         - name: local-ai
           # Pinned, version-specific CUDA 13 build (Turing sm_75 supported).
@@ -46,6 +55,8 @@ spec:
             - containerPort: 8080
               name: http
           env:
+            - name: GODEBUG
+              value: "netdns=cgo"
             - name: TZ
               value: "Europe/Malta"
             - name: DEBUG
