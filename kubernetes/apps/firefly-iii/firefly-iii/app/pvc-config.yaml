@@ -1,0 +1,14 @@
+---
+# Dynamic PVC for Firefly III config (iSCSI for single-writer performance)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: firefly-iii-config
+  namespace: firefly-iii
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: truenas-iscsi
+  resources:
+    requests:
+      storage: 1Gi

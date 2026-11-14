@@ -1,0 +1,67 @@
+# Single consolidated PostgreSQL instance that replaces the six k3s Postgres
+# instances (postgresql, postgresql12, postgresql14, postgresql16,
+# postgresql16-pgvector, immich CNPG).
+#
+# Deployed on the TrueNAS host (172.20.17.150) as a docker-compose service.
+# All application databases from every k3s instance converge into this one
+# instance, one database per source database.
+#
+# Image: pgvector/pgvector/pg16
+#   - PostgreSQL 16 (>= every source: PG12/14/16 are all forward-compatible
+#     into 16 via pg_dump/pg_restore custom format).
+#   - Bundles the `vector` extension (immich, pgvector) plus `cube`,
+#     `earthdistance`, and all contrib modules (pg_trgm, unaccent, uuid-ossp)
+#     the source databases use.
+#
+# Port: 5432 on the host  ->  apps reach it at 172.20.17.150:5432
+#
+# Storage: TrueNAS app-dataset, ~25Gi (sources total ~12Gi, with headroom for
+# WAL, indexes and growth). Adjust `storage-size` / dataset as needed.
+
+services:
+  postgres:
+    image: pgvector/pgvector/pg16
+    container_name: postgres-consolidated
+    restart: unless-stopped
+    environment:
+      # Superuser for the consolidated instance (ops only; apps use their own
+      # per-database roles created by roles.sql).
+      POSTGRES_PASSWORD: ***
+      # NOT set: we create databases/roles explicitly via roles.sql + migrate.sh
+      # rather than relying on the image's single-DB bootstrap env.
+    ports:
+      - "5432:5432"
+    volumes:
+      # Durable data on the TrueNAS app-dataset.
+      - ./postgres/data:/var/lib/postgresql/data
+      # Bootstrap DDL: creates every application role (see roles.sql).
+      # The image runs /docker-entrypoint-initdb.d/* on first start only.
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Sensible defaults for a multi-app database server.
+    command:
+      - postgres
+      - -c
+      - max_connections=500
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - work_mem=64MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - checkpoint_completion_target=0.9
+    # The consolidated server must be reachable by every app on the LAN from
+    # the TrueNAS host IP. If TrueNAS firewalling blocks 5432, open it for the
+    # cluster pod CIDR (172.20.128.0/18) and the Talos node subnet.
+    # (Do NOT expose 5432 to the public internet.)
