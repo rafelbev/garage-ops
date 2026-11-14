@@ -127,6 +127,8 @@ spec:
               value: |
                 2535424839735399
                 2535415062746567
+            - name: LEVEL_NAME
+              value: "first full netherite"
           resources:
             requests:
               memory: 1Gi
