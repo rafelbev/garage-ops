@@ -1008,6 +1008,76 @@ app's README). Verify each index is free with `redis-cli -n <db> DBSIZE`
 before assigning it — the keyspace summary only lists non-empty DBs, and a
 dormant app (0/0 replicas) can still "own" an index that shows 0 keys.
 
+### Key Learnings from the beellama LocalAI backend
+
+The `beellama` backend (beellama.cpp, a llama.cpp fork with KVarN KV-cache
+support) runs inside LocalAI as a **second backend gallery** on top of the
+built-in one, plus a **credentials file** for the private gallery fetch and
+the private GHCR image pull. Wired up in PR #489 (2026-11); the second-gallery
+
+- credentials pattern is verified end-to-end on the live `local-ai` pod
+  (LocalAI `v4.12.1`).
+
+**Architecture:**
+
+- **The backend is a separate image speaking LocalAI's gRPC backend protocol**
+  (a thin shim, "Approach B"): `ghcr.io/rafelbev/localai-beellama-backend:v0.1.0`,
+  built and published by the Talos GitHub runners from the private repo
+  `rafelbev/localai-beellama-backend`.
+- **`LOCALAI_BACKEND_GALLERIES` extends, it does not replace:** a JSON list of
+  `{"url", "name"}` entries; LocalAI **appends** it to the built-in default
+  gallery, so the default stays intact.
+- **`github:` URI grammar:** `github:<owner>/<repo>/<path>@<ref>` resolves to
+  `https://raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>` (ref
+  defaults to `main`). The gallery file is `gallery.yaml` in the private repo;
+  entries carry `name`, `description`, `uri`, `alias`, `tags`, `version`,
+  `mirrors`, `capabilities`, `sha256`.
+- **Credentials file** (`LOCALAI_CREDENTIALS_FILE`, mounted read-only from the
+  `local-ai` Secret, key `CREDENTIALS_FILE`): a YAML list mapping hosts to
+  **exactly one** auth kind — `basic`, `bearer`/`bearer_env`/`bearer_file`, or
+  `header`. Ours uses `bearer_env` references only, so **no secret material
+  lives in the file**: `github.com/rafelbev` → `GITHUB_TOKEN` (fine-grained
+  PAT, `read:contents`) and `ghcr.io` → `GHCR_TOKEN` (fine-grained PAT,
+  `read:packages`). One rule covers `raw.githubusercontent.com` too — the raw
+  host is mapped onto `github.com/<org>`.
+- **Installed backends land in `/data/backends`** (`${basepath}/backends`, the
+  data directory) — NOT the `/backends` PVC; `LOCALAI_BACKENDS_PATH` is unset.
+- `LOCALAI_AUTOLOAD_BACKEND_GALLERIES` defaults to `true`, so the gallery is
+  fetched at container startup.
+
+**Pitfalls:**
+
+- **A malformed credentials file makes LocalAI exit at startup** — the parser
+  is strict (`KnownFields`: unknown fields or two auth kinds fail hard), so a
+  bad file crash-loops the pod. A healthy pod means the file parsed OK.
+- **GHCR pulls require a fine-grained PAT, not an OAuth token:** the
+  `gh auth token` OAuth token (`gho_`) is rejected by GHCR's Docker endpoint
+  with `DENIED: invalid token` — proven even on a **public** image
+  (`ghcr.io/fluxcd/flux2:v2.4.0`), so it is a token-**type** rejection, not a
+  repo-permission one. A fine-grained PAT with `read:packages` (+
+  `read:contents`) on the target repo is required (confirmed by cli/cli#5174).
+  The `local-ai` Secret `GHCR_TOKEN` still carries the OAuth token, so backend
+  _install_ from GHCR is blocked (`installed: false` in the catalog) until it
+  is rotated.
+- **Install endpoint is `POST /api/backends/install/<id>`** (path param,
+  discovered from the UI JS bundle) — a JSON body 404s. There is **no**
+  `local-ai backends` CLI subcommand in v4.12.1; use the web UI (Explore →
+  backends → Install) or the API.
+- **`GET /api/backends` (with `X-API-Key`) is the authoritative runtime
+  evidence:** the pod log buffer is small and the startup lines (gallery /
+  credentials loading) scroll out quickly. The catalog lists
+  `beellama@beellama` with `installed: false` → `true` after install.
+- **The API key is the `API_KEY` Secret key, not `LOCALAI_API_KEY`:** the
+  `local-ai` Secret carries both; `LOCALAI_API_KEY` is empty and `API_KEY`
+  (64 chars) is what authorizes the API. Its value ends in a **trailing
+  newline** — the Bearer token must include it verbatim (do not `tr -d
+  '\r\n'`).
+- **Rollback is trivial:** the deployment change is env additions only —
+  reverting the PR leaves the built-in gallery and existing behavior
+  untouched.
+- Docs live in `kubernetes/apps/local-ai/README.md` ("Backend gallery
+  (beellama)" section).
+
 ## Use Case 6: Self-Hosted GitHub Runners (ARC Scale Sets)
 
 Self-hosted GitHub Actions runners for all repos are deployed via the
