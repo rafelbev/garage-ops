@@ -90,7 +90,7 @@ spec:
             - name: VERSION
               value: "LATEST"
             - name: SERVER_NAME
-              value: "garage"
+              value: "toesmp"
             - name: SERVER_PORT
               value: "19132"
             # NetherNet (BDS 1.26.50+): fixed UDP range for per-client gameplay ports.
