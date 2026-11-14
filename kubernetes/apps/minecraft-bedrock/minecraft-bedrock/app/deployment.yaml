@@ -112,7 +112,7 @@ spec:
             # Name-only entries are matched by name; "name:xuid" pins the XUID.
             - name: ALLOW_LIST_USERS
               value: |
-                2535434581149133
+                hanks toes4861:2535434581149133
             # Permission ranks (written to permissions.json):
             # OPS = operators, MEMBERS = members, VISITORS = visitors.
             # Accept XUIDs or gamertags (gamertags are resolved to XUIDs at
