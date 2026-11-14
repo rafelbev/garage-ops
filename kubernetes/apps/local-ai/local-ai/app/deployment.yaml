@@ -75,10 +75,10 @@ spec:
             # --- Backend gallery (beellama) ---
             # Extends (does NOT replace) the built-in backend gallery with the
             # private beellama gallery. JSON list of Gallery entries; `url`
-            # and `name` are required. The github: URI resolves to
-            # raw.githubusercontent.com/rafelbev/localai-beellama-backend/main/gallery.yaml
+            # and `name` are required. Using the full HTTPS URL directly
+            # (not the github: shorthand) to avoid any URI-resolution issues.
             - name: LOCALAI_BACKEND_GALLERIES
-              value: '[{"url":"github:rafelbev/localai-beellama-backend/gallery.yaml@main","name":"beellama"}]'
+              value: '[{"url":"https://raw.githubusercontent.com/rafelbev/localai-beellama-backend/main/gallery.yaml","name":"beellama"}]'
             # Credentials file (mounted from the local-ai Secret) granting
             # access to the private gallery (raw.githubusercontent.com) and
             # the private backend image (ghcr.io). Entries use bearer_env so
