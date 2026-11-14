@@ -113,6 +113,8 @@ spec:
             - name: ALLOW_LIST_USERS
               value: |
                 hanks toes4861:2535434581149133
+                Max233444:2535424839735399
+                TBONES1981:2535415062746567
             # Permission ranks (written to permissions.json):
             # OPS = operators, MEMBERS = members, VISITORS = visitors.
             # Accept XUIDs or gamertags (gamertags are resolved to XUIDs at
@@ -123,8 +125,8 @@ spec:
                 2535434581149133
             - name: MEMBERS
               value: |
-                Max233444
-                Bxnk1325
+                2535424839735399
+                2535415062746567
           resources:
             requests:
               memory: 1Gi
