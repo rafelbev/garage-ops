@@ -21,6 +21,15 @@ on:
           - enabled
           - disabled
           - reset
+      # debug shows extended logs (the real underlying GitHub API error behind
+      # a platform-unknown-error); info is the normal cadence.
+      logLevel:
+        description: "info | debug (troubleshooting)"
+        type: choice
+        default: info
+        options:
+          - info
+          - debug
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -81,10 +90,19 @@ jobs:
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_BOT_TOKEN }}
           GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_BOT_TOKEN }}
           RENOVATE_PLATFORM: github
-          RENOVATE_REPOSITORIES: rafelbev/garage-ops rafelbev/localai-beellama-backend
+          # RENOVATE_REPOSITORIES maps to Renovate's `repositories` option, an
+          # array. The env->config `array` coersion (lib/workers/global/config/
+          # parse/coersions.ts) does NOT split on spaces: it tries JSON5 first,
+          # then falls back to splitting on COMMA. A space-separated value
+          # therefore becomes a single (non-existent) repo name and initRepo
+          # fails with platform-unknown-error. Comma-separate multiple repos.
+          RENOVATE_REPOSITORIES: rafelbev/garage-ops,rafelbev/localai-beellama-backend
           RENOVATE_GIT_AUTHOR: "Renovate Bot <rafelbev-renovate-bot@users.noreply.github.com>"
           RENOVATE_USERNAME: rafelbev-renovate-bot
           RENOVATE_VERSION: 44.222.4
+          # debug logs surface the real GitHub API error behind a
+          # platform-unknown-error; default info keeps normal runs quiet.
+          LOG_LEVEL: ${{ github.event.inputs.logLevel || 'info' }}
           # Enables the per-repo JSON extraction cache; the file-based package
           # cache (docker lookups) is always written to the cache dir above.
           RENOVATE_REPOSITORY_CACHE: ${{ github.event.inputs.repoCache || 'enabled' }}
