@@ -78,14 +78,7 @@ spec:
             # and `name` are required. Using the full HTTPS URL directly
             # (not the github: shorthand) to avoid any URI-resolution issues.
             - name: LOCALAI_BACKEND_GALLERIES
-              value: '[{"url":"https://raw.githubusercontent.com/rafelbev/localai-beellama-backend/main/gallery.yaml","name":"beellama"}]'
-            # Credentials file (mounted from the local-ai Secret) granting
-            # access to the private gallery (raw.githubusercontent.com) and
-            # the private backend image (ghcr.io). Entries use bearer_env so
-            # the actual tokens live only in the GITHUB_TOKEN / GHCR_TOKEN
-            # secret keys.
-            - name: LOCALAI_CREDENTIALS_FILE
-              value: /credentials/credentials.yaml
+              value: '[{"url": "https://index.localai.io/backends","name": "default"},{"url": "https://raw.githubusercontent.com/rafelbev/localai-beellama-backend/main/gallery.yaml","name": "beellama"}]'
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
