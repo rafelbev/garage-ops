@@ -13,6 +13,19 @@ metadata:
     app: minecraft-bedrock
   annotations:
     lbipam.cilium.io/ips: "172.20.17.140"
+    # Internal (split-horizon) DNS: the k8s-gateway CoreDNS plugin (v1.7.0)
+    # resolves LoadBalancer Services annotated with `coredns.io/hostname` to
+    # their .status.loadBalancer.ingress IP. This makes
+    #   minecraft-server.garage.neo-tix.com  -> 172.20.17.140
+    #   toe-smp.garage.neo-tix.com           -> 172.20.17.140
+    # resolve on the internal resolver (172.20.17.136) only. The public side is
+    # served by the *.garage.neo-tix.com wildcard (see network/public-dns), so
+    # no explicit public A record is needed — only the CNAME in
+    # dnsendpoint.yaml.
+    # NOTE: k8s-gateway 1.7.0 reads `coredns.io/hostname` (and the alpha
+    # `external-dns.alpha.kubernetes.io/hostname`), NOT the GA
+    # `external-dns.kubernetes.io/hostname` used by the envoy Services.
+    coredns.io/hostname: "minecraft-server.${SECRET_DOMAIN}, toe-smp.${SECRET_DOMAIN}"
 spec:
   type: LoadBalancer
   selector:
