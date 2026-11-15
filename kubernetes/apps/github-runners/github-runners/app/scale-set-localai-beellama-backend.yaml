@@ -67,10 +67,36 @@ spec:
                 mountPath: /var/run
               - name: dind-data
                 mountPath: /var/lib/docker
+          # sock-fix opens up the docker socket for the unprivileged runner
+          # user. The actions-runner image runs as uid 1001 (`runner`), but
+          # dockerd creates the socket as root:2375 mode 660, so the runner
+          # gets "permission denied" connecting to it. This sidecar waits for
+          # the socket to appear, then chmods it 666 so the runner can use it.
+          # (It runs in parallel with dind; the loop is a no-op once the socket
+          # is ready, and tail -f keeps the container alive.)
+          - name: sock-fix
+            image: docker:27-dind
+            command:
+              - sh
+              - -c
+              - while [ ! -S /var/run/docker.sock ]; do sleep 0.5; done; chmod 666 /var/run/docker.sock; echo "docker socket ready (chmod 666)"; tail -f /dev/null
+            volumeMounts:
+              - name: dind-sock
+                mountPath: /var/run
           # The runner talks to the sidecar's daemon via DOCKER_HOST; its
           # entrypoint does not spawn its own dockerd.
+          #
+          # command is REQUIRED: the actions-runner image's default CMD is a
+          # bare shell that exits 0 immediately, so without an explicit command
+          # the runner container starts, prints nothing, and exits 0 in ~1s —
+          # the controller then marks the ephemeral runner Succeeded and deletes
+          # the Pod, leaving jobs queued. The chart's dind mode sets this same
+          # command; we set it explicitly because we hand-roll the containers
+          # (containerMode is "none") to keep the dind-data /var/lib/docker mount.
           - name: runner
             image: ghcr.io/actions/actions-runner:2.338.2
+            command:
+              - /home/runner/run.sh
             env:
               - name: DOCKER_HOST
                 value: unix:///var/run/docker.sock
