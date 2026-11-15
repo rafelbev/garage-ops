@@ -21,6 +21,15 @@ on:
           - enabled
           - disabled
           - reset
+      # debug shows extended logs (the real underlying GitHub API error behind
+      # a platform-unknown-error); info is the normal cadence.
+      logLevel:
+        description: "info | debug (troubleshooting)"
+        type: choice
+        default: info
+        options:
+          - info
+          - debug
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -85,6 +94,9 @@ jobs:
           RENOVATE_GIT_AUTHOR: "Renovate Bot <rafelbev-renovate-bot@users.noreply.github.com>"
           RENOVATE_USERNAME: rafelbev-renovate-bot
           RENOVATE_VERSION: 44.222.4
+          # debug logs surface the real GitHub API error behind a
+          # platform-unknown-error; default info keeps normal runs quiet.
+          LOG_LEVEL: ${{ github.event.inputs.logLevel || 'info' }}
           # Enables the per-repo JSON extraction cache; the file-based package
           # cache (docker lookups) is always written to the cache dir above.
           RENOVATE_REPOSITORY_CACHE: ${{ github.event.inputs.repoCache || 'enabled' }}
