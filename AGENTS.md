@@ -1570,6 +1570,25 @@ npx -y renovate@44.158.2-config-validator .renovaterc.json5 --strict
   a commit that changes the `cron` schedule by a user with `write` access
   re-activates the deactivated workflow — fix it by changing the cron string
   to a semantically identical one (e.g. `*/30 * * * *` → `0,30 * * * *`).
+- **`minimumReleaseAge` requires `Statuses: write` on the bot token**: any
+  package rule with `minimumReleaseAge` makes Renovate's `internalChecksFilter`
+  POST an internal `renovate/stability-days` status check via the **legacy**
+  `/repos/{owner}/{repo}/statuses/{sha}` endpoint. If the bot's fine-grained
+  PAT lacks `Statuses: Read and write`, that POST fails with 403 "Resource not
+  accessible by personal access token", and Renovate maps that 403 to
+  `repository-changed` — **aborting the entire repository run** after
+  opening/updating PRs but before auto-merge. Symptom: PRs pile up unmerged
+  (even trivial minor bumps) while every run "succeeds" with a silent
+  `Repository changed, bailing` in the log. The config validator does not
+  catch this. (2026-11-16: this is what broke auto-merge for the whole repo;
+  fixed by rotating `RENOVATE_BOT_TOKEN` to a PAT with `Statuses: Read and
+  write` — fine-grained PATs are immutable, so a new token is required.)
+- **Auto-merge lands on the run AFTER the PR is created**: when a run makes a
+  new commit on a branch, `processBranch` skips `checkAutoMerge` and defers
+  the merge; the next run finds the branch up-to-date, checks the CI results,
+  and merges if green. A fresh PR therefore cannot merge in the same run that
+  created it — expect a one-run delay (with the 30-minute cadence: ~30
+  minutes). This is by design, not a bug.
 
 ## Important Files Reference
 
