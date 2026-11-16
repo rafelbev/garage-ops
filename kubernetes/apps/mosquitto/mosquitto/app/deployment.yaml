@@ -1,0 +1,67 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto
+  namespace: mosquitto
+  labels:
+    app: mosquitto
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mosquitto
+  template:
+    metadata:
+      labels:
+        app: mosquitto
+    spec:
+      containers:
+        - name: mosquitto
+          image: eclipse-mosquitto:2.0.11
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mqtt
+              containerPort: 1883
+              protocol: TCP
+          # Same probes as the source k3s deployment: the broker binds the
+          # listener port before it is ready to accept MQTT sessions, and a
+          # TCP check is all the chart's liveness/readiness probes did.
+          startupProbe:
+            tcpSocket:
+              port: mqtt
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            tcpSocket:
+              port: mqtt
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: mqtt
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: mosquitto-config
+              mountPath: /mosquitto/config/mosquitto.conf
+              subPath: mosquitto.conf
+            - name: mosquitto-users
+              mountPath: /mosquitto/config/users.conf
+              subPath: users.conf
+      volumes:
+        - name: mosquitto-config
+          configMap:
+            name: mosquitto-config
+            defaultMode: 420
+        - name: mosquitto-users
+          secret:
+            secretName: mosquitto
+            defaultMode: 420
