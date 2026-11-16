@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+  namespace: mosquitto
+  labels:
+    app: mosquitto
+data:
+  # Carried over byte-exact from the source k3s ConfigMap
+  # (mosquitto-1627226326-config). Single listener, no anonymous access;
+  # credentials come from the sops-encrypted Secret (users.conf).
+  mosquitto.conf: |-
+    listener 1883
+    allow_anonymous false
+    password_file /mosquitto/config/users.conf
