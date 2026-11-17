@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
         - name: check
-          image: docker.io/curlimages/curl:8.5.0
+          image: docker.io/curlimages/curl:8.23.0
           imagePullPolicy: IfNotPresent
           command:
             - sh
@@ -69,7 +69,7 @@ spec:
     spec:
       containers:
         - name: check
-          image: docker.io/curlimages/curl:8.5.0
+          image: docker.io/curlimages/curl:8.23.0
           imagePullPolicy: IfNotPresent
           command:
             - sh
