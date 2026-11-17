@@ -10,9 +10,10 @@ the `kuberhealthy` app (see
 - **Prometheus** scrapes the `kuberhealthy_check` metric from the Kubehealthy
   service via a static scrape config (`extraScrapeConfigs`).
 - **Alert rule** `HealthCheckFailed` fires when `kuberhealthy_check == 0 for 5m`.
-- **Alertmanager** receives the alert from Prometheus and routes it to a
-  `blackhole` receiver (recorded + visible in the Alertmanager UI, no external
-  notification).
+- **Alertmanager** receives the alert from Prometheus and routes it to an
+  ntfy webhook (`https://ntfy.garage.neo-tix.com/kuberhealthy`). Both firing
+  and resolved alerts are delivered to subscribers of the `kuberhealthy`
+  topic; the `X-Title` header sets the notification title to the alert name.
 
 ## Why this chart / shape
 
@@ -34,23 +35,16 @@ the `kuberhealthy` app (see
   then open `http://localhost:9093`.
 - **Kubehealthy UI**: see the `kuberhealthy` README.
 
-## Wiring a real notification receiver
+## Notification receiver
 
-The default route sends alerts to a `blackhole` receiver (no external
-notification). To page on a failing check, replace the `alertmanager.config`
-in [`prometheus/app/helmrelease.yaml`](prometheus/app/helmrelease.yaml) with a
-real receiver, e.g. an n8n webhook:
+Alerts are routed to an ntfy webhook
+(`https://ntfy.garage.neo-tix.com/kuberhealthy`). Subscribers of the
+`kuberhealthy` topic receive a push notification for each firing and
+resolved alert. The `X-Title` header sets the notification title to the
+alert name; the JSON body is the full Alertmanager payload.
 
-```yaml
-route:
-    group_by: ["alertname"]
-    receiver: "n8n"
-receivers:
-    - name: "n8n"
-      webhook_configs:
-          - url: http://n8n.n8n.svc.cluster.local/webhook/kuberhealthy
-```
-
-Other common receivers: `email_configs`, `opsgem_configs`, `pagerduty_configs`,
-`wechat_configs`, etc. See the
+To change the receiver, edit the `alertmanager.config` in
+[`prometheus/app/helmrelease.yaml`](prometheus/app/helmrelease.yaml).
+Other common receivers: `email_configs`, `opsgem_configs`,
+`pagerduty_configs`, `wechat_configs`, etc. See the
 [Alertmanager docs](https://prometheus.io/docs/alerting/latest/configuration/).
