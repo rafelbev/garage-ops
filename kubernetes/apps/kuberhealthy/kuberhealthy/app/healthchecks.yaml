@@ -25,7 +25,7 @@ kind: HealthCheck
 metadata:
   name: e2e-jellyfin
 spec:
-  runInterval: 1m
+  runInterval: 20m
   timeout: 60s
   podSpec:
     spec:
@@ -63,7 +63,7 @@ kind: HealthCheck
 metadata:
   name: e2e-qbittorrent
 spec:
-  runInterval: 1m
+  runInterval: 12h
   timeout: 60s
   podSpec:
     spec:
