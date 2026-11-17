@@ -16,10 +16,10 @@ spec:
     # --- Minimal stack: only the Prometheus server + Alertmanager ---
     alertmanager:
       enabled: true
-      # Route every alert to a "blackhole" receiver: the alert is recorded and
-      # visible in the Alertmanager UI, but no external notification is sent.
-      # Wire a real receiver (n8n webhook, Matrix, email, ...) here when a
-      # notification channel is wanted — see README.md.
+      # Route alerts to an ntfy webhook: the alert payload is POSTed to
+      # https://ntfy.garage.neo-tix.com/kuberhealthy and delivered to all
+      # subscribers of that topic. The X-Title header sets the notification
+      # title; the JSON body is the full Alertmanager payload.
       # NB: in this chart version `config` is a structured map, not a string.
       config:
         global:
@@ -30,9 +30,14 @@ spec:
           group_interval: 5m
           group_wait: 10s
           repeat_interval: 12h
-          receiver: blackhole
+          receiver: ntfy
         receivers:
-          - name: blackhole
+          - name: ntfy
+            webhook_configs:
+              - url: "https://ntfy.garage.neo-tix.com/kuberhealthy"
+                send_resolved: true
+                header_params:
+                  X-Title: "{{ .Alerts | first | alertname }}"
     # The sub-charts are not needed for a minimal alerting stack.
     kube-state-metrics:
       enabled: false
