@@ -1,0 +1,17 @@
+---
+# Manual Endpoints pointing at the ntfy host process (172.20.17.17:8084).
+# The selectorless Service above has no pods to auto-populate it, so this
+# static endpoint is what actually serves traffic (hermes-dashboard /
+# k8s-api host-endpoint pattern). The Endpoints name must match the Service
+# name.
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ntfy
+subsets:
+  - addresses:
+      - ip: 172.20.17.17
+    ports:
+      - name: http
+        port: 8084
+        protocol: TCP
