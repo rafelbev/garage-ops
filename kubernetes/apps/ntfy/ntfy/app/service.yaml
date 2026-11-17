@@ -1,0 +1,16 @@
+---
+# ntfy runs as a host process on 172.20.17.17:8084 — it is NOT a workload in
+# this cluster. This Service has no selector (no pods exist to populate it),
+# so it is served entirely by the manual Endpoints object below (the
+# hermes-dashboard / k8s-api host-endpoint pattern).
+apiVersion: v1
+kind: Service
+metadata:
+  name: ntfy
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8084
+      targetPort: 8084
+      protocol: TCP
