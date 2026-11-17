@@ -10,7 +10,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: nvidia
-      version: "v26.7.2"
+      version: "v26.7.3"
   interval: 1h
   values:
     # The NVIDIA driver (kernel modules + userspace) and the container
