@@ -33,5 +33,7 @@ resources:
   - ./sonarr-securitypolicy.yaml
   - ./tika-auth-httproute.yaml
   - ./tika-securitypolicy.yaml
+  - ./kuberhealthy-auth-httproute.yaml
+  - ./kuberhealthy-securitypolicy.yaml
   - ./referencegrant.yaml
   - ./securitypolicy.yaml
