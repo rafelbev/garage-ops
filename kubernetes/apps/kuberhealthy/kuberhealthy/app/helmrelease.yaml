@@ -1,0 +1,43 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kuberhealthy
+spec:
+  chart:
+    spec:
+      chart: kuberhealthy
+      version: "1.1.0"
+      sourceRef:
+        kind: HelmRepository
+        name: kuberhealthy
+  interval: 1h
+  values:
+    # Single replica is sufficient for a home cluster; Kubehealthy uses
+    # leader election, so it is safe to run one instance.
+    deployment:
+      replicas: 1
+      # Scope the operator to this namespace so it only reconciles
+      # HealthChecks here.
+      env:
+        KH_TARGET_NAMESPACE: kuberhealthy
+      # We scrape via a static Prometheus scrape config, not annotations.
+      prometheusScrape:
+        enabled: false
+    # The checker pods run a plain curl image; the chart's strict
+    # securityContext (runAsUser 999 + read-only rootfs) would be applied to
+    # every check pod and is not needed for a stateless curl probe.
+    securityContext:
+      enabled: false
+    # Do not expose the operator's UI/metrics outside the cluster.
+    service:
+      type: ClusterIP
+      prometheusScrape:
+        enabled: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
