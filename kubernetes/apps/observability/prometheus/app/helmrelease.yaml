@@ -1,0 +1,71 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: prometheus
+spec:
+  chart:
+    spec:
+      chart: prometheus
+      version: "29.47.2"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus
+  interval: 1h
+  values:
+    # --- Minimal stack: only the Prometheus server + Alertmanager ---
+    alertmanager:
+      enabled: true
+      # Route every alert to a "blackhole" receiver: the alert is recorded and
+      # visible in the Alertmanager UI, but no external notification is sent.
+      # Wire a real receiver (n8n webhook, Matrix, email, ...) here when a
+      # notification channel is wanted — see README.md.
+      # NB: in this chart version `config` is a structured map, not a string.
+      config:
+        global:
+          resolve_timeout: 5m
+        route:
+          group_by:
+            - alertname
+          group_interval: 5m
+          group_wait: 10s
+          repeat_interval: 12h
+          receiver: blackhole
+        receivers:
+          - name: blackhole
+    # The sub-charts are not needed for a minimal alerting stack.
+    kube-state-metrics:
+      enabled: false
+    prometheus-node-exporter:
+      enabled: false
+    prometheus-pushgateway:
+      enabled: false
+    server:
+      persistentVolume:
+        enabled: true
+        size: 4Gi
+    # Scrape Kubehealthy directly with a static scrape config (the chart's
+    # prometheus.yml does not read ServiceMonitor CRDs).
+    extraScrapeConfigs: |
+      - job_name: kuberhealthy
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['kuberhealthy.kuberhealthy.svc.cluster.local:80']
+    # Alert rule: fire when a Kubehealthy check has been failing for 5 minutes.
+    serverFiles:
+      alerting_rules.yml:
+        groups:
+          - name: kuberhealthy.rules
+            rules:
+              - alert: HealthCheckFailed
+                expr: kuberhealthy_check == 0
+                for: 5m
+                labels:
+                  severity: warning
+                annotations:
+                  summary: Kubehealthy check {{ $labels.check }} is failing
+                  description: >-
+                    The Kubehealthy check {{ $labels.check }}
+                    (namespace {{ $labels.namespace }}) has been failing for
+                    5 minutes. The end-to-end path through the
+                    envoy-external gateway may be degraded.

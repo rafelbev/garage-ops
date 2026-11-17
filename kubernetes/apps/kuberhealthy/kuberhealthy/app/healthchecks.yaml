@@ -1,0 +1,97 @@
+---
+# End-to-end synthetic checks.
+#
+# Each HealthCheck runs a small curl container (podSpec) that performs an
+# HTTPS request against a representative public host served by the
+# envoy-external gateway, then reports the result to Kubehealthy via
+# KH_REPORTING_URL. A 200 (or a redirect that resolves to 200) counts as
+# healthy; anything 4xx/5xx fails the check.
+#
+# Why podSpec rather than the built-in `spec.http` probe: the latest chart
+# (1.1.0) bundles Kuberhealthy v3.0.5, whose HealthCheck CRD only supports
+# `podSpec`. The built-in `spec.http`/`spec.tcp` probes landed in v3.1.0;
+# once a chart version bundling v3.1.0+ is published, these checks can be
+# migrated to `spec.http` (no checker pod required). See README.md.
+#
+# The two hosts below are the ones that 503'd in the incident that motivated
+# this issue (#512): a single degraded envoy-external replica 503s whatever
+# host it serves, so either check catching it is enough to alert.
+#
+# The check script must POST its result to $KH_REPORTING_URL with the
+# kh-run-uuid header; Kubehealthy marks the run as failed (timed out) if no
+# report arrives before the deadline.
+apiVersion: kuberhealthy.github.io/v2
+kind: HealthCheck
+metadata:
+  name: e2e-jellyfin
+spec:
+  runInterval: 1m
+  timeout: 60s
+  podSpec:
+    spec:
+      containers:
+        - name: check
+          image: docker.io/curlimages/curl:8.5.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - >-
+              if curl -fsSL -o /dev/null --max-time 20
+              https://jellyfin.garage.neo-tix.com/; then
+              curl -fsSL -X POST -H 'Content-Type: application/json'
+              -H "kh-run-uuid: $KH_RUN_UUID"
+              -d '{"ok": true, "errors": []}' "$KH_REPORTING_URL";
+              else
+              curl -fsSL -X POST -H 'Content-Type: application/json'
+              -H "kh-run-uuid: $KH_RUN_UUID"
+              -d '{"ok": false, "errors": ["jellyfin.garage.neo-tix.com
+              returned non-200 or was unreachable"]}' "$KH_REPORTING_URL";
+              fi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 15Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+---
+apiVersion: kuberhealthy.github.io/v2
+kind: HealthCheck
+metadata:
+  name: e2e-qbittorrent
+spec:
+  runInterval: 1m
+  timeout: 60s
+  podSpec:
+    spec:
+      containers:
+        - name: check
+          image: docker.io/curlimages/curl:8.5.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - >-
+              if curl -fsSL -o /dev/null --max-time 20
+              https://qbittorrent.garage.neo-tix.com/; then
+              curl -fsSL -X POST -H 'Content-Type: application/json'
+              -H "kh-run-uuid: $KH_RUN_UUID"
+              -d '{"ok": true, "errors": []}' "$KH_REPORTING_URL";
+              else
+              curl -fsSL -X POST -H 'Content-Type: application/json'
+              -H "kh-run-uuid: $KH_RUN_UUID"
+              -d '{"ok": false, "errors": ["qbittorrent.garage.neo-tix.com
+              returned non-200 or was unreachable"]}' "$KH_REPORTING_URL";
+              fi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 15Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
