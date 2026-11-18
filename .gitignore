@@ -11,7 +11,7 @@
 /github-push-token.txt
 # DB consolidation: local-only secrets (superuser + role passwords) — NEVER commit
 migration/database-consolidation/creds.env
-migration/database-consolidation/initdb/
+migration/database-consolidation/initdb/roles.sql
 # Template config files
 /cluster.toml
 # Kubernetes

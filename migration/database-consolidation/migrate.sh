@@ -30,6 +30,11 @@
 #   ./migrate.sh --db firefly              # migrate a single database
 #   ./migrate.sh                           # migrate all
 #   ./migrate.sh --verify-only             # verify existing target state
+#   TALOS_KUBECONFIG=<path> ./migrate.sh --verify-talos
+#                                          # verify from the Talos cluster:
+#                                          # reachability + role auth for
+#                                          # every manifest row, from a probe
+#                                          # pod in the Talos cluster
 #
 set -euo pipefail
 
@@ -40,14 +45,16 @@ TARGET_HOST="${TARGET_HOST:-172.20.17.150}"
 TARGET_PORT="${TARGET_PORT:-5432}"
 WORKDIR="$(mktemp -d /tmp/dbcons.XXXXXX)"
 K3S_KUBECONFIG="${K3S_KUBECONFIG:-$HOME/home.yaml}"
+TALOS_KUBECONFIG="${TALOS_KUBECONFIG:-}"
 
-DRY=0; VERIFY_ONLY=0; ONLY_DB=""
+DRY=0; VERIFY_ONLY=0; VERIFY_TALOS=0; ONLY_DB=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1 ;;
     --verify-only) VERIFY_ONLY=1 ;;
+    --verify-talos) VERIFY_TALOS=1 ;;
     --db) ONLY_DB="${2:?--db needs a value}"; shift ;;
-    -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,55p' "$0"; exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
   shift
@@ -63,13 +70,18 @@ src_su_var () { local s="$1"; local k; k=$(echo "$s" | sed 's/\./_/g'); echo "SU
 # safe indirect expansion: print the value of the variable named by $1 (empty if unset)
 getvar () { local n="$1"; eval "printf '%s' \"\${$n}\"" 2>/dev/null || true; }
 
-# Map an internal source to "namespace pod"
+# Map an internal source to "namespace pod" (pod resolved dynamically).
 internal_pod () {
+  local ns pod
   case "$1" in
-    internal:pgvector) echo "postgresql16-pgvector postgresql-pgvector-5d948c47b8-lfl7j" ;;
-    internal:immich)   echo "immich immich-postgres-1" ;;
+    internal:pgvector) ns="postgresql16-pgvector" ;;
+    internal:immich)   ns="immich" ;;
     *) return 1 ;;
   esac
+  pod="$(kubectl --kubeconfig "$K3S_KUBECONFIG" get pods -n "$ns" \
+    -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}' 2>/dev/null | awk '{print $1}')"
+  [ -n "$pod" ] || { echo "no running pod in k3s namespace $ns" >&2; exit 1; }
+  echo "$ns $pod"
 }
 
 dump_db () {
@@ -131,10 +143,60 @@ verify_db () {
   fi
 }
 
+# Verify from the Talos cluster: a probe pod in the Talos cluster must be able
+# to reach the consolidated DB (firewall check), and every app role must be
+# able to authenticate and query its target database. This is the check that
+# proves the migrated (Talos-side) workloads can use the new DB.
+verify_talos () {
+  [ -n "$TALOS_KUBECONFIG" ] || { echo "TALOS_KUBECONFIG not set (path to the Talos kubeconfig)" >&2; exit 1; }
+  local ns="dbcons-verify" pod="dbcons-probe"
+  kubectl --kubeconfig "$TALOS_KUBECONFIG" create namespace "$ns" --dry-run=client -o yaml \
+    | kubectl --kubeconfig "$TALOS_KUBECONFIG" apply -f - >/dev/null
+  kubectl --kubeconfig "$TALOS_KUBECONFIG" -n "$ns" run "$pod" --image=postgres:17 \
+    --restart=Never --command -- sleep 3600 >/dev/null
+  kubectl --kubeconfig "$TALOS_KUBECONFIG" -n "$ns" wait --for=condition=Ready pod/"$pod" --timeout=180s >/dev/null
+  echo "== verifying from the Talos cluster (pod $ns/$pod) =="
+  local failures=0
+  if kubectl --kubeconfig "$TALOS_KUBECONFIG" -n "$ns" exec "$pod" -- \
+      pg_isready -h "$TARGET_HOST" -p "$TARGET_PORT" -U postgres >/dev/null 2>&1; then
+    echo "  tcp $TARGET_HOST:$TARGET_PORT: OK"
+  else
+    echo "  tcp $TARGET_HOST:$TARGET_PORT: UNREACHABLE from Talos pod CIDR"
+    failures=$((failures+1))
+  fi
+  local tdb role source sdb size notes
+  while IFS=$'\t' read -r tdb role source sdb size notes; do
+    [ -z "${tdb:-}" ] && continue
+    [[ "$tdb" == \#* ]] && continue
+    [ "$tdb" = "target_db" ] && continue
+    [ -n "$ONLY_DB" ] && [ "$tdb" != "$ONLY_DB" ] && continue
+    local rpw_var rpw
+    rpw_var="ROLE_$role"; rpw="$(getvar "$rpw_var")"
+    if [ -z "$rpw" ]; then
+      echo "  $tdb (role $role): SKIPPED (no ROLE_$role in creds.env)"
+      continue
+    fi
+    if kubectl --kubeconfig "$TALOS_KUBECONFIG" -n "$ns" exec "$pod" -- \
+        env PGPASSWORD="$rpw" psql -h "$TARGET_HOST" -p "$TARGET_PORT" -U "$role" -d "$tdb" \
+        -tA -c "select 1;" >/dev/null 2>&1; then
+      echo "  $tdb (role $role): OK"
+    else
+      echo "  $tdb (role $role): FAIL"
+      failures=$((failures+1))
+    fi
+  done < "$MANIFEST"
+  kubectl --kubeconfig "$TALOS_KUBECONFIG" delete namespace "$ns" --wait=false >/dev/null
+  if [ "$failures" -gt 0 ]; then
+    echo "== verify-talos: $failures failure(s) =="
+    return 1
+  fi
+  echo "== verify-talos: all OK =="
+}
+
 main () {
   local created=0
   echo "== consolidated postgres target: $TARGET_HOST:$TARGET_PORT =="
-  [ "$DRY" -eq 0 ] && [ "$VERIFY_ONLY" -eq 0 ] && \
+  [ "$DRY" -eq 0 ] && [ "$VERIFY_ONLY" -eq 0 ] && [ "$VERIFY_TALOS" -eq 0 ] && \
     { PGPASSWORD="$TARGET_SU" pg_isready -h "$TARGET_HOST" -p "$TARGET_PORT" -U postgres >/dev/null || { echo "target not ready"; exit 1; }; }
 
   # Extensions required per database name (only immich needs them explicitly).
@@ -149,6 +211,11 @@ main () {
   done < "$MANIFEST"
 
   [ ${#rows[@]} -eq 0 ] && { echo "no rows in manifest"; exit 1; }
+
+  if [ "$VERIFY_TALOS" -eq 1 ]; then
+    verify_talos
+    return
+  fi
 
   local total=${#rows[@]} i=0
   for row in "${rows[@]}"; do

@@ -6,9 +6,10 @@
 # All application databases from every k3s instance converge into this one
 # instance, one database per source database.
 #
-# Image: pgvector/pgvector/pg16
-#   - PostgreSQL 16 (>= every source: PG12/14/16 are all forward-compatible
-#     into 16 via pg_dump/pg_restore custom format).
+# Image: built from the local Dockerfile (postgres:17 + postgresql-17-pgvector)
+#   - PostgreSQL 17: >= every source (PG12/14/16 are all forward-compatible
+#     into 17 via pg_dump/pg_restore custom format), and satisfies the
+#     PG17 requirement of one of the current workloads.
 #   - Bundles the `vector` extension (immich, pgvector) plus `cube`,
 #     `earthdistance`, and all contrib modules (pg_trgm, unaccent, uuid-ossp)
 #     the source databases use.
@@ -20,13 +21,15 @@
 
 services:
   postgres:
-    image: pgvector/pgvector/pg16
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: postgres-consolidated
     restart: unless-stopped
     environment:
       # Superuser for the consolidated instance (ops only; apps use their own
       # per-database roles created by roles.sql).
-      POSTGRES_PASSWORD: ***
+      POSTGRES_PASSWORD: "${POST...?Set in .env}"
       # NOT set: we create databases/roles explicitly via roles.sql + migrate.sh
       # rather than relying on the image's single-DB bootstrap env.
     ports:

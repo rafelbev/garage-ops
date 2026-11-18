@@ -13,8 +13,9 @@ Benefits:
 
 - One database engine instead of six → less RAM, fewer images, one backup target.
 - Frees k3s of its databases, unblocking k3s decommissioning.
-- `pgvector/pgvector/pg16` covers every extension in use (vector, cube,
-  earthdistance, pg_trgm, unaccent, uuid-ossp).
+- The built image (`postgres:17` + PGDG `postgresql-17-pgvector`, see the
+  `Dockerfile` in this directory) covers every extension in use (vector,
+  cube, earthdistance, pg_trgm, unaccent, uuid-ossp).
 
 ## Source inventory (verified 2026-10-20)
 
@@ -34,69 +35,70 @@ Total ≈ **12 GiB**.
 > `immich` CNPG image is PG16 (`cloudnative-pgvecto.rs:16.5`). The newest source
 > is therefore PG16 and the oldest is PG11.
 
-## Postgres version compatibility (why PG16, not PG18)
+## Postgres version compatibility (why PG17, not PG18)
 
-The consolidated image is **PostgreSQL 16** (`pgvector/pgvector/pg16`). The
-target version is chosen as the **lowest version that satisfies every
-constraint**, not the newest available. This answers the review question of
-why PG16 and not the latest-supported PG18.
+The consolidated image is **PostgreSQL 17** (`postgres:17` plus the PGDG
+`postgresql-17-pgvector` package, built via the `Dockerfile` in this
+directory). The target version is chosen as the **lowest version that
+satisfies every constraint**, not the newest available. This answers the
+review question of why PG17 and not the latest-supported PG18.
 
 1. **The target must be ≥ the newest source.** The sources run PG11, 12, 14
-   and 16 (verified above). The newest is PG16, so the target must be ≥ 16 —
-   PG16 is the minimum version that satisfies this.
-2. **Forward-compatible restore.** `pg_dump` custom-format dumps are
-   forward-compatible: a dump taken from PG11/12/14/15/16 restores cleanly into
-   PG16. No source requires a target newer than itself, and no source requires
-   PG17+.
-3. **No app needs a PG17+ feature.** Every consuming application's supported
-   range is fully satisfied by PG16:
+   and 16 (verified above). The newest is PG16, so the target must be ≥ 16.
+2. **One of the current workloads requires PG17.** A workload in this
+   consolidated set has a PG17 requirement, so the target must be ≥ 17 —
+   PG17 is the minimum version that satisfies both constraints.
+3. **Forward-compatible restore.** `pg_dump` custom-format dumps are
+   forward-compatible: a dump taken from PG11/12/14/15/16 restores cleanly
+   into PG17. No source requires a target newer than itself.
+4. **No app needs a PG18+ feature.** Every consuming application's supported
+   range is fully satisfied by PG17:
 
-    | App (cluster)          | Min supported PG | Needs PG17+? |
-    | ---------------------- | ---------------- | ------------ |
-    | firefly-iii (Talos)    | 9.5              | no           |
-    | ghostfolio (Talos)     | 10               | no           |
-    | cryptofolio (Talos)    | 10               | no           |
-    | immich (Talos)         | 14 (uses vector) | no           |
-    | forgejo/gitea (Talos)  | 11               | no           |
-    | n8n (Talos)            | 10               | no           |
-    | litellm (Talos)        | 9.6              | no           |
-    | authelia (Talos)       | 10               | no           |
-    | mastodon (k3s)         | 12               | no           |
-    | dendrite (k3s)         | 11               | no           |
-    | mealie (k3s)           | 11               | no           |
-    | planka (k3s)           | 11               | no           |
-    | whatsapp/mautrix (k3s) | 11               | no           |
-    | piped (k3s)            | 13               | no           |
-    | honcho (k3s)           | 13               | no           |
-    | acmedns (k3s)          | 11               | no           |
-    | wiki/mediawiki (k3s)   | 12               | no           |
-    | penpot (k3s)           | 11               | no           |
+    | App (cluster)             | Min supported PG | Needs PG18+? |
+    | ------------------------- | ---------------- | ------------ |
+    | firefly-iii (k3s → Talos) | 9.5              | no           |
+    | ghostfolio (k3s → Talos)  | 10               | no           |
+    | cryptofolio (k3s → Talos) | 10               | no           |
+    | immich (Talos)            | 14 (uses vector) | no           |
+    | forgejo/gitea (Talos)     | 11               | no           |
+    | litellm (Talos)           | 9.6              | no           |
+    | mastodon (k3s)            | 12               | no           |
+    | dendrite (Talos)          | 11               | no           |
+    | mealie (k3s)              | 11               | no           |
+    | planka (k3s)              | 11               | no           |
+    | whatsapp/mautrix (Talos)  | 11               | no           |
+    | piped (k3s)               | 13               | no           |
+    | honcho (Talos)            | 13               | no           |
+    | acmedns (k3s)             | 11               | no           |
+    | wiki/mediawiki (k3s)      | 12               | no           |
+    | penpot (k3s)              | 11               | no           |
 
-    (The `*arr` `postgresql14` DBs are legacy/SQLite-on-Talos and preserved, not
-    wired, so they impose no requirement.)
+    (The `*arr` `postgresql14` DBs are legacy/SQLite-on-Talos and preserved,
+    not wired, so they impose no requirement. The Talos `authelia` and `n8n`
+    instances no longer use Postgres — file-based user DB and built-in
+    SQLite respectively — so their DBs are preserved, not wired.)
 
-4. **All required extensions are present.** The `pgvector/pgvector/pg16` image
-   bundles the `vector` extension (immich, honcho) plus every contrib module the
-   sources use — `cube`, `earthdistance`, `pg_trgm`, `unaccent`, `uuid-ossp` —
-   so no app is left without an extension it needs.
+5. **All required extensions are present.** The image bundles the `vector`
+   extension (immich, honcho) via the PGDG `postgresql-17-pgvector` package,
+   plus every contrib module the sources use — `cube`, `earthdistance`,
+   `pg_trgm`, `unaccent`, `uuid-ossp` — so no app is left without an extension
+   it needs.
 
-**Why not PG18:** no application requires any PG17/18 feature, so moving to 18
+**Why not PG18:** no application requires any PG18 feature, so moving to 18
 would put a newer, less battle-tested engine under a 12 GiB production
-consolidation with zero functional benefit. PG16 is a mature, long-supported
-release with a widely-used `pgvector` image, and it is the safe, minimal
-choice that keeps every app and every source compatible. If a future app ever
-needs a PG17+ feature, the target can be bumped then — nothing in this
-consolidation requires it today.
+consolidation with zero functional benefit. PG17 is a current stable release
+with a widely-used `pgvector` package, and it is the safe, minimal choice
+that keeps every app and every source compatible.
 
 ## Name conflicts (resolved in `manifest.tsv`)
 
 A database name cannot exist twice in one server. Two pairs collide:
 
-| Name            | Instances                              | Resolution                                                                                     |
-| --------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `homeassistant` | 121 (186M) + 129 (824M)                | 129 stays `homeassistant` (has live conns per `pg_stat_activity`); 121 → `homeassistant_121`   |
-| `penpot`        | 129 (9M) + 138 (36M)                   | 138 stays `penpot` (penpot backend points there); 129 → `penpot_129`                           |
-| `honcho`        | 138 (7.4M) + pgvector `postgres` (37M) | 138 stays `honcho`; pgvector copy → `honcho_pgvector` (owner role is `honcho`, has vector ext) |
+| Name            | Instances                              | Resolution                                                                                                   |
+| --------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `homeassistant` | 121 (186M) + 129 (824M)                | 129 stays `homeassistant` (has live conns per `pg_stat_activity`); 121 → `homeassistant_121`                 |
+| `penpot`        | 129 (9M) + 138 (36M)                   | 138 stays `penpot` (penpot backend points there); 129 → `penpot_129`                                         |
+| `honcho`        | 138 (7.4M) + pgvector `postgres` (37M) | 138 stays `honcho`; pgvector copy → `honcho_pgvector` (owner role `honcho`, vector ext — the live honcho DB) |
 
 `pg_stat_activity` (verified 2026-10-20) shows which copies have live
 connections: the 129 `homeassistant` (824M) has 3, the 121 copy (186M) has
@@ -114,21 +116,29 @@ Other notes:
 - `cryptofolio`: **verified** — no such database exists on any source instance
   (the k3s app runs stateless, no DB env). A fresh `cryptofolio` DB + role is
   created for the migrated app; nothing to dump.
-- `pgvector` (37M): **verified** — `pg_stat_activity` shows it is owned and
-  queried by the `honcho` role (client 10.42.9.7). Migrated as `honcho_pgvector`
-  (owner `honcho`, vector extension). The `postgresql16` `honcho` (7.4M) has no
-  live connections, so the vector copy is honcho's real database.
+- `pgvector` (37M): **verified** — owned and queried by the `honcho` role
+  (client 10.42.9.7), and the live honcho app (now on Talos) points at it via
+  the k3s NodePort `172.20.0.116:31532` on source DB `postgres`. Migrated as
+  `honcho_pgvector` (owner `honcho`, vector extension). The `postgresql16`
+  `honcho` (7.4M) has no live connections, so the vector copy is honcho's real
+  database.
 
 ## IP re-pointing (k3s LB → 172.20.17.150)
 
-| App (cluster)                         | Was                               | Becomes                                           |
-| ------------------------------------- | --------------------------------- | ------------------------------------------------- |
-| firefly-iii (Talos, this PR)          | 172.20.0.121:5432                 | 172.20.17.150:5432                                |
-| firefly-iii importer (Talos, this PR) | 172.20.0.121:5432                 | 172.20.17.150:5432                                |
-| cryptofolio (Talos, this PR)          | (no source DB — stateless)        | 172.20.17.150:5432 (fresh `cryptofolio` DB)       |
-| ghostfolio (Talos, this PR)           | 172.20.0.138:5432 (see note)      | 172.20.17.150:5432                                |
-| immich (Talos, on main)               | 172.20.0.113:32289 (k3s NodePort) | 172.20.17.150:5432                                |
-| forgejo (Talos, on main)              | 172.20.0.121:5432 (in `app.ini`)  | 172.20.17.150:5432 — **PVC edit, not a manifest** |
+| App (cluster)                       | Was                                                                       | Becomes                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| firefly-iii (k3s, this PR)          | 172.20.0.121:5432                                                         | 172.20.17.150:5432                                                      |
+| firefly-iii importer (k3s, this PR) | 172.20.0.121:5432                                                         | 172.20.17.150:5432                                                      |
+| cryptofolio (this PR)               | (no source DB — stateless)                                                | 172.20.17.150:5432 (fresh `cryptofolio` DB)                             |
+| ghostfolio (k3s, this PR)           | 172.20.0.138:5432 (see note)                                              | 172.20.17.150:5432                                                      |
+| immich (Talos, on main)             | 172.20.0.113:32289 (k3s NodePort)                                         | 172.20.17.150:5432                                                      |
+| forgejo (Talos, on main)            | 172.20.0.121:5432 (in `app.ini`)                                          | 172.20.17.150:5432 — **PVC edit, not a manifest**                       |
+| matrix/dendrite (Talos, on main)    | 172.20.0.129:5432 (10 connection strings in the `dendrite-config` secret) | 172.20.17.150:5432                                                      |
+| mautrix-whatsapp (Talos, on main)   | 172.20.0.129:5432 (DB URI in the `whatsapp` PVC `config.yaml`)            | 172.20.17.150:5432                                                      |
+| honcho (Talos, on main)             | 172.20.0.116:31532 (k3s NodePort; source DB `postgres`)                   | 172.20.17.150:5432 — **DB name changes** `postgres` → `honcho_pgvector` |
+| litellm (Talos, on main)            | 172.20.0.138:5432                                                         | 172.20.17.150:5432                                                      |
+| authelia (Talos, on main)           | (none — file-based user DB)                                               | none — legacy `authelia` DB preserved, not wired                        |
+| n8n (Talos, on main)                | (none — built-in SQLite)                                                  | none — legacy `n8n` DB preserved, not wired                             |
 
 > **ghostfolio source correction:** the PR originally pointed all three apps at
 > 172.20.0.121, but the k3s `ghostfolio` `DATABASE_URL` actually references
@@ -162,15 +172,19 @@ Everything happens as a short, deliberate window. **Do not skip the scale-down**
 
 ### 0. Prep (before the window)
 
-1. Deploy the consolidated postgres on 172.20.17.150:
+1. Deploy the consolidated postgres on 172.20.17.150 (the compose service
+   builds the image from the local `Dockerfile` on first start):
     ```
-    cd <this-dir-on-TrueNAS> && docker compose up -d
+    cd <this-dir-on-TrueNAS> && docker compose up -d --build
     docker compose ps        # healthy?
     ```
 2. Generate the local `creds.env` (chmod 600) with `TARGET_SU` + each source
    superuser + each role password (see `migrate.sh` header). Generate
    `./initdb/roles.sql` from `roles.example.sql` with the real role passwords
-   and start the compose service (roles are created on first start).
+   and start the compose service (roles are created on first start). The
+   committed `./initdb/01-init-extensions.sql` creates the six extensions;
+   the `Dockerfile` bakes the same SQL into the image, so a fresh instance
+   gets them either way.
 3. `./migrate.sh --dry-run` — sanity-check the plan.
 
 ### 1. Scale down ALL consumers (k3s + Talos)
@@ -185,12 +199,15 @@ kubectl -n <ns> scale deploy/<app> --replicas=0
 kubectl --kubeconfig <k3s> -n <ns> scale deploy/<app> --replicas=0
 ```
 
-Consumers to scale down (from the inventory):
+Consumers to scale down (verified against the live clusters, 2026-11-18):
 
-- Talos: firefly-iii, cryptofolio, ghostfolio, immich, forgejo(gitea),
-  home-assistant, litellm, n8n, lidarr, sonarr, readarr, radarr, authelia.
-- k3s: matrix/dendrite, whatsapp(mautrix), mealie, penpot, planka, mastodon,
-  piped, honcho, acmedns, wiki, and any `*arr` still on k3s.
+- Talos: immich, forgejo(gitea), home-assistant, litellm, matrix/dendrite
+  (`dendrite` deployment), mautrix-whatsapp (`whatsapp` deployment), honcho.
+- k3s: firefly-iii (+ importer), ghostfolio, mealie, penpot, planka,
+  mastodon, piped, acmedns, wiki, and any `*arr` still on k3s.
+- No scale-down needed: authelia (file-based user DB), n8n (built-in
+  SQLite), lidarr/sonarr/readarr/radarr (SQLite in PVCs) — none of these
+  touch Postgres.
 - Verify each is at 0/1 before proceeding: `kubectl get pods -A | grep <app>`.
 
 ### 2. Dump + restore
@@ -212,6 +229,14 @@ background session.
 
 Spot-check the big/important DBs by connecting as each app role and running a
 real query (row counts on key tables) and compare against the source.
+
+Additionally, verify from the Talos cluster itself — this proves the Talos
+pod CIDR can reach 172.20.17.150:5432 (firewall) and that every Talos-side
+workload can authenticate against the new DB:
+
+```
+TALOS_KUBECONFIG=<talos-kubeconfig> ./migrate.sh --verify-talos
+```
 
 ### 4. Re-point the apps
 
@@ -244,5 +269,7 @@ up and confirm each connects and loads its data.
 - **The `postgres` template DB is not migrated** (it is not app data).
 - **Firewall**: 172.20.17.150:5432 must accept the Talos pod CIDR (172.20.128.0/18)
   and node subnet; keep it off the public internet.
-- **pgvector owner unknown** — confirm before dumping; drop from manifest if unused.
+- **pgvector owner confirmed** — the `honcho` role owns and queries it (the
+  live honcho app on Talos points at it via the k3s NodePort); kept in the
+  manifest as `honcho_pgvector`.
 - **immich redis** is a separate migration (not in this Postgres scope).
