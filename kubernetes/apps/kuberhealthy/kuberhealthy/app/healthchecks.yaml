@@ -218,7 +218,7 @@ spec:
       serviceAccountName: kuberhealthy-checks
       containers:
         - name: check
-          image: docker.io/library/python:3.13.5-alpine3.22
+          image: docker.io/library/python:3.14.5-alpine3.22
           imagePullPolicy: IfNotPresent
           command:
             - python3
@@ -292,7 +292,7 @@ spec:
       serviceAccountName: kuberhealthy-checks
       containers:
         - name: check
-          image: docker.io/library/python:3.13.5-alpine3.22
+          image: docker.io/library/python:3.14.5-alpine3.22
           imagePullPolicy: IfNotPresent
           command:
             - python3
