@@ -198,6 +198,14 @@ spec:
 #
 # The checker pod authenticates with the `kuberhealthy-checks` ServiceAccount
 # (see rbac.yaml) and queries the in-cluster API server directly.
+#
+# HTTP is done with curl (subprocess), not Python's urllib: the cluster's
+# API-server load balancer ties bearer-token auth to the TLS/ALPN handshake
+# details that curl negotiates correctly (ALPN h2, TLS 1.3) but Python's ssl
+# does not — urllib requests are rejected with 401 while identical curl
+# requests succeed. Python is kept for the JSON/logic layer only. curl is not
+# in the python:alpine base image, so it is installed on first use via apk
+# (idempotent; a fresh checker pod per run, so this runs each interval).
 apiVersion: kuberhealthy.github.io/v2
 kind: HealthCheck
 metadata:
@@ -212,32 +220,40 @@ spec:
         - name: check
           image: docker.io/library/python:3.13.5-alpine3.22
           imagePullPolicy: IfNotPresent
-          # Pure Python (no shell, no curl — the python image has neither a
-          # useful shell toolset nor curl). Queries the K8s API with the
-          # in-cluster ServiceAccount token, then reports the result to
-          # Kubehealthy via urllib using the injected KH_REPORTING_URL and
-          # KH_RUN_UUID env vars.
           command:
             - python3
             - -c
             - |
-              import json, os, ssl, urllib.request
+              import json, os, shutil, subprocess
+              def ensure_curl():
+                  if shutil.which('curl') is None:
+                      subprocess.run(['apk', 'add', '--no-cache', 'curl'],
+                                     capture_output=True, text=True, timeout=60)
+                  if shutil.which('curl') is None:
+                      raise RuntimeError('curl unavailable')
+              def report(payload):
+                  subprocess.run(['curl', '-s', '--max-time', '15', '-X', 'POST',
+                                  '-H', 'Content-Type: application/json',
+                                  '-H', 'kh-run-uuid: ' + os.environ['KH_RUN_UUID'],
+                                  '-d', json.dumps(payload),
+                                  os.environ['KH_REPORTING_URL']],
+                                 capture_output=True, text=True, timeout=20)
+              ensure_curl()
               token = open('/var/run/secrets/kubernetes.io/serviceaccount/token').read().strip()
-              ctx = ssl.create_default_context(cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
-              req = urllib.request.Request('https://kubernetes.default.svc/api/v1/nodes',
-                                           headers={'Authorization': '***' + token})
-              with urllib.request.urlopen(req, context=ctx, timeout=15) as r:
-                  nodes = json.load(r)
-              bad = [n['metadata']['name'] for n in nodes['items']
-                     if not any(c.get('type') == 'Ready' and c.get('status') == 'True'
-                                for c in n.get('status', {}).get('conditions', []))]
-              report = {'ok': not bad,
-                        'errors': (['nodes not Ready: ' + ', '.join(bad)] if bad else [])}
-              req2 = urllib.request.Request(os.environ['KH_REPORTING_URL'],
-                                            data=json.dumps(report).encode(),
-                                            headers={'Content-Type': 'application/json',
-                                                     'kh-run-uuid': os.environ['KH_RUN_UUID']})
-              urllib.request.urlopen(req2, timeout=15)
+              r = subprocess.run(['curl', '-s', '--max-time', '15',
+                                  '--cacert', '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt',
+                                  '-H', 'Authorization: Bearer ' + token,
+                                  'https://kubernetes.default.svc/api/v1/nodes'],
+                                 capture_output=True, text=True, timeout=20)
+              try:
+                  nodes = json.loads(r.stdout)
+                  bad = [n['metadata']['name'] for n in nodes['items']
+                         if not any(c.get('type') == 'Ready' and c.get('status') == 'True'
+                                    for c in n.get('status', {}).get('conditions', []))]
+                  report({'ok': not bad,
+                          'errors': (['nodes not Ready: ' + ', '.join(bad)] if bad else [])})
+              except Exception as e:
+                  report({'ok': False, 'errors': ['nodes-ready check error: ' + str(e)[:200]]})
           resources:
             requests:
               cpu: 10m
@@ -261,6 +277,9 @@ spec:
 #
 # The checker pod authenticates with the `kuberhealthy-checks` ServiceAccount
 # (see rbac.yaml) and queries the in-cluster API server directly.
+#
+# HTTP is done with curl (subprocess), not Python's urllib — see the
+# nodes-ready check for why. Python is kept for the JSON/logic layer only.
 apiVersion: kuberhealthy.github.io/v2
 kind: HealthCheck
 metadata:
@@ -275,48 +294,56 @@ spec:
         - name: check
           image: docker.io/library/python:3.13.5-alpine3.22
           imagePullPolicy: IfNotPresent
-          # Pure Python (no shell, no curl — the python image has neither a
-          # useful shell toolset nor curl). Queries the K8s API with the
-          # in-cluster ServiceAccount token, then reports the result to
-          # Kubehealthy via urllib using the injected KH_REPORTING_URL and
-          # KH_RUN_UUID env vars.
           command:
             - python3
             - -c
             - |
-              import datetime, json, os, ssl, time, urllib.request
+              import datetime, json, os, shutil, subprocess, time
+              def ensure_curl():
+                  if shutil.which('curl') is None:
+                      subprocess.run(['apk', 'add', '--no-cache', 'curl'],
+                                     capture_output=True, text=True, timeout=60)
+                  if shutil.which('curl') is None:
+                      raise RuntimeError('curl unavailable')
+              def report(payload):
+                  subprocess.run(['curl', '-s', '--max-time', '15', '-X', 'POST',
+                                  '-H', 'Content-Type: application/json',
+                                  '-H', 'kh-run-uuid: ' + os.environ['KH_RUN_UUID'],
+                                  '-d', json.dumps(payload),
+                                  os.environ['KH_REPORTING_URL']],
+                                 capture_output=True, text=True, timeout=20)
+              ensure_curl()
               token = open('/var/run/secrets/kubernetes.io/serviceaccount/token').read().strip()
-              ctx = ssl.create_default_context(cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
-              req = urllib.request.Request('https://kubernetes.default.svc/api/v1/pods',
-                                           headers={'Authorization': '***' + token})
-              with urllib.request.urlopen(req, context=ctx, timeout=20) as r:
-                  pods = json.load(r)
-              now = time.time()
-              def age(meta, key):
-                  ts = meta.get(key)
-                  if not ts:
-                      return None
-                  return now - datetime.datetime.fromisoformat(ts.replace('Z', '+00:00')).timestamp()
-              stuck = []
-              for p in pods['items']:
-                  meta = p['metadata']
-                  label = meta['namespace'] + '/' + meta['name']
-                  if meta.get('deletionTimestamp') and (age(meta, 'deletionTimestamp') or 0) > 900:
-                      stuck.append(label + ' (terminating)')
-                  phase = p.get('status', {}).get('phase')
-                  if phase == 'Pending' and (age(meta, 'creationTimestamp') or 0) > 1800:
-                      stuck.append(label + ' (pending)')
-                  if phase == 'Running' and (age(meta, 'creationTimestamp') or 0) > 1800 and any(
-                          cs.get('state', {}).get('waiting')
-                          for cs in p.get('status', {}).get('containerStatuses', [])):
-                      stuck.append(label + ' (container-creating)')
-              report = {'ok': not stuck,
-                        'errors': (['pods stuck: ' + ', '.join(stuck)] if stuck else [])}
-              req2 = urllib.request.Request(os.environ['KH_REPORTING_URL'],
-                                            data=json.dumps(report).encode(),
-                                            headers={'Content-Type': 'application/json',
-                                                     'kh-run-uuid': os.environ['KH_RUN_UUID']})
-              urllib.request.urlopen(req2, timeout=15)
+              r = subprocess.run(['curl', '-s', '--max-time', '20',
+                                  '--cacert', '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt',
+                                  '-H', 'Authorization: Bearer ' + token,
+                                  'https://kubernetes.default.svc/api/v1/pods'],
+                                 capture_output=True, text=True, timeout=25)
+              try:
+                  pods = json.loads(r.stdout)
+                  now = time.time()
+                  def age(meta, key):
+                      ts = meta.get(key)
+                      if not ts:
+                          return None
+                      return now - datetime.datetime.fromisoformat(ts.replace('Z', '+00:00')).timestamp()
+                  stuck = []
+                  for p in pods['items']:
+                      meta = p['metadata']
+                      label = meta['namespace'] + '/' + meta['name']
+                      if meta.get('deletionTimestamp') and (age(meta, 'deletionTimestamp') or 0) > 900:
+                          stuck.append(label + ' (terminating)')
+                      phase = p.get('status', {}).get('phase')
+                      if phase == 'Pending' and (age(meta, 'creationTimestamp') or 0) > 1800:
+                          stuck.append(label + ' (pending)')
+                      if phase == 'Running' and (age(meta, 'creationTimestamp') or 0) > 1800 and any(
+                              cs.get('state', {}).get('waiting')
+                              for cs in p.get('status', {}).get('containerStatuses', [])):
+                          stuck.append(label + ' (container-creating)')
+                  report({'ok': not stuck,
+                          'errors': (['pods stuck: ' + ', '.join(stuck)] if stuck else [])})
+              except Exception as e:
+                  report({'ok': False, 'errors': ['pods-not-stuck check error: ' + str(e)[:200]]})
           resources:
             requests:
               cpu: 10m
