@@ -19,7 +19,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: whisper
-          image: rhasspy/wyoming-whisper:3.9.0
+          image: rhasspy/wyoming-whisper:3.9.1
           imagePullPolicy: IfNotPresent
           args:
             - --debug
