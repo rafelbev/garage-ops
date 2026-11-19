@@ -29,6 +29,16 @@ checker pod. The pod authenticates to the API server with the
 read access to `nodes` and `pods` only) and queries
 `https://kubernetes.default.svc` directly.
 
+All HTTP (the API call and the Kubehealthy report) is done with `curl`
+(subprocess), not Python's `urllib`: the cluster's API-server load
+balancer ties bearer-token auth to the TLS/ALPN handshake that curl
+negotiates correctly (ALPN h2, TLS 1.3) but Python's `ssl` does not —
+`urllib` requests are rejected with `401` while identical `curl`
+requests succeed. `curl` is not in the `python:alpine` base image, so it
+is installed on first use via `apk` (idempotent; each checker run is a
+fresh pod, so this runs each interval). Python is kept for the JSON and
+logic layer only.
+
 The Proxmox check is the early-warning layer for hypervisor-level
 failures: a Proxmox host dies before its VMs become unreachable, so
 `proxmox-hosts-up` firing means a Talos node is about to go down.
