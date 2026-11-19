@@ -45,7 +45,7 @@ spec:
           # dockerd needs a real filesystem for its image storage.
           # See: https://github.com/siderolabs/talos/discussions/8936
           - name: dind
-            image: docker:27-dind
+            image: docker:29-dind
             command:
               - dockerd-entrypoint.sh
             securityContext:
@@ -75,7 +75,7 @@ spec:
           # (It runs in parallel with dind; the loop is a no-op once the socket
           # is ready, and tail -f keeps the container alive.)
           - name: sock-fix
-            image: docker:27-dind
+            image: docker:29-dind
             command:
               - sh
               - -c
