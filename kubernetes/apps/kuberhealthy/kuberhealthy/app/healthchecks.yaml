@@ -212,13 +212,16 @@ spec:
         - name: check
           image: docker.io/library/python:3.13.5-alpine3.22
           imagePullPolicy: IfNotPresent
+          # Pure Python (no shell, no curl — the python image has neither a
+          # useful shell toolset nor curl). Queries the K8s API with the
+          # in-cluster ServiceAccount token, then reports the result to
+          # Kubehealthy via urllib using the injected KH_REPORTING_URL and
+          # KH_RUN_UUID env vars.
           command:
-            - sh
+            - python3
             - -c
             - |
-              set -u
-              OUT=$(python3 <<'PYEOF' 2>&1
-              import json, ssl, sys, urllib.request
+              import json, os, ssl, urllib.request
               token = open('/var/run/secrets/kubernetes.io/serviceaccount/token').read().strip()
               ctx = ssl.create_default_context(cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
               req = urllib.request.Request('https://kubernetes.default.svc/api/v1/nodes',
@@ -228,23 +231,13 @@ spec:
               bad = [n['metadata']['name'] for n in nodes['items']
                      if not any(c.get('type') == 'Ready' and c.get('status') == 'True'
                                 for c in n.get('status', {}).get('conditions', []))]
-              if bad:
-                  print('nodes not Ready: ' + ', '.join(bad))
-                  sys.exit(1)
-              print('all nodes are Ready')
-              PYEOF
-              )
-              STATUS=$?
-              if [ "$STATUS" -eq 0 ]; then
-              curl -fsSL -X POST -H 'Content-Type: application/json' \
-              -H "kh-run-uuid: $KH_RUN_UUID" \
-              -d '{"ok": true, "errors": []}' "$KH_REPORTING_URL";
-              else
-              ESC=$(printf '%s' "$OUT" | tr -d '"')
-              curl -fsSL -X POST -H 'Content-Type: application/json' \
-              -H "kh-run-uuid: $KH_RUN_UUID" \
-              -d "{\"ok\": false, \"errors\": [\"$ESC\"]}" "$KH_REPORTING_URL";
-              fi
+              report = {'ok': not bad,
+                        'errors': (['nodes not Ready: ' + ', '.join(bad)] if bad else [])}
+              req2 = urllib.request.Request(os.environ['KH_REPORTING_URL'],
+                                            data=json.dumps(report).encode(),
+                                            headers={'Content-Type': 'application/json',
+                                                     'kh-run-uuid': os.environ['KH_RUN_UUID']})
+              urllib.request.urlopen(req2, timeout=15)
           resources:
             requests:
               cpu: 10m
@@ -282,13 +275,16 @@ spec:
         - name: check
           image: docker.io/library/python:3.13.5-alpine3.22
           imagePullPolicy: IfNotPresent
+          # Pure Python (no shell, no curl — the python image has neither a
+          # useful shell toolset nor curl). Queries the K8s API with the
+          # in-cluster ServiceAccount token, then reports the result to
+          # Kubehealthy via urllib using the injected KH_REPORTING_URL and
+          # KH_RUN_UUID env vars.
           command:
-            - sh
+            - python3
             - -c
             - |
-              set -u
-              OUT=$(python3 <<'PYEOF' 2>&1
-              import datetime, json, ssl, sys, time, urllib.request
+              import datetime, json, os, ssl, time, urllib.request
               token = open('/var/run/secrets/kubernetes.io/serviceaccount/token').read().strip()
               ctx = ssl.create_default_context(cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
               req = urllib.request.Request('https://kubernetes.default.svc/api/v1/pods',
@@ -314,23 +310,13 @@ spec:
                           cs.get('state', {}).get('waiting')
                           for cs in p.get('status', {}).get('containerStatuses', [])):
                       stuck.append(label + ' (container-creating)')
-              if stuck:
-                  print('pods stuck: ' + ', '.join(stuck))
-                  sys.exit(1)
-              print('no stuck pods')
-              PYEOF
-              )
-              STATUS=$?
-              if [ "$STATUS" -eq 0 ]; then
-              curl -fsSL -X POST -H 'Content-Type: application/json' \
-              -H "kh-run-uuid: $KH_RUN_UUID" \
-              -d '{"ok": true, "errors": []}' "$KH_REPORTING_URL";
-              else
-              ESC=$(printf '%s' "$OUT" | tr -d '"')
-              curl -fsSL -X POST -H 'Content-Type: application/json' \
-              -H "kh-run-uuid: $KH_RUN_UUID" \
-              -d "{\"ok\": false, \"errors\": [\"$ESC\"]}" "$KH_REPORTING_URL";
-              fi
+              report = {'ok': not stuck,
+                        'errors': (['pods stuck: ' + ', '.join(stuck)] if stuck else [])}
+              req2 = urllib.request.Request(os.environ['KH_REPORTING_URL'],
+                                            data=json.dumps(report).encode(),
+                                            headers={'Content-Type': 'application/json',
+                                                     'kh-run-uuid': os.environ['KH_RUN_UUID']})
+              urllib.request.urlopen(req2, timeout=15)
           resources:
             requests:
               cpu: 10m
