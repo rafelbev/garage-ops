@@ -13,10 +13,15 @@ spec:
         name: kuberhealthy
   interval: 1h
   values:
-    # Single replica is sufficient for a home cluster; Kubehealthy uses
-    # leader election, so it is safe to run one instance.
+    # Two replicas so the alerting pipeline survives a single node dying:
+    # pods on a dead node are not rescheduled until the node object is
+    # deleted, so with one replica the entire Kubehealthy (checks +
+    # metrics) goes silent with the node, as happened on cluster-6 on
+    # 2026-11-18. Kubehealthy uses leader election, so a second instance
+    # is safe; the chart's default hard pod anti-affinity keeps the two
+    # replicas on different nodes.
     deployment:
-      replicas: 1
+      replicas: 2
       # Scope the operator to this namespace so it only reconciles
       # HealthChecks here.
       env:

@@ -18,9 +18,13 @@ spec:
       enabled: true
       # Route alerts to an ntfy webhook: the alert payload is POSTed to
       # https://ntfy.garage.neo-tix.com/kuberhealthy and delivered to all
-      # subscribers of that topic. The X-Title header sets the notification
-      # title; the JSON body is the full Alertmanager payload.
+      # subscribers of that topic; the JSON payload is the notification
+      # message body.
       # NB: in this chart version `config` is a structured map, not a string.
+      # NB: no `header_params` on the webhook entry — Alertmanager 0.35 does
+      # not accept it in `webhook_configs` and crash-loops on load (the field
+      # was removed from the config on 2026-11-19; ntfy titles the
+      # notification with the topic name instead).
       config:
         global:
           resolve_timeout: 5m
@@ -36,8 +40,6 @@ spec:
             webhook_configs:
               - url: "https://ntfy.garage.neo-tix.com/kuberhealthy"
                 send_resolved: true
-                header_params:
-                  X-Title: "{{ .Alerts | first | alertname }}"
     # The sub-charts are not needed for a minimal alerting stack.
     kube-state-metrics:
       enabled: false
