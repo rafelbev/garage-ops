@@ -1,0 +1,39 @@
+---
+# Service account + minimal cluster-scoped read access for the API-based
+# HealthChecks (`nodes-ready`, `pods-not-stuck`). The checker pods
+# authenticate to the API server with this token to list nodes and pods.
+#
+# The two checks were added after the 2026-11-18 cluster-6 incident, where
+# a node went down and ~20 pods were stuck (Terminating / ContainerCreating)
+# for 13-46 hours with nothing alerting. See README.md.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kuberhealthy-checks
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kuberhealthy-checks
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - pods
+    verbs:
+      - get
+      - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kuberhealthy-checks
+subjects:
+  - kind: ServiceAccount
+    name: kuberhealthy-checks
+    namespace: kuberhealthy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kuberhealthy-checks

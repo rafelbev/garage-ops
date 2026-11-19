@@ -95,3 +95,248 @@ spec:
               memory: 32Mi
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
+---
+# E2E check for home-assistant. The HA root path serves the login page
+# (HTTP 200) when the stack is healthy. home-assistant was the app stuck on
+# the dead cluster-6 node in the 2026-11-18 incident, so it gets its own
+# synthetic check.
+apiVersion: kuberhealthy.github.io/v2
+kind: HealthCheck
+metadata:
+  name: e2e-home-assistant
+spec:
+  runInterval: 20m
+  timeout: 60s
+  podSpec:
+    spec:
+      containers:
+        - name: check
+          image: docker.io/curlimages/curl:8.23.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - >-
+              if curl -fsSL -o /dev/null --max-time 20
+              https://home-assistant.garage.neo-tix.com/; then
+              curl -fsSL -X POST -H 'Content-Type: application/json'
+              -H "kh-run-uuid: $KH_RUN_UUID"
+              -d '{"ok": true, "errors": []}' "$KH_REPORTING_URL";
+              else
+              curl -fsSL -X POST -H 'Content-Type: application/json'
+              -H "kh-run-uuid: $KH_RUN_UUID"
+              -d '{"ok": false, "errors": ["home-assistant.garage.neo-tix.com
+              returned non-200 or was unreachable"]}' "$KH_REPORTING_URL";
+              fi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 15Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+---
+# Proxmox host liveness. The Proxmox VE Web API (port 8006) answers any HTTP
+# request when the host is up (401 when unauthenticated), and the connection
+# fails entirely when the host is down. This is the early-warning signal for
+# a Proxmox node going down, minutes to hours before its VMs (and therefore
+# the Talos nodes they host) become unreachable.
+apiVersion: kuberhealthy.github.io/v2
+kind: HealthCheck
+metadata:
+  name: proxmox-hosts-up
+spec:
+  runInterval: 5m
+  timeout: 60s
+  podSpec:
+    spec:
+      containers:
+        - name: check
+          image: docker.io/curlimages/curl:8.23.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - >-
+              ERRORS="";
+              for host in 172.20.17.65 172.20.17.66; do
+              code=$(curl -sk -o /dev/null --max-time 10 -w '%{http_code}'
+              "https://${host}:8006/") || code=000;
+              case "$code" in
+              200|401|403) ;;
+              *) ERRORS="$ERRORS Proxmox host ${host}:8006 unreachable
+              (http ${code});";;
+              esac
+              done;
+              if [ -n "$ERRORS" ]; then
+              ESC=$(printf '%s' "$ERRORS" | sed 's/^ *//');
+              curl -fsSL -X POST -H 'Content-Type: application/json'
+              -H "kh-run-uuid: $KH_RUN_UUID"
+              -d "{\"ok\": false, \"errors\": [\"$ESC\"]}"
+              "$KH_REPORTING_URL";
+              else
+              curl -fsSL -X POST -H 'Content-Type: application/json'
+              -H "kh-run-uuid: $KH_RUN_UUID"
+              -d '{"ok": true, "errors": []}' "$KH_REPORTING_URL";
+              fi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 15Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+---
+# Node readiness, via the Kubernetes API. Verifies that every node in the
+# cluster reports Ready=True. This is the check that would have caught
+# cluster-6 going down in the 2026-11-18 incident, hours before any of its
+# pods became a problem.
+#
+# The checker pod authenticates with the `kuberhealthy-checks` ServiceAccount
+# (see rbac.yaml) and queries the in-cluster API server directly.
+apiVersion: kuberhealthy.github.io/v2
+kind: HealthCheck
+metadata:
+  name: nodes-ready
+spec:
+  runInterval: 10m
+  timeout: 60s
+  podSpec:
+    spec:
+      serviceAccountName: kuberhealthy-checks
+      containers:
+        - name: check
+          image: docker.io/library/python:3.13.5-alpine3.22
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -u
+              OUT=$(python3 <<'PYEOF' 2>&1
+              import json, ssl, sys, urllib.request
+              token = open('/var/run/secrets/kubernetes.io/serviceaccount/token').read().strip()
+              ctx = ssl.create_default_context(cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
+              req = urllib.request.Request('https://kubernetes.default.svc/api/v1/nodes',
+                                           headers={'Authorization': '***' + token})
+              with urllib.request.urlopen(req, context=ctx, timeout=15) as r:
+                  nodes = json.load(r)
+              bad = [n['metadata']['name'] for n in nodes['items']
+                     if not any(c.get('type') == 'Ready' and c.get('status') == 'True'
+                                for c in n.get('status', {}).get('conditions', []))]
+              if bad:
+                  print('nodes not Ready: ' + ', '.join(bad))
+                  sys.exit(1)
+              print('all nodes are Ready')
+              PYEOF
+              )
+              STATUS=$?
+              if [ "$STATUS" -eq 0 ]; then
+              curl -fsSL -X POST -H 'Content-Type: application/json' \
+              -H "kh-run-uuid: $KH_RUN_UUID" \
+              -d '{"ok": true, "errors": []}' "$KH_REPORTING_URL";
+              else
+              ESC=$(printf '%s' "$OUT" | tr -d '"')
+              curl -fsSL -X POST -H 'Content-Type: application/json' \
+              -H "kh-run-uuid: $KH_RUN_UUID" \
+              -d "{\"ok\": false, \"errors\": [\"$ESC\"]}" "$KH_REPORTING_URL";
+              fi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+---
+# Stuck-pod detector, via the Kubernetes API. Flags pods stuck in a
+# non-running state beyond a threshold:
+#   - terminating (deletionTimestamp set) for > 15m
+#   - Pending for > 30m
+#   - Running with a waiting container (e.g. ImagePullBackOff) for > 30m
+#
+# This is the check that would have caught the ~20 pods stuck for 13-46
+# hours after cluster-6 died in the 2026-11-18 incident. The 30m threshold
+# for pending/creating is deliberately generous: home-assistant pulls a
+# multi-GB image, and slow pulls are legitimate.
+#
+# The checker pod authenticates with the `kuberhealthy-checks` ServiceAccount
+# (see rbac.yaml) and queries the in-cluster API server directly.
+apiVersion: kuberhealthy.github.io/v2
+kind: HealthCheck
+metadata:
+  name: pods-not-stuck
+spec:
+  runInterval: 10m
+  timeout: 60s
+  podSpec:
+    spec:
+      serviceAccountName: kuberhealthy-checks
+      containers:
+        - name: check
+          image: docker.io/library/python:3.13.5-alpine3.22
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -u
+              OUT=$(python3 <<'PYEOF' 2>&1
+              import datetime, json, ssl, sys, time, urllib.request
+              token = open('/var/run/secrets/kubernetes.io/serviceaccount/token').read().strip()
+              ctx = ssl.create_default_context(cafile='/var/run/secrets/kubernetes.io/serviceaccount/ca.crt')
+              req = urllib.request.Request('https://kubernetes.default.svc/api/v1/pods',
+                                           headers={'Authorization': '***' + token})
+              with urllib.request.urlopen(req, context=ctx, timeout=20) as r:
+                  pods = json.load(r)
+              now = time.time()
+              def age(meta, key):
+                  ts = meta.get(key)
+                  if not ts:
+                      return None
+                  return now - datetime.datetime.fromisoformat(ts.replace('Z', '+00:00')).timestamp()
+              stuck = []
+              for p in pods['items']:
+                  meta = p['metadata']
+                  label = meta['namespace'] + '/' + meta['name']
+                  if meta.get('deletionTimestamp') and (age(meta, 'deletionTimestamp') or 0) > 900:
+                      stuck.append(label + ' (terminating)')
+                  phase = p.get('status', {}).get('phase')
+                  if phase == 'Pending' and (age(meta, 'creationTimestamp') or 0) > 1800:
+                      stuck.append(label + ' (pending)')
+                  if phase == 'Running' and (age(meta, 'creationTimestamp') or 0) > 1800 and any(
+                          cs.get('state', {}).get('waiting')
+                          for cs in p.get('status', {}).get('containerStatuses', [])):
+                      stuck.append(label + ' (container-creating)')
+              if stuck:
+                  print('pods stuck: ' + ', '.join(stuck))
+                  sys.exit(1)
+              print('no stuck pods')
+              PYEOF
+              )
+              STATUS=$?
+              if [ "$STATUS" -eq 0 ]; then
+              curl -fsSL -X POST -H 'Content-Type: application/json' \
+              -H "kh-run-uuid: $KH_RUN_UUID" \
+              -d '{"ok": true, "errors": []}' "$KH_REPORTING_URL";
+              else
+              ESC=$(printf '%s' "$OUT" | tr -d '"')
+              curl -fsSL -X POST -H 'Content-Type: application/json' \
+              -H "kh-run-uuid: $KH_RUN_UUID" \
+              -d "{\"ok\": false, \"errors\": [\"$ESC\"]}" "$KH_REPORTING_URL";
+              fi
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
