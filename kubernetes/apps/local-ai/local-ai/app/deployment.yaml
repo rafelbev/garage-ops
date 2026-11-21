@@ -48,8 +48,9 @@ spec:
       containers:
         - name: local-ai
           # Pinned, version-specific CUDA 13 build (Turing sm_75 supported).
-          # Renovate tracks the version tag for upgrades.
-          image: quay.io/go-skynet/local-ai:v5.0.1-gpu-nvidia-cuda-12
+          # Renovate tracks the version tag for upgrades and is configured
+          # (.renovaterc.json5) to only propose -gpu-nvidia-cuda-13 tags.
+          image: quay.io/go-skynet/local-ai:v5.0.1-gpu-nvidia-cuda-13
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
