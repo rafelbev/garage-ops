@@ -1,0 +1,66 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kritika
+spec:
+  chart:
+    spec:
+      chart: kritika
+      sourceRef:
+        kind: HelmRepository
+        name: kritika
+      version: "0.0.121"
+  interval: 1h
+  values:
+    config:
+      webUrl: https://kritika.garage.neo-tix.com
+      auth:
+        admin:
+          password:
+            env: ADMIN_PASSWORD
+      apps:
+        github:
+          accounts:
+            - rafelbev
+          # TODO: replace with the registered GitHub App's client ID (Iv1...)
+          clientId: "TBD"
+          privateKey:
+            env: GITHUB_APP_PRIVATE_KEY
+          webhookSecret:
+            env: GITHUB_APP_WEBHOOK_SECRET
+      providers:
+        litellm:
+          type: openai
+          baseUrl: http://litellm.litellm.svc.cluster.local:4000/v1
+          apiKey:
+            env: LITELLM_API_KEY
+      # TODO: replace with a model the LiteLLM gateway serves once it is
+      # scaled back up and a model is configured.
+      review:
+        model: "litellm/TBD"
+    database:
+      owner:
+        existingSecret: kritika-postgres-credentials
+      app:
+        existingSecret: kritika-postgres-app
+        role: kritika_app
+    envFrom:
+      - secretRef:
+          name: kritika-credentials
+    httpRoute:
+      enabled: true
+      parentRefs:
+        - group: gateway.networking.k8s.io
+          kind: Gateway
+          name: envoy-external
+          namespace: network
+      hostnames:
+        - kritika.garage.neo-tix.com
+    networkPolicy:
+      extraEgress:
+        - to:
+            - ipBlock:
+                cidr: 172.20.17.150/32
+          ports:
+            - port: 5432
+              protocol: TCP
