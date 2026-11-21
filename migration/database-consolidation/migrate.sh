@@ -37,8 +37,9 @@
 #                                          # pod in the Talos cluster
 #
 # Before every dump, migrate.sh checks `standard_conforming_strings` on the
-# source and sets it to `on` if needed (PG19 release notes: dumps made with
-# pre-PG19 pg_dump while it is `off` will not load properly into PG19+).
+# source and sets it to `on` if needed (defensive: it is `on` by default since
+# PG9.1, and a clean cross-version restore wants consistent string-literal
+# handling).
 #
 set -euo pipefail
 
@@ -106,15 +107,15 @@ src_psql () {
   fi
 }
 
-# Pre-dump check (PG19 release notes): dumps created with a pre-PG19
-# pg_dump while standard_conforming_strings = off will not load properly
-# into PG19+. Ensure the setting is on on every source before dumping.
+# Pre-dump check: ensure standard_conforming_strings = on on every source
+# before dumping (it is `on` by default since PG9.1; this is defensive so the
+# cross-version restore has consistent string-literal handling).
 source_preflight () {
   local source="$1" s
   s="$(src_psql "$source" -c "SHOW standard_conforming_strings" | tr -d ' ')"
   case "$s" in
     on)  echo "  preflight $source: standard_conforming_strings=on OK" ;;
-    off) echo "  preflight $source: standard_conforming_strings=off - fixing (PG19 restore requirement)"
+    off) echo "  preflight $source: standard_conforming_strings=off - fixing (cross-version restore hygiene)"
          [ "$DRY" -eq 1 ] && { echo "  [dry] would ALTER SYSTEM SET standard_conforming_strings = on; SELECT pg_reload_conf();"; return; }
          src_psql "$source" -c "ALTER SYSTEM SET standard_conforming_strings = on;"
          src_psql "$source" -c "SELECT pg_reload_conf();" ;;
@@ -191,7 +192,7 @@ verify_talos () {
   local ns="dbcons-verify" pod="dbcons-probe"
   kubectl --kubeconfig "$TALOS_KUBECONFIG" create namespace "$ns" --dry-run=client -o yaml \
     | kubectl --kubeconfig "$TALOS_KUBECONFIG" apply -f - >/dev/null
-  kubectl --kubeconfig "$TALOS_KUBECONFIG" -n "$ns" run "$pod" --image=postgres:17 \
+  kubectl --kubeconfig "$TALOS_KUBECONFIG" -n "$ns" run "$pod" --image=postgres:18 \
     --restart=Never --command -- sleep 3600 >/dev/null
   kubectl --kubeconfig "$TALOS_KUBECONFIG" -n "$ns" wait --for=condition=Ready pod/"$pod" --timeout=180s >/dev/null
   echo "== verifying from the Talos cluster (pod $ns/$pod) =="

@@ -13,9 +13,10 @@ Benefits:
 
 - One database engine instead of six → less RAM, fewer images, one backup target.
 - Frees k3s of its databases, unblocking k3s decommissioning.
-- The built image (`postgres:19` + PGDG `postgresql-19-pgvector`, see the
-  `Dockerfile` in this directory) covers every extension in use (vector,
-  cube, earthdistance, pg_trgm, unaccent, uuid-ossp).
+- The built image (`postgres:18` + PGDG `postgresql-18-pgvector` + the
+  prebuilt `postgresql-18-vchord` deb, see the `Dockerfile` in this
+  directory) covers every extension in use (vector, vchord, cube,
+  earthdistance, pg_trgm, btree_gin, unaccent, uuid-ossp).
 
 ## Source inventory (verified 2026-10-20)
 
@@ -35,29 +36,30 @@ Total ≈ **12 GiB**.
 > `immich` CNPG image is PG16 (`cloudnative-pgvecto.rs:16.5`). The newest source
 > is therefore PG16 and the oldest is PG11.
 
-## Postgres version compatibility (why PG19)
+## Postgres version compatibility (why PG18)
 
-The consolidated image is **PostgreSQL 19** (`postgres:19` plus the PGDG
-`postgresql-19-pgvector` package, built via the `Dockerfile` in this
-directory). The plan is to run the consolidated instance on PG19 — the
-current stable major. This answers the review question of which target
-version to pick.
+The consolidated image is **PostgreSQL 18** (`postgres:18` plus the PGDG
+`postgresql-18-pgvector` package and the prebuilt `postgresql-18-vchord`
+deb, built via the `Dockerfile` in this directory). The plan is to run the
+consolidated instance on PG18 — the newest major with full support for every
+extension the estate uses, including `vchord` (VectorChord), which is a
+"future requirement" extension no current source database uses but the
+consolidated instance provisions. This answers the review question of which
+target version to pick.
 
 1. **The target must be ≥ the newest source.** The sources run PG11, 12, 14
    and 16 (verified above). The newest is PG16, so the target must be ≥ 16.
 2. **Forward-compatible restore.** `pg_dump` custom-format dumps are
    forward-compatible: a dump taken from PG11/12/14/15/16 restores cleanly
-   into PG19, **provided `standard_conforming_strings = on` on the source**
-   (the default since PG9.1 — the PG19 release notes explicitly warn that
-   dumps made with pre-PG19 `pg_dump` _and_ `standard_conforming_strings =
-   off` will not load properly into PG19+). `migrate.sh` checks this on every
-   source before dumping and fixes it if needed (see the cutover runbook).
-   Optionally, install the PG19 `pg_dump`/`pg_dumpall` client tools on a
-   separate machine and point them at the source clusters to guarantee a
-   fully PG19-native dump.
-3. **No app needs a version newer than PG19** — and none needs a PG19+
-   feature either; PG19 is simply the newest supported major, so every
-   consuming application's supported range is satisfied:
+   into PG18. `standard_conforming_strings` is `on` (the default since
+   PG9.1) on every source, so backslash-escape handling is consistent across
+   the restore; `migrate.sh` re-checks this on every source before dumping
+   and fixes it if needed (see the cutover runbook). Optionally, install a
+   PG18 `pg_dump`/`pg_dumpall` client on a separate machine and point it at
+   the source clusters to guarantee a fully PG18-native dump.
+3. **No app needs a version newer than PG18** — and none needs a PG18+
+   feature either; PG18 is simply high enough that every consuming
+   application's supported range is satisfied:
 
     | App (cluster)             | Min supported PG |
     | ------------------------- | ---------------- |
@@ -83,20 +85,31 @@ version to pick.
     instances no longer use Postgres — file-based user DB and built-in
     SQLite respectively — so their DBs are preserved, not wired.)
 
-4. **All required extensions are present.** The image bundles the `vector`
-   extension (immich, honcho) via the PGDG `postgresql-19-pgvector` package,
-   plus every contrib module the sources use — `cube`, `earthdistance`,
-   `pg_trgm`, `unaccent`, `uuid-ossp` — so no app is left without an extension
-   it needs.
+4. **Full extension support.** PG18 is the newest major the VectorChord
+   project supports: it ships prebuilt `postgresql-18-vchord` debs and a
+   `pg18` build feature. PG19 (the current stable) is _not_ yet supported by
+   VectorChord — its `pgrx` pin caps at `pg18` — so PG18 is the highest major
+   that can provision the complete extension set (`vector`, `vchord`, `cube`,
+   `earthdistance`, `pg_trgm`, `btree_gin`, `unaccent`, `uuid-ossp`) cleanly.
+   The image bundles the `vector` extension (immich, honcho) via the PGDG
+   `postgresql-18-pgvector` package, `vchord` via the prebuilt
+   `postgresql-18-vchord` deb, and every contrib module the sources use —
+   `cube`, `earthdistance`, `pg_trgm`, `btree_gin`, `unaccent`, `uuid-ossp` —
+   so no app is left without an extension it needs. **`vchord` must be
+   preloaded** via `shared_preload_libraries = 'vchord'` (set in the
+   docker-compose `command`), otherwise `CREATE EXTENSION vchord` fails with
+   "vchord must be loaded via shared_preload_libraries" — live-verified in a
+   k3s test pod on 2026-11-21.
 
-### PG19 behavioral audit (live-verified 2026-11-21)
+### Behavioral audit (live-verified 2026-11-21)
 
-All six sources were audited as superuser (37 databases total) for the PG19
-behavioral changes, plus the `standard_conforming_strings` preflight state:
+All six sources were audited as superuser (37 databases total) for behavioral
+changes that could affect a cross-version restore, plus the
+`standard_conforming_strings` preflight state:
 
-| PG19 change                                  | Finding (all 6 sources / 37 DBs)                                                                                                                                                                                                                                                                                 |
+| Change                                       | Finding (all 6 sources / 37 DBs)                                                                                                                                                                                                                                                                                 |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `standard_conforming_strings` (dump loading) | **`on` on every server, no per-database overrides** — the PG19 release-notes preflight is already satisfied; `migrate.sh` re-checks before every dump.                                                                                                                                                           |
+| `standard_conforming_strings` (dump loading) | **`on` on every server, no per-database overrides** — the preflight is already satisfied; `migrate.sh` re-checks before every dump.                                                                                                                                                                              |
 | `\'` backslash escapes in SQL strings        | No risk — `standard_conforming_strings = on` everywhere and no `\'` in any migration script (`migrate.sh` uses `E''` escapes only).                                                                                                                                                                              |
 | `json_array()` returns `[]` not `NULL`       | No risk — no user SQL objects reference `json_array` in any database.                                                                                                                                                                                                                                            |
 | `postgres_fdw` + `READ ONLY` transactions    | No risk — `postgres_fdw` is not installed in any database.                                                                                                                                                                                                                                                       |
@@ -117,7 +130,7 @@ Additional pre-dump checks (same audit pass):
 | `MULE_INTERNAL` encoding       | None — every one of the 37 databases is `UTF8`.                                                                                                                                                                                                                         |
 | Custom shared libraries        | `pgaudit` preloaded on the four bitnami sources (audit logging only — invisible to apps; logging stops when the k3s instances decommission) and `vectors.so` on immich (preloads the `vector` extension, which the consolidated image bundles). Nothing app-critical.   |
 | `btree_gist` inet/cidr indexes | None anywhere (`btree_gist` is not even installed — only `btree_gin`).                                                                                                                                                                                                  |
-| Custom GUCs                    | Only standard tuning plus `default_text_search_config = pg_catalog.english` (valid in PG19). The one deprecated GUC in use, `wal_keep_segments` (replaced by `wal_keep_size`, gone in PG17+), is set on the k3s sources only and is not carried into the target config. |
+| Custom GUCs                    | Only standard tuning plus `default_text_search_config = pg_catalog.english` (valid in PG18). The one deprecated GUC in use, `wal_keep_segments` (replaced by `wal_keep_size`, gone in PG17+), is set on the k3s sources only and is not carried into the target config. |
 
 ## Name conflicts (resolved in `manifest.tsv`)
 
@@ -211,18 +224,18 @@ Status of the full pre-dump / dump-restore / post-restore checklist
       `E''` escapes only).
 - [x] No `READ ONLY` + `postgres_fdw` patterns — `postgres_fdw` not installed.
 - [x] Custom GUCs checked — only standard tuning plus
-      `default_text_search_config = pg_catalog.english` (valid in PG19); the one
+      `default_text_search_config = pg_catalog.english` (valid in PG18); the one
       deprecated GUC in use (`wal_keep_segments`) stays on the k3s sources and is
       not carried into the target.
 
 **Dump & restore**
 
-- [ ] PG19 `pg_dump`/`pg_dumpall` — optional; not required because
-      `standard_conforming_strings = on` on every source (the PG19 release notes
-      only mandate the PG19 client in the `= off` case). Available if wanted:
-      install the PG19 client tools on any machine that can reach the source.
-- [x] Restore target is a clean PG19 instance (the compose service,
-      `postgres:19` image — see the version compatibility section).
+- [ ] PG18 `pg_dump`/`pg_dumpall` — optional; not required because
+      `standard_conforming_strings = on` on every source and the target (PG18)
+      is ≥ every source version. Available if wanted: install the PG18 client
+      tools on any machine that can reach the source.
+- [x] Restore target is a clean PG18 instance (the compose service,
+      `postgres:18` image — see the version compatibility section).
 - [x] Reindex FTS / `pg_trgm` after restore — **not needed**: `pg_restore`
       rebuilds all indexes from the restored data, and every database keeps the
       same libc locale, so index contents are identical.
@@ -235,14 +248,15 @@ Status of the full pre-dump / dump-restore / post-restore checklist
 - [ ] Verify extensions loaded — `migrate.sh` checks table counts and role
       auth per DB; also confirm
       `SELECT extname FROM pg_extension;` matches `initdb/01-init-extensions.sql`
-      (six extensions: vector, cube, earthdistance, pg_trgm, unaccent, uuid-ossp).
+      (eight extensions: vector, vchord, cube, earthdistance, pg_trgm,
+      btree_gin, unaccent, uuid-ossp).
 - [ ] Run application smoke tests — scale each app back up (runbook step 4)
       and confirm it connects and loads its data; app healthchecks cover the rest.
 - [x] MD5 → SCRAM authentication — no action needed: roles are recreated on
-      PG19 with their original passwords, so PG19 stores SCRAM-SHA-256 hashes and
+      PG18 with their original passwords, so PG18 stores SCRAM-SHA-256 hashes and
       the `md5`/`scram-sha-256` pg_hba methods both negotiate SCRAM. `migrate.sh
   --verify-talos` exercises real role auth from the Talos cluster.
-- [x] Analytical queries / JIT — JIT is off by default in PG19; all of these
+- [x] Analytical queries / JIT — JIT is off by default in PG18; all of these
       databases are OLTP (no analytical workloads), so no tuning required.
 - [ ] Monitoring — the consolidated instance is a new host
       (172.20.17.150:5432, one port, 37 databases): point any Postgres exporter /
@@ -270,7 +284,7 @@ Everything happens as a short, deliberate window. **Do not skip the scale-down**
    superuser + each role password (see `migrate.sh` header). Generate
    `./initdb/roles.sql` from `roles.example.sql` with the real role passwords
    and start the compose service (roles are created on first start). The
-   committed `./initdb/01-init-extensions.sql` creates the six extensions;
+   committed `./initdb/01-init-extensions.sql` creates the eight extensions;
    the `Dockerfile` bakes the same SQL into the image, so a fresh instance
    gets them either way.
 3. `./migrate.sh --dry-run` — sanity-check the plan.
@@ -301,8 +315,8 @@ Consumers to scale down (verified against the live clusters, 2026-11-18):
 ### 2. Dump + restore
 
 `migrate.sh` first checks `standard_conforming_strings` on every source and
-sets it to `on` if needed — required for PG19 restores (see the version
-compatibility section). You can also verify manually:
+sets it to `on` if needed (the default since PG9.1; defensive — see the
+version compatibility section). You can also verify manually:
 
 ```
 psql -h <source> -U postgres -c "SHOW standard_conforming_strings;"
@@ -311,9 +325,9 @@ psql -h <source> -U postgres -c "ALTER SYSTEM SET standard_conforming_strings = 
 psql -h <source> -U postgres -c "SELECT pg_reload_conf();"
 ```
 
-Optionally, install the PG19 `pg_dump`/`pg_dumpall` client tools on a
-separate machine and point them at the source clusters to guarantee a
-fully PG19-native dump.
+Optionally, install a PG18 `pg_dump`/`pg_dumpall` client on a separate
+machine and point it at the source clusters to guarantee a fully PG18-native
+dump.
 
 ```
 ./migrate.sh            # all databases, per manifest.tsv
