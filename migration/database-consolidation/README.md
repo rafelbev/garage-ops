@@ -13,7 +13,7 @@ Benefits:
 
 - One database engine instead of six → less RAM, fewer images, one backup target.
 - Frees k3s of its databases, unblocking k3s decommissioning.
-- The built image (`postgres:17` + PGDG `postgresql-17-pgvector`, see the
+- The built image (`postgres:19` + PGDG `postgresql-19-pgvector`, see the
   `Dockerfile` in this directory) covers every extension in use (vector,
   cube, earthdistance, pg_trgm, unaccent, uuid-ossp).
 
@@ -35,60 +35,59 @@ Total ≈ **12 GiB**.
 > `immich` CNPG image is PG16 (`cloudnative-pgvecto.rs:16.5`). The newest source
 > is therefore PG16 and the oldest is PG11.
 
-## Postgres version compatibility (why PG17, not PG18)
+## Postgres version compatibility (why PG19)
 
-The consolidated image is **PostgreSQL 17** (`postgres:17` plus the PGDG
-`postgresql-17-pgvector` package, built via the `Dockerfile` in this
-directory). The target version is chosen as the **lowest version that
-satisfies every constraint**, not the newest available. This answers the
-review question of why PG17 and not the latest-supported PG18.
+The consolidated image is **PostgreSQL 19** (`postgres:19` plus the PGDG
+`postgresql-19-pgvector` package, built via the `Dockerfile` in this
+directory). The plan is to run the consolidated instance on PG19 — the
+current stable major. This answers the review question of which target
+version to pick.
 
 1. **The target must be ≥ the newest source.** The sources run PG11, 12, 14
    and 16 (verified above). The newest is PG16, so the target must be ≥ 16.
-2. **One of the current workloads requires PG17.** A workload in this
-   consolidated set has a PG17 requirement, so the target must be ≥ 17 —
-   PG17 is the minimum version that satisfies both constraints.
-3. **Forward-compatible restore.** `pg_dump` custom-format dumps are
+2. **Forward-compatible restore.** `pg_dump` custom-format dumps are
    forward-compatible: a dump taken from PG11/12/14/15/16 restores cleanly
-   into PG17. No source requires a target newer than itself.
-4. **No app needs a PG18+ feature.** Every consuming application's supported
-   range is fully satisfied by PG17:
+   into PG19, **provided `standard_conforming_strings = on` on the source**
+   (the default since PG9.1 — the PG19 release notes explicitly warn that
+   dumps made with pre-PG19 `pg_dump` _and_ `standard_conforming_strings =
+   off` will not load properly into PG19+). `migrate.sh` checks this on every
+   source before dumping and fixes it if needed (see the cutover runbook).
+   Optionally, install the PG19 `pg_dump`/`pg_dumpall` client tools on a
+   separate machine and point them at the source clusters to guarantee a
+   fully PG19-native dump.
+3. **No app needs a version newer than PG19** — and none needs a PG19+
+   feature either; PG19 is simply the newest supported major, so every
+   consuming application's supported range is satisfied:
 
-    | App (cluster)             | Min supported PG | Needs PG18+? |
-    | ------------------------- | ---------------- | ------------ |
-    | firefly-iii (k3s → Talos) | 9.5              | no           |
-    | ghostfolio (k3s → Talos)  | 10               | no           |
-    | cryptofolio (k3s → Talos) | 10               | no           |
-    | immich (Talos)            | 14 (uses vector) | no           |
-    | forgejo/gitea (Talos)     | 11               | no           |
-    | litellm (Talos)           | 9.6              | no           |
-    | mastodon (k3s)            | 12               | no           |
-    | dendrite (Talos)          | 11               | no           |
-    | mealie (k3s)              | 11               | no           |
-    | planka (k3s)              | 11               | no           |
-    | whatsapp/mautrix (Talos)  | 11               | no           |
-    | piped (k3s)               | 13               | no           |
-    | honcho (Talos)            | 13               | no           |
-    | acmedns (k3s)             | 11               | no           |
-    | wiki/mediawiki (k3s)      | 12               | no           |
-    | penpot (k3s)              | 11               | no           |
+    | App (cluster)             | Min supported PG |
+    | ------------------------- | ---------------- |
+    | firefly-iii (k3s → Talos) | 9.5              |
+    | ghostfolio (k3s → Talos)  | 10               |
+    | cryptofolio (k3s → Talos) | 10               |
+    | immich (Talos)            | 14 (uses vector) |
+    | forgejo/gitea (Talos)     | 11               |
+    | litellm (Talos)           | 9.6              |
+    | mastodon (k3s)            | 12               |
+    | dendrite (Talos)          | 11               |
+    | mealie (k3s)              | 11               |
+    | planka (k3s)              | 11               |
+    | whatsapp/mautrix (Talos)  | 11               |
+    | piped (k3s)               | 13               |
+    | honcho (Talos)            | 13               |
+    | acmedns (k3s)             | 11               |
+    | wiki/mediawiki (k3s)      | 12               |
+    | penpot (k3s)              | 11               |
 
     (The `*arr` `postgresql14` DBs are legacy/SQLite-on-Talos and preserved,
     not wired, so they impose no requirement. The Talos `authelia` and `n8n`
     instances no longer use Postgres — file-based user DB and built-in
     SQLite respectively — so their DBs are preserved, not wired.)
 
-5. **All required extensions are present.** The image bundles the `vector`
-   extension (immich, honcho) via the PGDG `postgresql-17-pgvector` package,
+4. **All required extensions are present.** The image bundles the `vector`
+   extension (immich, honcho) via the PGDG `postgresql-19-pgvector` package,
    plus every contrib module the sources use — `cube`, `earthdistance`,
    `pg_trgm`, `unaccent`, `uuid-ossp` — so no app is left without an extension
    it needs.
-
-**Why not PG18:** no application requires any PG18 feature, so moving to 18
-would put a newer, less battle-tested engine under a 12 GiB production
-consolidation with zero functional benefit. PG17 is a current stable release
-with a widely-used `pgvector` package, and it is the safe, minimal choice
-that keeps every app and every source compatible.
 
 ## Name conflicts (resolved in `manifest.tsv`)
 
@@ -211,6 +210,21 @@ Consumers to scale down (verified against the live clusters, 2026-11-18):
 - Verify each is at 0/1 before proceeding: `kubectl get pods -A | grep <app>`.
 
 ### 2. Dump + restore
+
+`migrate.sh` first checks `standard_conforming_strings` on every source and
+sets it to `on` if needed — required for PG19 restores (see the version
+compatibility section). You can also verify manually:
+
+```
+psql -h <source> -U postgres -c "SHOW standard_conforming_strings;"
+# if off:
+psql -h <source> -U postgres -c "ALTER SYSTEM SET standard_conforming_strings = on;"
+psql -h <source> -U postgres -c "SELECT pg_reload_conf();"
+```
+
+Optionally, install the PG19 `pg_dump`/`pg_dumpall` client tools on a
+separate machine and point them at the source clusters to guarantee a
+fully PG19-native dump.
 
 ```
 ./migrate.sh            # all databases, per manifest.tsv

@@ -1,10 +1,10 @@
-FROM postgres:17
+FROM postgres:19
 
 # Install pgvector from the pre-configured PostgreSQL (PGDG) apt repository.
-# The other 5 extensions are standard contrib modules already included in postgres:17.
+# The other 5 extensions are standard contrib modules already included in postgres:19.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        postgresql-17-pgvector \
+        postgresql-19-pgvector \
     && rm -rf /var/lib/apt/lists/*
 
 # Create an initialization script to enable all extensions on first startup.

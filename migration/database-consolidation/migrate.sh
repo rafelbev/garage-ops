@@ -36,6 +36,10 @@
 #                                          # every manifest row, from a probe
 #                                          # pod in the Talos cluster
 #
+# Before every dump, migrate.sh checks `standard_conforming_strings` on the
+# source and sets it to `on` if needed (PG19 release notes: dumps made with
+# pre-PG19 pg_dump while it is `off` will not load properly into PG19+).
+#
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -84,8 +88,43 @@ internal_pod () {
   echo "$ns $pod"
 }
 
+# Run psql against a source (external host or in-cluster pod), as superuser.
+src_psql () {
+  local source="$1"; shift
+  if [[ "$source" == internal:* ]]; then
+    local ns pod suvar su
+    read -r ns pod <<<"$(internal_pod "$source")"
+    suvar="$(src_su_var "${source#internal:}")"; su="$(getvar "$suvar")"
+    [ -z "$su" ] && { echo "missing $suvar in creds.env" >&2; exit 1; }
+    kubectl --kubeconfig "$K3S_KUBECONFIG" exec -i "$pod" -n "$ns" -- \
+      env PGPASSWORD="$su" psql -h 127.0.0.1 -U postgres -d postgres -tA "$@"
+  else
+    local suvar su
+    suvar="$(src_su_var "$source")"; su="$(getvar "$suvar")"
+    [ -z "$su" ] && { echo "missing $suvar in creds.env" >&2; exit 1; }
+    PGPASSWORD="$su" psql -h "$source" -p 5432 -U postgres -d postgres -tA "$@"
+  fi
+}
+
+# Pre-dump check (PG19 release notes): dumps created with a pre-PG19
+# pg_dump while standard_conforming_strings = off will not load properly
+# into PG19+. Ensure the setting is on on every source before dumping.
+source_preflight () {
+  local source="$1" s
+  s="$(src_psql "$source" -c "SHOW standard_conforming_strings" | tr -d ' ')"
+  case "$s" in
+    on)  echo "  preflight $source: standard_conforming_strings=on OK" ;;
+    off) echo "  preflight $source: standard_conforming_strings=off - fixing (PG19 restore requirement)"
+         [ "$DRY" -eq 1 ] && { echo "  [dry] would ALTER SYSTEM SET standard_conforming_strings = on; SELECT pg_reload_conf();"; return; }
+         src_psql "$source" -c "ALTER SYSTEM SET standard_conforming_strings = on;"
+         src_psql "$source" -c "SELECT pg_reload_conf();" ;;
+    *)   echo "  preflight $source: could not read standard_conforming_strings (got: $s)" >&2; return 1 ;;
+  esac
+}
+
 dump_db () {
   local source="$1" sdb="$2" out="$3"
+  source_preflight "$source"
   if [[ "$source" == internal:* ]]; then
     local ns pod suvar su
     read -r ns pod <<<"$(internal_pod "$source")"

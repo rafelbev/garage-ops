@@ -6,10 +6,10 @@
 # All application databases from every k3s instance converge into this one
 # instance, one database per source database.
 #
-# Image: built from the local Dockerfile (postgres:17 + postgresql-17-pgvector)
-#   - PostgreSQL 17: >= every source (PG12/14/16 are all forward-compatible
-#     into 17 via pg_dump/pg_restore custom format), and satisfies the
-#     PG17 requirement of one of the current workloads.
+# Image: built from the local Dockerfile (postgres:19 + postgresql-19-pgvector)
+#   - PostgreSQL 19: >= every source (PG12/14/16 are all forward-compatible
+#     into 19 via pg_dump/pg_restore custom format), matching the plan to run
+#     the consolidated instance on PG19.
 #   - Bundles the `vector` extension (immich, pgvector) plus `cube`,
 #     `earthdistance`, and all contrib modules (pg_trgm, unaccent, uuid-ossp)
 #     the source databases use.
