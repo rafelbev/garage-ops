@@ -110,6 +110,15 @@ Extensions actually in use across all sources: `plpgsql`, `vector` (immich),
 `earthdistance` (immich) — all covered by the consolidated image (see
 `initdb/01-init-extensions.sql`).
 
+Additional pre-dump checks (same audit pass):
+
+| Check                          | Finding (all 6 sources)                                                                                                                                                                                                                                                 |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MULE_INTERNAL` encoding       | None — every one of the 37 databases is `UTF8`.                                                                                                                                                                                                                         |
+| Custom shared libraries        | `pgaudit` preloaded on the four bitnami sources (audit logging only — invisible to apps; logging stops when the k3s instances decommission) and `vectors.so` on immich (preloads the `vector` extension, which the consolidated image bundles). Nothing app-critical.   |
+| `btree_gist` inet/cidr indexes | None anywhere (`btree_gist` is not even installed — only `btree_gin`).                                                                                                                                                                                                  |
+| Custom GUCs                    | Only standard tuning plus `default_text_search_config = pg_catalog.english` (valid in PG19). The one deprecated GUC in use, `wal_keep_segments` (replaced by `wal_keep_size`, gone in PG17+), is set on the k3s sources only and is not carried into the target config. |
+
 ## Name conflicts (resolved in `manifest.tsv`)
 
 A database name cannot exist twice in one server. Two pairs collide:
@@ -184,6 +193,65 @@ consolidated instance recreates each role with its original password).
 
 > immich also uses a k3s **redis** (172.20.0.139). That is a separate migration
 > (redis → docker-compose), tracked outside this PR's Postgres scope.
+
+## Cutover checklist status
+
+Status of the full pre-dump / dump-restore / post-restore checklist
+(live-audited 2026-11-21, all six sources / 37 databases):
+
+**Before dumping**
+
+- [x] `standard_conforming_strings = on` — verified `on` on every server;
+      `migrate.sh` re-checks and fixes before each dump.
+- [x] No `MULE_INTERNAL` encoding — all 37 databases are `UTF8`.
+- [x] Extensions + shared libraries inventoried — see the audit tables above
+      (`pgaudit` on the bitnami sources, `vectors.so` on immich; nothing else).
+- [x] No `btree_gist` inet/cidr indexes anywhere.
+- [x] No backslash-escaped strings in any migration script (`migrate.sh` uses
+      `E''` escapes only).
+- [x] No `READ ONLY` + `postgres_fdw` patterns — `postgres_fdw` not installed.
+- [x] Custom GUCs checked — only standard tuning plus
+      `default_text_search_config = pg_catalog.english` (valid in PG19); the one
+      deprecated GUC in use (`wal_keep_segments`) stays on the k3s sources and is
+      not carried into the target.
+
+**Dump & restore**
+
+- [ ] PG19 `pg_dump`/`pg_dumpall` — optional; not required because
+      `standard_conforming_strings = on` on every source (the PG19 release notes
+      only mandate the PG19 client in the `= off` case). Available if wanted:
+      install the PG19 client tools on any machine that can reach the source.
+- [x] Restore target is a clean PG19 instance (the compose service,
+      `postgres:19` image — see the version compatibility section).
+- [x] Reindex FTS / `pg_trgm` after restore — **not needed**: `pg_restore`
+      rebuilds all indexes from the restored data, and every database keeps the
+      same libc locale, so index contents are identical.
+- [x] Recompute stored `tsvector` values — **not needed**: no `tsvector`
+      columns exist in any database.
+- [x] Reindex `fuzzystrmatch` indexes — **not needed**: extension not installed.
+
+**After restore**
+
+- [ ] Verify extensions loaded — `migrate.sh` checks table counts and role
+      auth per DB; also confirm
+      `SELECT extname FROM pg_extension;` matches `initdb/01-init-extensions.sql`
+      (six extensions: vector, cube, earthdistance, pg_trgm, unaccent, uuid-ossp).
+- [ ] Run application smoke tests — scale each app back up (runbook step 4)
+      and confirm it connects and loads its data; app healthchecks cover the rest.
+- [x] MD5 → SCRAM authentication — no action needed: roles are recreated on
+      PG19 with their original passwords, so PG19 stores SCRAM-SHA-256 hashes and
+      the `md5`/`scram-sha-256` pg_hba methods both negotiate SCRAM. `migrate.sh
+  --verify-talos` exercises real role auth from the Talos cluster.
+- [x] Analytical queries / JIT — JIT is off by default in PG19; all of these
+      databases are OLTP (no analytical workloads), so no tuning required.
+- [ ] Monitoring — the consolidated instance is a new host
+      (172.20.17.150:5432, one port, 37 databases): point any Postgres exporter /
+      alerts at the new instance and drop the six per-DB targets. The k3s
+      `pgaudit` audit logging ends with the k3s instances; nothing downstream
+      consumes it.
+- [x] Replication — not applicable: every source is standalone
+      (the immich CNPG `primary_conninfo`/`restore_command` entries are its
+      controller's own bookkeeping, not a user replica).
 
 ## Cutover runbook
 
