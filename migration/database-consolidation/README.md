@@ -89,6 +89,27 @@ version to pick.
    `pg_trgm`, `unaccent`, `uuid-ossp` — so no app is left without an extension
    it needs.
 
+### PG19 behavioral audit (live-verified 2026-11-21)
+
+All six sources were audited as superuser (37 databases total) for the PG19
+behavioral changes, plus the `standard_conforming_strings` preflight state:
+
+| PG19 change                                  | Finding (all 6 sources / 37 DBs)                                                                                                                                                                                                                                                                                 |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `standard_conforming_strings` (dump loading) | **`on` on every server, no per-database overrides** — the PG19 release-notes preflight is already satisfied; `migrate.sh` re-checks before every dump.                                                                                                                                                           |
+| `\'` backslash escapes in SQL strings        | No risk — `standard_conforming_strings = on` everywhere and no `\'` in any migration script (`migrate.sh` uses `E''` escapes only).                                                                                                                                                                              |
+| `json_array()` returns `[]` not `NULL`       | No risk — no user SQL objects reference `json_array` in any database.                                                                                                                                                                                                                                            |
+| `postgres_fdw` + `READ ONLY` transactions    | No risk — `postgres_fdw` is not installed in any database.                                                                                                                                                                                                                                                       |
+| `COPY FROM ... WHERE` disallowed             | No risk — no COPY-based ETL; the migration is `pg_dump`/`pg_restore` only.                                                                                                                                                                                                                                       |
+| FTS / `pg_trgm` locale-provider results      | No risk — **every database uses the libc locale provider** (`en_US.UTF-8` on the five bitnami/pgvector sources, `C` on immich), so results are identical after restore. No stored `tsvector` columns anywhere; the only `pg_trgm` indexes in the estate are immich's seven trigram indexes on its `C`-locale DB. |
+| `fuzzystrmatch` non-ASCII behavior           | No risk — extension not installed anywhere; zero user fuzzy functions.                                                                                                                                                                                                                                           |
+| Text-search stemmer changes                  | No risk — no full-text search usage in any database.                                                                                                                                                                                                                                                             |
+
+Extensions actually in use across all sources: `plpgsql`, `vector` (immich),
+`pg_trgm` (immich), `btree_gin`, `uuid-ossp` (penpot), `unaccent`, `cube`,
+`earthdistance` (immich) — all covered by the consolidated image (see
+`initdb/01-init-extensions.sql`).
+
 ## Name conflicts (resolved in `manifest.tsv`)
 
 A database name cannot exist twice in one server. Two pairs collide:
