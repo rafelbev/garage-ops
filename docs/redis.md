@@ -22,11 +22,12 @@ The table below is the **authoritative allocation list** of Redis database
 indexes. Keep it current whenever an app starts (or stops) using the shared
 instance, and mirror the change in the consuming app's README.
 
-| db index | app       | cluster | status  | where the connection is configured                                             |
-| -------- | --------- | ------- | ------- | ------------------------------------------------------------------------------ |
-| 0        | immich    | Talos   | active  | `REDIS_HOSTNAME` in `kubernetes/apps/immich/immich/app/server-deployment.yaml` |
-| 1        | penpot    | k3s     | dormant | `PENPOT_REDIS_URI` in `penpot-backend` and `penpot-exporter`                   |
-| 2        | firecrawl | Talos   | active  | `REDIS_URL` / `REDIS_RATE_LIMIT_URL` in the SOPS secret `firecrawl`            |
+| db index | app        | cluster | status  | where the connection is configured                                                                                                                            |
+| -------- | ---------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0        | immich     | Talos   | active  | `REDIS_HOSTNAME` in `kubernetes/apps/immich/immich/app/server-deployment.yaml`                                                                                |
+| 1        | penpot     | k3s     | dormant | `PENPOT_REDIS_URI` in `penpot-backend` and `penpot-exporter`                                                                                                  |
+| 2        | firecrawl  | Talos   | active  | `REDIS_URL` / `REDIS_RATE_LIMIT_URL` in the SOPS secret `firecrawl`                                                                                           |
+| 3        | open-webui | Talos   | active  | `websocket.existingSecret` / `existingSecretKey` in `kubernetes/apps/open-webui/open-webui/app/helmrelease.yaml` → SOPS secret `open-webui` (key `redis-url`) |
 
 ## Standing rule — one logical DB per app
 
