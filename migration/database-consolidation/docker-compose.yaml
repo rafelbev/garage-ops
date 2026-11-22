@@ -69,7 +69,7 @@ services:
       # otherwise CREATE EXTENSION vchord fails with "vchord must be loaded via
       # shared_preload_libraries". Must be present on every server start.
       - -c
-      - shared_preload_libraries='vchord'
+      - shared_preload_libraries=/usr/lib/postgresql/18/lib/vchord.so
     # The consolidated server must be reachable by every app on the LAN from
     # the TrueNAS host IP. If TrueNAS firewalling blocks 5432, open it for the
     # cluster pod CIDR (172.20.128.0/18) and the Talos node subnet.
