@@ -28,7 +28,6 @@ gitea	gitea	172.20.0.121	gitea	337M	owned by forgejo (Talos); role+password must
 firefly	firefly	172.20.0.121	firefly	16M	firefly-iii (k3s -> Talos via this PR)
 authelia	authelia	172.20.0.121	authelia	7.7M	authelia (Talos) - LEGACY: Talos instance uses a file-based user DB, not Postgres; preserved, not wired
 wiki	wiki	172.20.0.121	wiki	7.6M	mediawiki (k3s)
-homeassistant_121	homeassistant_121	172.20.0.121	homeassistant	186M	CONFLICT rename; NO live conns (pg_stat_activity) - legacy, preserved
 dendrite_roomserver	dendrite	172.20.0.129	dendrite_roomserver	3215M	matrix/dendrite (Talos)
 dendrite_syncapi	dendrite	172.20.0.129	dendrite_syncapi	1750M	matrix/dendrite (Talos)
 dendrite_keyserver	dendrite	172.20.0.129	dendrite_keyserver	383M	matrix/dendrite (Talos)
