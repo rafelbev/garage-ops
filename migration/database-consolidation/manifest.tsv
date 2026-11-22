@@ -14,11 +14,11 @@
 # Name conflicts (a database name present on more than one source instance
 # cannot exist twice in one server) are resolved by renaming the LEGACY copy
 # (the one whose app is no longer running) and preserving it so no data is lost:
-#   - homeassistant: 121 (186M) stays `homeassistant`; 129 (824M) -> `homeassistant_129`
+#   - homeassistant: 129 (824M) stays `homeassistant` (live); 121 (186M) -> `homeassistant_121`
 #   - penpot:        138 (36M)  stays `penpot`;      129 (9M)  -> `penpot_129`
-# Both k3s `homeassistant` DBs and the `penpot` server are no longer running on
-# k3s (HA migrated to Talos using SQLite; penpot ns has only an exporter), so
-# these renamed copies are preserved for safety, not actively wired to an app.
+# The 129 `homeassistant` is live (its app config lives at /config/configuration.yaml
+# in the HA PVC); the 121 copy and the 129 `penpot` are legacy (preserved, not
+# actively wired — the penpot server is not running, its ns holds only an exporter).
 #
 # The per-source `postgres` template/maintenance DB is intentionally NOT listed
 # (it is not application data).

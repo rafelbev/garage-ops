@@ -142,12 +142,12 @@ A database name cannot exist twice in one server. Two pairs collide:
 | `penpot`        | 129 (9M) + 138 (36M)                   | 138 stays `penpot` (penpot backend points there); 129 → `penpot_129`                                         |
 | `honcho`        | 138 (7.4M) + pgvector `postgres` (37M) | 138 stays `honcho`; pgvector copy → `honcho_pgvector` (owner role `honcho`, vector ext — the live honcho DB) |
 
-`pg_stat_activity` (verified 2026-10-20) shows which copies have live
-connections: the 129 `homeassistant` (824M) has 3, the 121 copy (186M) has
-none, so 129 is kept as the primary name. HA on Talos uses SQLite, so neither
-is currently wired to a live app — both are preserved, not lost. **Raphael to
-confirm** which `homeassistant` copy is authoritative if he revives HA on
-Postgres. The `penpot` server is not running (ns holds only an exporter); the
+`pg_stat_activity` (verified 2026-11-21) shows which copies have live
+connections: the 129 `homeassistant` (824M) is **live** — it has 3 active
+connections and its app config lives at `/config/configuration.yaml` in the
+HA PVC — so 129 is the authoritative copy and is kept as the primary name.
+The 121 copy (186M) has no live connections and is legacy (preserved, not
+wired). The `penpot` server is not running (ns holds only an exporter); the
 138 copy is kept because the penpot backend's `PENPOT_DATABASE_URI` points at
 `postgresql16`. The two `honcho` copies are both preserved (138 as `honcho`,
 the vector copy as `honcho_pgvector`) — honcho uses pgvector, so the
