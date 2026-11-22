@@ -80,10 +80,11 @@ target version to pick.
     | wiki/mediawiki (k3s)      | 12               |
     | penpot (k3s)              | 11               |
 
-    (The `*arr` `postgresql14` DBs are legacy/SQLite-on-Talos and preserved,
+    (The `lidarr` `postgresql14` DBs are legacy/SQLite-on-Talos and preserved,
     not wired, so they impose no requirement. The Talos `authelia` and `n8n`
     instances no longer use Postgres — file-based user DB and built-in
-    SQLite respectively — so their DBs are preserved, not wired.)
+    SQLite respectively — so their DBs are preserved, not wired. The Talos
+    `sonarr` instance IS a live consumer of `sonarr-main`/`sonarr-log`.)
 
 4. **Full extension support.** PG18 is the newest major the VectorChord
    project supports: it ships prebuilt `postgresql-18-vchord` debs and a
@@ -199,10 +200,11 @@ consolidated instance recreates each role with its original password).
 > change. The `gitea` role is recreated with the same password, so no secret
 > change is needed.
 
-> **`*arr` apps (lidarr/sonarr/radarr/readarr) need NO re-pointing** — verified
-> they carry no DB env vars and use their SQLite config files in their PVCs.
-> The `postgresql14` `lidarr-*`/`sonarr-*` databases are **legacy** and are
-> preserved in the consolidated instance for safety, not wired to any app.
+> **`sonarr` (Talos) IS a live consumer** of `sonarr-main`/`sonarr-log` on
+> 135 — verified via `pg_stat_activity` (4 idle connections). It must be
+> scaled down before the dump and re-pointed to the consolidated instance
+> after cutover. The `lidarr`/`radarr`/`readarr` apps use SQLite in their
+> PVCs and need no re-pointing.
 
 > immich also uses a k3s **redis** (172.20.0.139). That is a separate migration
 > (redis → docker-compose), tracked outside this PR's Postgres scope.
@@ -308,8 +310,8 @@ Consumers to scale down (verified against the live clusters, 2026-11-18):
 - k3s: firefly-iii (+ importer), ghostfolio, mealie, penpot, planka,
   mastodon, piped, acmedns, wiki, and any `*arr` still on k3s.
 - No scale-down needed: authelia (file-based user DB), n8n (built-in
-  SQLite), lidarr/sonarr/readarr/radarr (SQLite in PVCs) — none of these
-  touch Postgres.
+  SQLite), lidarr/readarr/radarr (SQLite in PVCs).
+- **Scale down before dump: `sonarr` (Talos) — live consumer of `sonarr-main`/`sonarr-log`.**
 - Verify each is at 0/1 before proceeding: `kubectl get pods -A | grep <app>`.
 
 ### 2. Dump + restore

@@ -46,9 +46,9 @@ dendrite_naffka	dendrite	172.20.0.129	dendrite_naffka	8M	matrix/dendrite (Talos)
 homeassistant	homeassistant	172.20.0.129	homeassistant	824M	CONFLICT with 121; primary - HAS live conns (pg_stat_activity 3)
 penpot_129	penpot_129	172.20.0.129	penpot	9M	CONFLICT rename; legacy (penpot server not running)
 lidarr-main	lidarr	172.20.0.135	lidarr-main	804M	LEGACY - Talos lidarr uses SQLite in its PVC, not this DB; preserved, not wired
-sonarr-main	sonarr	172.20.0.135	sonarr-main	68M	LEGACY - Talos sonarr uses SQLite in its PVC, not this DB; preserved, not wired
+sonarr-main	sonarr	172.20.0.135	sonarr-main	68M	sonarr (Talos); active consumer (pg_stat_activity 4)
 lidarr-log	lidarr	172.20.0.135	lidarr-log	37M	LEGACY - Talos lidarr uses SQLite in its PVC, not this DB; preserved, not wired
-sonarr-log	sonarr	172.20.0.135	sonarr-log	17M	LEGACY - Talos sonarr uses SQLite in its PVC, not this DB; preserved, not wired
+sonarr-log	sonarr	172.20.0.135	sonarr-log	17M	sonarr (Talos); active consumer (pg_stat_activity 1)
 piped	piped	172.20.0.135	piped	8.4M	piped (k3s)
 litellm	litellm	172.20.0.138	litellm	4109M	litellm (Talos); largest DB
 penpot	penpot	172.20.0.138	penpot	36M	CONFLICT with 129; primary copy kept
