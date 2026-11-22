@@ -24,17 +24,17 @@
 # (it is not application data).
 
 target_db	role	source	source_db	size	notes
-gitea		gitea		172.20.0.121	gitea		337M	owned by forgejo (Talos); role+password must match app.ini
-firefly		firefly		172.20.0.121	firefly		16M	firefly-iii (k3s -> Talos via this PR)
+gitea	gitea	172.20.0.121	gitea	337M	owned by forgejo (Talos); role+password must match app.ini
+firefly	firefly	172.20.0.121	firefly	16M	firefly-iii (k3s -> Talos via this PR)
 authelia	authelia	172.20.0.121	authelia	7.7M	authelia (Talos) - LEGACY: Talos instance uses a file-based user DB, not Postgres; preserved, not wired
-wiki		wiki		172.20.0.121	wiki		7.6M	mediawiki (k3s)
+wiki	wiki	172.20.0.121	wiki	7.6M	mediawiki (k3s)
 homeassistant_121	homeassistant_121	172.20.0.121	homeassistant	186M	CONFLICT rename; NO live conns (pg_stat_activity) - legacy, preserved
 dendrite_roomserver	dendrite	172.20.0.129	dendrite_roomserver	3215M	matrix/dendrite (Talos)
 dendrite_syncapi	dendrite	172.20.0.129	dendrite_syncapi	1750M	matrix/dendrite (Talos)
 dendrite_keyserver	dendrite	172.20.0.129	dendrite_keyserver	383M	matrix/dendrite (Talos)
 dendrite_federationapi	dendrite	172.20.0.129	dendrite_federationapi	145M	matrix/dendrite (Talos)
 dendrite_userapi_accounts	dendrite	172.20.0.129	dendrite_userapi_accounts	46M	matrix/dendrite (Talos)
-whatsapp	whatsapp	172.20.0.129	whatsapp	33M	mautrix-whatsapp (Talos)
+whatsapp	dendrite	172.20.0.129	whatsapp	33M	mautrix-whatsapp (Talos); DB owned by dendrite (connects as dendrite)
 dendrite_mediaapi	dendrite	172.20.0.129	dendrite_mediaapi	14M	matrix/dendrite (Talos)
 mealie	mealie	172.20.0.129	mealie	10M	mealie (k3s)
 planka	planka	172.20.0.129	planka	9M	planka (k3s)
@@ -49,12 +49,12 @@ lidarr-main	lidarr	172.20.0.135	lidarr-main	804M	LEGACY - Talos lidarr uses SQLi
 sonarr-main	sonarr	172.20.0.135	sonarr-main	68M	LEGACY - Talos sonarr uses SQLite in its PVC, not this DB; preserved, not wired
 lidarr-log	lidarr	172.20.0.135	lidarr-log	37M	LEGACY - Talos lidarr uses SQLite in its PVC, not this DB; preserved, not wired
 sonarr-log	sonarr	172.20.0.135	sonarr-log	17M	LEGACY - Talos sonarr uses SQLite in its PVC, not this DB; preserved, not wired
-piped		piped		172.20.0.135	piped		8.4M	piped (k3s)
-litellm		litellm		172.20.0.138	litellm		4109M	litellm (Talos); largest DB
-penpot		penpot		172.20.0.138	penpot		36M	CONFLICT with 129; primary copy kept
+piped	piped	172.20.0.135	piped	8.4M	piped (k3s)
+litellm	litellm	172.20.0.138	litellm	4109M	litellm (Talos); largest DB
+penpot	penpot	172.20.0.138	penpot	36M	CONFLICT with 129; primary copy kept
 ghostfolio	ghostfolio	172.20.0.138	ghostfolio	10M	ghostfolio (k3s -> Talos via this PR)
-acmedns		acmedns		172.20.0.138	acmedns		7.7M	acmedns (k3s)
-n8n		n8n		172.20.0.138	n8n		7.4M	n8n (Talos) - LEGACY: Talos instance runs built-in SQLite, no DB env; preserved, not wired
-honcho		honcho		172.20.0.138	honcho		7.4M	honcho (Talos); no live conns - the live honcho DB is the vector copy below
+acmedns	acmedns	172.20.0.138	acmedns	7.7M	acmedns (k3s)
+n8n	n8n	172.20.0.138	n8n	7.4M	n8n (Talos) - LEGACY: Talos instance runs built-in SQLite, no DB env; preserved, not wired
+honcho	honcho	172.20.0.138	honcho	7.4M	honcho (Talos); no live conns - the live honcho DB is the vector copy below
 honcho_pgvector	honcho	internal:pgvector	postgres	37M	owner role honcho; vector ext; honcho (Talos) points here via k3s NodePort 172.20.0.116:31532 (source DB "postgres"); vector search
 immich	immich	internal:immich	immich	571M	immich (Talos); extensions vector,cube,earthdistance,pg_trgm,unaccent,uuid-ossp
