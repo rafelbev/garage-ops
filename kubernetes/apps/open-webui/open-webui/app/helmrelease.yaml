@@ -21,8 +21,10 @@ spec:
       enabled: false
     ollamaUrlsFromExtraEnv: false
     openaiBaseApiUrl: https://litellm.garage.neo-tix.com/v1
-    openaiApiKeyExistingSecret: open-webui
-    openaiApiKeyExistingSecretKey: openai-api-key
+    # No API key required for the LiteLLM proxy — leave the chart's
+    # openaiApiKey empty so no OPENAI_API_KEY env var is set (avoids the
+    # chart's "0p3n-w3bu!" placeholder leaking to the backend).
+    openaiApiKey: ""
     pipelines:
       enabled: false
     tika:
