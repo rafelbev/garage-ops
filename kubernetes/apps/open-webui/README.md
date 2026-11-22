@@ -11,8 +11,9 @@ via Flux.
   image, with an `truenas-iscsi` RWO config PVC (`8Gi`) for its SQLite database
   and uploads.
 - **LLM backend is external** — the OpenAI-compatible endpoint is the
-  self-hosted LiteLLM proxy (`https://litellm.garage.neo-tix.com/v1`); the API
-  key lives in the SOPS secret `open-webui` (key `openai-api-key`).
+  self-hosted LiteLLM proxy (`https://litellm.garage.neo-tix.com/v1`). No API
+  key is required; the chart's `openaiApiKey` is left empty so no
+  `OPENAI_API_KEY` is set.
 - **Redis is out-of-cluster.** The WebSocket manager uses the shared
   out-of-cluster Redis at `redis.intranet.neo-tix.com` (see below), not the
   Redis the chart bundles.
@@ -41,10 +42,9 @@ string for both `REDIS_URL` and `WEBSOCKET_REDIS_URL`.
 - **HelmRelease `open-webui`** — chart `open-webui` `18.4.0`, image
   `ghcr.io/open-webui/open-webui:v0.13.4`. Websocket wired to the shared
   out-of-cluster Redis (see "Redis" above); `persistence` uses `truenas-iscsi`.
-- **Secret `open-webui`** (SOPS-encrypted) — `openai-api-key` (the LiteLLM
-  proxy key), `redis-url` (the full connection URL to the shared
-  out-of-cluster Redis, db index `3`), and `webui-secret-key` (a stable
-  `WEBUI_SECRET_KEY`, see below).
+- **Secret `open-webui`** (SOPS-encrypted) — `redis-url` (the full connection
+  URL to the shared out-of-cluster Redis, db index `3`) and `webui-secret-key`
+  (a stable `WEBUI_SECRET_KEY`, see below).
 
 ## WEBUI_SECRET_KEY
 
