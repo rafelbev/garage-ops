@@ -21,16 +21,15 @@ spec:
             - containerPort: 2283
               name: http
           env:
-            # The database stays on the k3s cluster (no in-cluster database on
-            # Talos): CNPG cluster `immich` in k3s namespace `immich`,
-            # primary exposed via the `immich-postgres-external` NodePort
-            # service (5432 -> 32289) reachable on k3s node 172.20.0.113
-            # (k3os-8974). Same user/database as on k3s; password comes from
-            # the sops-encrypted `immich-db` secret.
+            # The database converges into the single docker-compose
+            # PostgreSQL instance on the TrueNAS host (172.20.17.150:5432).
+            # Same user (`immich`) / database (`immich`) as the source CNPG
+            # cluster; the role is recreated with the same password, so the
+            # sops-encrypted `immich-db` secret stays valid.
             - name: DB_HOSTNAME
-              value: 172.20.0.113
+              value: 172.20.17.150
             - name: DB_PORT
-              value: "32289"
+              value: "5432"
             - name: DB_DATABASE_NAME
               value: immich
             - name: DB_USERNAME
