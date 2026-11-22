@@ -44,6 +44,14 @@ spec:
         value: ws://playwright.playwright.svc.cluster.local:9222
       - name: TOKENIZERS_PARALLELISM
         value: "true"
+      # Stable, managed secret key — prevents Open WebUI from generating a
+      # fresh key (and invalidating existing JWT sessions / encrypted state)
+      # on every container restart. See README.md.
+      - name: WEBUI_SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: open-webui
+            key: webui-secret-key
     persistence:
       accessModes:
         - ReadWriteOnce
