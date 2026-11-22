@@ -21,8 +21,8 @@
 #   SU_172_20_0_129=...
 #   SU_172_20_0_135=...
 #   SU_172_20_0_138=...
-#   SU_internal_pgvector=postgres
-#   SU_internal_immich=<superuser pw>
+#   SU_pgvector=postgres           # internal:pgvector -> SU_pgvector (strip "internal:")
+#   SU_immich=<superuser pw>       # internal:immich   -> SU_immich
 #   ROLE_<role>=<role password>             # used for verification only
 #
 # Usage:
