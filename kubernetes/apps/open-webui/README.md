@@ -42,5 +42,20 @@ string for both `REDIS_URL` and `WEBSOCKET_REDIS_URL`.
   `ghcr.io/open-webui/open-webui:v0.13.4`. Websocket wired to the shared
   out-of-cluster Redis (see "Redis" above); `persistence` uses `truenas-iscsi`.
 - **Secret `open-webui`** (SOPS-encrypted) — `openai-api-key` (the LiteLLM
-  proxy key) and `redis-url` (the full connection URL to the shared
-  out-of-cluster Redis, db index `3`).
+  proxy key), `redis-url` (the full connection URL to the shared
+  out-of-cluster Redis, db index `3`), and `webui-secret-key` (a stable
+  `WEBUI_SECRET_KEY`, see below).
+
+## WEBUI_SECRET_KEY
+
+Open WebUI signs its JWT session tokens (and encrypts some state) with
+`WEBUI_SECRET_KEY`. When the env var is unset, the container falls back to
+generating a fresh key on every boot and printing
+`No WEBUI_SECRET_KEY environment variable set, loading from file.` — which
+invalidates existing sessions on each restart. We set it explicitly from the
+SOPS secret (`webui-secret-key`) via `extraEnvVars`, so the key is stable and
+managed in git. The value is a 32-byte random hex string.
+
+> Note: if the key is ever rotated, all existing sessions are invalidated
+> (users re-login); stored passwords are unaffected (they are bcrypt-hashed,
+> not keyed by `WEBUI_SECRET_KEY`).
