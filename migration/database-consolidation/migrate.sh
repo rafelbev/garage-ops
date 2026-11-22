@@ -21,8 +21,8 @@
 #   SU_172_20_0_129=...
 #   SU_172_20_0_135=...
 #   SU_172_20_0_138=...
-#   SU_pgvector=postgres           # internal:pgvector -> SU_pgvector (strip "internal:")
-#   SU_immich=<superuser pw>       # internal:immich   -> SU_immich
+#   SU_pgvector=postgres           # (documentation only - internal: sources use peer auth)
+#   SU_immich=<superuser pw>       # (documentation only - internal: sources use peer auth)
 #   ROLE_<role>=<role password>             # used for verification only
 #
 # Usage:
@@ -93,12 +93,13 @@ internal_pod () {
 src_psql () {
   local source="$1"; shift
   if [[ "$source" == internal:* ]]; then
-    local ns pod suvar su
+    local ns pod
     read -r ns pod <<<"$(internal_pod "$source")"
-    suvar="$(src_su_var "${source#internal:}")"; su="$(getvar "$suvar")"
-    [ -z "$su" ] && { echo "missing $suvar in creds.env" >&2; exit 1; }
+    # Peer auth: the pod's OS user is `postgres`, which maps to the `postgres`
+    # DB role via the local socket. No password needed (the TCP password is
+    # unknown/different from SU_*).
     kubectl --kubeconfig "$K3S_KUBECONFIG" exec -i "$pod" -n "$ns" -- \
-      env PGPASSWORD="$su" psql -h 127.0.0.1 -U postgres -d postgres -tA "$@"
+      psql -U postgres -d postgres -tA "$@"
   else
     local suvar su
     suvar="$(src_su_var "$source")"; su="$(getvar "$suvar")"
@@ -127,14 +128,17 @@ dump_db () {
   local source="$1" sdb="$2" out="$3"
   source_preflight "$source"
   if [[ "$source" == internal:* ]]; then
-    local ns pod suvar su
+    local ns pod remote
     read -r ns pod <<<"$(internal_pod "$source")"
-    suvar="$(src_su_var "${source#internal:}")"; su="$(getvar "$suvar")"
-    [ -z "$su" ] && { echo "missing $suvar in creds.env" >&2; exit 1; }
-    [ "$DRY" -eq 1 ] && { echo "  [dry] kubectl exec $ns/$pod pg_dump -d $sdb -> $out"; return; }
+    remote="/run/${sdb}.dump"
+    # Peer auth (socket, no password). Write to /run (writable; the pod's root
+    # FS is read-only, so `pg_dump -f -` stdout is broken), then kubectl cp out.
+    [ "$DRY" -eq 1 ] && { echo "  [dry] kubectl exec $ns/$pod pg_dump -d $sdb -f $remote; kubectl cp $ns/$pod:$remote $out"; return; }
     echo "  dumping (in-cluster) $source/$sdb -> $out"
     kubectl --kubeconfig "$K3S_KUBECONFIG" exec -i "$pod" -n "$ns" \
-      -- env PGPASSWORD="$su" pg_dump -h 127.0.0.1 -U postgres -d "$sdb" -Fc -f - > "$out"
+      -- pg_dump -U postgres -d "$sdb" -Fc -f "$remote"
+    kubectl --kubeconfig "$K3S_KUBECONFIG" cp "$ns/$pod:$remote" "$out"
+    kubectl --kubeconfig "$K3S_KUBECONFIG" exec -i "$pod" -n "$ns" -- rm -f "$remote"
   else
     local suvar su
     suvar="$(src_su_var "$source")"; su="$(getvar "$suvar")"
