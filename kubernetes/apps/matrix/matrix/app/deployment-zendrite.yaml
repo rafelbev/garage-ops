@@ -28,6 +28,12 @@ spec:
         app: zendrite
     spec:
       restartPolicy: Always
+      # fsGroup 1000 makes the secret volumes group-owned by 1000 so the
+      # non-root zendrite process (uid 1000) can read them (with mode 0660
+      # below). Without this the 0600 root-owned secret files are unreadable
+      # by uid 1000.
+      securityContext:
+        fsGroup: 1000
       # Dendrite wrote the media store as root (uid 0); Zendrite runs as uid 1000.
       # chown the store once so the non-root process can read and write it.
       # Idempotent: after the first run the files are already 1000:1000.
@@ -101,11 +107,11 @@ spec:
         - name: zendrite-config
           secret:
             secretName: zendrite-config
-            defaultMode: 384
+            defaultMode: 448
         - name: zendrite-key
           secret:
             secretName: zendrite-key
-            defaultMode: 384
+            defaultMode: 448
         - name: media
           persistentVolumeClaim:
             claimName: dendrite-media
