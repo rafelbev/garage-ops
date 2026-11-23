@@ -5,8 +5,8 @@ resources:
   - ./pvc-dendrite-media.yaml
   - ./pvc-whatsapp-data.yaml
   - ./matrix.sops.yaml
-  - ./deployment-dendrite.yaml
-  - ./service-dendrite.yaml
+  - ./deployment-zendrite.yaml
+  - ./service-zendrite.yaml
   - ./deployment-whatsapp.yaml
   - ./service-whatsapp.yaml
   - ./httproute.yaml

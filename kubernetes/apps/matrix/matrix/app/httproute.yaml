@@ -17,7 +17,7 @@ spec:
     - backendRefs:
         - group: ""
           kind: Service
-          name: dendrite
+          name: zendrite
           namespace: matrix
           port: 8008
           weight: 1
@@ -53,7 +53,7 @@ spec:
     - backendRefs:
         - group: ""
           kind: Service
-          name: dendrite
+          name: zendrite
           namespace: matrix
           port: 8008
           weight: 1
@@ -64,7 +64,7 @@ spec:
     - backendRefs:
         - group: ""
           kind: Service
-          name: dendrite
+          name: zendrite
           namespace: matrix
           port: 8008
           weight: 1
