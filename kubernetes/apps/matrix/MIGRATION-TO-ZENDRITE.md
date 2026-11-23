@@ -1,6 +1,6 @@
 # MIGRATION-TO-ZENDRITE.md — Dendrite → Zendrite (DRAFT)
 
-**Status:** DRAFT — investigation complete, ready to execute.
+**Status:** Manifests written (this PR) — ready for cutover execution.
 **Prerequisite resolved:** the homeserver databases now run on the
 consolidated **PostgreSQL 18** instance at `172.20.17.150:5432` (docker-compose
 on the TrueNAS host), which satisfies Zendrite's PG 17+ requirement.
@@ -103,7 +103,18 @@ From the live bridge `config.yaml` (in its PVC):
   This is persistent in the PVC, so it is a manual edit at cutover time
   (`kubectl exec`/`cp` into the bridge PVC), not a manifest change.
 
-### 4. Official Zendrite reference facts
+### 4. Media store is root-owned; Zendrite runs as uid 1000
+
+The media PVC `dendrite-media` was written by Dendrite running as **root
+(uid 0)** — the files are owned `0:0` with mode `drwxr-x---`. Zendrite runs as
+**uid 1000**, so it cannot read or write the store as-is. The
+`deployment-zendrite.yaml` adds a `chown-media` initContainer (runs as root,
+`chown -R 1000:1000 /var/dendrite/media`) that runs once at pod start; it is
+idempotent (after the first run the files are already `1000:1000`). The media
+mount path stays `/var/dendrite/media` (matches the config's
+`media_api.base_path`; least change).
+
+### 5. Official Zendrite reference facts
 
 - **Upstream**: `codefloe.com/pat-s/zendrite` (pat-s fork of Dendrite); docs at
   `zendrite.pat-s.me`.
@@ -170,16 +181,16 @@ with all Dendrite databases and the `whatsapp` bridge DB; both the
 - Optionally rename the PVC object `dendrite-media` → `zendrite-media`
   (metadata-only, no data movement) — separate PR, low priority.
 
-## Open Items
+## Decisions
 
-| #   | Item                   | Decision needed                                                                                     |
-| --- | ---------------------- | --------------------------------------------------------------------------------------------------- |
-| 1   | JetStream              | keep `in_memory: true` (matches today) vs. persistent storage on a PVC                              |
-| 2   | Resources              | bump requests to 500m/1Gi and limits to 2/4Gi? (docs: up to 2–4 CPU/8GB)                            |
-| 3   | Media mount path       | keep `/var/dendrite/media` (least change) vs. `/var/lib/zendrite/media` (cleaner)                   |
-| 4   | Image pinning          | `pats22/zendrite:3.9.1` (latest as of 2026-11-17) — pin by digest for parity with current practice? |
-| 5   | Secret/manifest naming | full rename to `zendrite-*` vs. keep `dendrite-*` names to minimize churn                           |
-| 6   | Orphan DB              | `dendrite_naffka` (8M, unused by the live config) — drop after the cutover is verified?             |
+| #   | Item                   | Decision                                                                               |
+| --- | ---------------------- | -------------------------------------------------------------------------------------- |
+| 1   | JetStream              | keep `in_memory: true` (matches today; streams rebuild from the DB on every start)     |
+| 2   | Resources              | bumped to requests 500m/1Gi, limits 2 CPU/4Gi                                          |
+| 3   | Media mount path       | keep `/var/dendrite/media` (matches `media_api.base_path`; least change)               |
+| 4   | Image pinning          | `pats22/zendrite:3.9.1` (tag pin, matching the repo's tag-pinning practice)            |
+| 5   | Secret/manifest naming | full rename to `zendrite-*` (deployment, service, secrets, sops keys)                  |
+| 6   | Orphan DB              | `dendrite_naffka` (8M, unused by the live config) — drop after the cutover is verified |
 
 ## Rollback
 

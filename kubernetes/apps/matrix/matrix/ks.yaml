@@ -7,7 +7,7 @@ spec:
   healthChecks:
     - apiVersion: apps/v1
       kind: Deployment
-      name: dendrite
+      name: zendrite
       namespace: matrix
     - apiVersion: apps/v1
       kind: Deployment

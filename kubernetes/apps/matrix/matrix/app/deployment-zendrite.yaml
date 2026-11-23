@@ -1,0 +1,111 @@
+---
+# Zendrite — the Matrix homeserver (migrated in-place from Dendrite).
+#
+# Same monolith pattern as Dendrite: single replica on an RWO iSCSI media PVC,
+# config from Secrets, Postgres on the consolidated PG18. The in-memory
+# JetStream is rebuilt from Postgres on every start, so the startup budget is
+# generous on every boot, not just the first (see MIGRATION-TO-ZENDRITE.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zendrite
+  namespace: matrix
+  labels:
+    app: zendrite
+spec:
+  replicas: 1
+  # Single replica with an RWO iSCSI PVC: Recreate so the old pod terminates
+  # and detaches the LUN before the replacement starts (RollingUpdate would
+  # deadlock on the volume attach).
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: zendrite
+  template:
+    metadata:
+      labels:
+        app: zendrite
+    spec:
+      restartPolicy: Always
+      # Dendrite wrote the media store as root (uid 0); Zendrite runs as uid 1000.
+      # chown the store once so the non-root process can read and write it.
+      # Idempotent: after the first run the files are already 1000:1000.
+      initContainers:
+        - name: chown-media
+          image: pats22/zendrite:3.9.1
+          securityContext:
+            runAsUser: 0
+          command: ["chown", "-R", "1000:1000", "/var/dendrite/media"]
+          volumeMounts:
+            - name: media
+              mountPath: /var/dendrite/media
+      containers:
+        - name: zendrite
+          image: pats22/zendrite:3.9.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TZ
+              value: "Europe/Malta"
+          ports:
+            - containerPort: 8008
+              name: http
+              protocol: TCP
+            - containerPort: 8448
+              name: https
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          # Slow boot: zendrite migrates the DB schema (first run) and rebuilds
+          # its in-memory jetstream from Postgres (~5.7GB of room/event state)
+          # before the API binds. Keep a generous startup budget.
+          startupProbe:
+            httpGet:
+              path: /_matrix/client/versions
+              port: 8008
+            periodSeconds: 5
+            failureThreshold: 600
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /_matrix/client/versions
+              port: 8008
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /_matrix/client/versions
+              port: 8008
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: zendrite-config
+              mountPath: /etc/zendrite/zendrite.yaml
+              subPath: zendrite.yaml
+            - name: zendrite-config
+              mountPath: /etc/whatsapp/registration.yaml
+              subPath: registration.yaml
+            - name: zendrite-key
+              mountPath: /etc/zendrite/matrix_key.pem
+              subPath: matrix_key.pem
+            - name: media
+              mountPath: /var/dendrite/media
+      volumes:
+        - name: zendrite-config
+          secret:
+            secretName: zendrite-config
+            defaultMode: 384
+        - name: zendrite-key
+          secret:
+            secretName: zendrite-key
+            defaultMode: 384
+        - name: media
+          persistentVolumeClaim:
+            claimName: dendrite-media
