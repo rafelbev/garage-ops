@@ -37,11 +37,12 @@ spec:
         # Direct LocalAI API for the embedding model. The LocalAI server at
         # 172.20.17.130:8000 serves granite-embedding-125m-english natively
         # with a larger batch size than the LiteLLM-routed path. No auth is
-        # required; the apiKey is a placeholder to satisfy the schema.
+        # required; LOCALAI_API_KEY is a placeholder env var.
         localai:
           type: openai
           baseUrl: http://172.20.17.130:8000/v1
-          apiKey: localai
+          apiKey:
+            env: LOCALAI_API_KEY
           timeout: 15m
       # Review model: <provider>/<model>. The `litellm` provider is the
       # in-cluster LiteLLM gateway (see providers.litellm above); the model
