@@ -34,10 +34,11 @@ spec:
           baseUrl: http://litellm.litellm.svc.cluster.local:4000/v1
           apiKey:
             env: LITELLM_API_KEY
-      # TODO: replace with a model the LiteLLM gateway serves once it is
-      # scaled back up and a model is configured.
+      # Review model: <provider>/<model>. The `litellm` provider is the
+      # in-cluster LiteLLM gateway (see providers.litellm above); the model
+      # id is what the gateway serves (verified via /v1/models).
       review:
-        model: "litellm/TBD"
+        model: "litellm/garage/qwen3.8:27B"
     database:
       owner:
         existingSecret: kritika-postgres-credentials
