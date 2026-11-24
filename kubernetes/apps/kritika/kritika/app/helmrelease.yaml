@@ -22,8 +22,7 @@ spec:
         github:
           accounts:
             - rafelbev
-          # TODO: replace with the registered GitHub App's client ID (Iv1...)
-          clientId: "TBD"
+          clientId: "Iv23lIAeDQ4l8BZY9"
           privateKey:
             env: GITHUB_APP_PRIVATE_KEY
           webhookSecret:
