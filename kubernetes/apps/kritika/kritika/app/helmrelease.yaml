@@ -22,7 +22,7 @@ spec:
         github:
           accounts:
             - rafelbev
-          clientId: "Iv23lIAeDQ4l8BZY9"
+          clientId: "Iv23likTMmxMKyTeBZY9"
           privateKey:
             env: GITHUB_APP_PRIVATE_KEY
           webhookSecret:
