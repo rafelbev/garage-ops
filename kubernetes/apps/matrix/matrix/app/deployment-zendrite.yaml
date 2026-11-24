@@ -105,6 +105,8 @@ spec:
               mountPath: /var/dendrite/media
             - name: logs
               mountPath: /var/log/dendrite
+            - name: jetstream
+              mountPath: /var/dendrite/jetstream
       volumes:
         - name: zendrite-config
           secret:
@@ -121,4 +123,10 @@ spec:
         # logging[].params.path). /var/log is root-owned, so mount an emptyDir
         # there for the non-root process to write its rotated logs.
         - name: logs
+          emptyDir: {}
+        # JetStream (NATS) creates its storage directory even in in_memory
+        # mode (config: global.jetstream.storage_path). /var/dendrite is
+        # root-owned, so mount an emptyDir there. Transient: the in-memory
+        # JetStream is rebuilt from Postgres on every start.
+        - name: jetstream
           emptyDir: {}
