@@ -33,19 +33,25 @@ spec:
           baseUrl: http://litellm.litellm.svc.cluster.local:4000/v1
           apiKey:
             env: LITELLM_API_KEY
-          # The local embedding model (granite-embedding) is slow on
-          # first-use batches; the default 5m timeout is not enough.
+          timeout: 15m
+        # Direct LocalAI API for the embedding model. The LocalAI server at
+        # 172.20.17.130:8000 serves granite-embedding-125m-english natively
+        # with a larger batch size than the LiteLLM-routed path.
+        localai:
+          type: openai
+          baseUrl: http://172.20.17.130:8000/v1
           timeout: 15m
       # Review model: <provider>/<model>. The `litellm` provider is the
       # in-cluster LiteLLM gateway (see providers.litellm above); the model
       # id is what the gateway serves (verified via /v1/models).
       review:
         model: "litellm/garage/qwen3.8:27B"
-      # Embedder for similar-code indexing. Uses the same LiteLLM gateway
-      # provider; the model id is what the gateway serves (verified via
-      # /v1/models). dims must match the model's output dimension.
+      # Embedder for similar-code indexing. Uses the LocalAI API directly
+      # (172.20.17.130:8000) which serves granite-embedding-125m-english
+      # natively with a larger batch size. dims must match the model's
+      # output dimension (768 for Granite-Embedding-125m-English).
       embedding:
-        model: "litellm/garage/granite-embedding"
+        model: "localai/granite-embedding-125m-english"
         dims: 768
     database:
       owner:
@@ -72,4 +78,10 @@ spec:
                 cidr: 172.20.17.150/32
           ports:
             - port: 5432
+              protocol: TCP
+        - to:
+            - ipBlock:
+                cidr: 172.20.17.130/32
+          ports:
+            - port: 8000
               protocol: TCP
