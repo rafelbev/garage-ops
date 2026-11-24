@@ -103,6 +103,8 @@ spec:
               subPath: matrix_key.pem
             - name: media
               mountPath: /var/dendrite/media
+            - name: logs
+              mountPath: /var/log/dendrite
       volumes:
         - name: zendrite-config
           secret:
@@ -115,3 +117,8 @@ spec:
         - name: media
           persistentVolumeClaim:
             claimName: dendrite-media
+        # Zendrite's logging hook writes to /var/log/dendrite (config:
+        # logging[].params.path). /var/log is root-owned, so mount an emptyDir
+        # there for the non-root process to write its rotated logs.
+        - name: logs
+          emptyDir: {}
