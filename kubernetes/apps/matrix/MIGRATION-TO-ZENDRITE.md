@@ -1,6 +1,9 @@
 # MIGRATION-TO-ZENDRITE.md — Dendrite → Zendrite (DRAFT)
 
-**Status:** Manifests written (this PR) — ready for cutover execution.
+**Status (2026-11-24): ✅ CUTOVER COMPLETE.** Zendrite is running in
+production, serving `matrix.garage.neo-tix.com`, with the WhatsApp bridge
+reconnected. Follow-up PRs #610 (fsGroup), #611 (log dir), #612 (JetStream
+dir) fixed the three non-root permission issues. See "Cutover Execution".
 **Prerequisite resolved:** the homeserver databases now run on the
 consolidated **PostgreSQL 18** instance at `172.20.17.150:5432` (docker-compose
 on the TrueNAS host), which satisfies Zendrite's PG 17+ requirement.
@@ -191,6 +194,33 @@ with all Dendrite databases and the `whatsapp` bridge DB; both the
 | 4   | Image pinning          | `pats22/zendrite:3.9.1` (tag pin, matching the repo's tag-pinning practice)            |
 | 5   | Secret/manifest naming | full rename to `zendrite-*` (deployment, service, secrets, sops keys)                  |
 | 6   | Orphan DB              | `dendrite_naffka` (8M, unused by the live config) — drop after the cutover is verified |
+
+## Cutover Execution — Final State (2026-11-24)
+
+The cutover executed successfully via PR #609 (cutover manifests) plus three
+follow-up PRs that fixed non-root permission issues one by one:
+
+| PR   | Fix                                                                          |
+| ---- | ---------------------------------------------------------------------------- |
+| #610 | `fsGroup: 1000` + `defaultMode: 448` so uid 1000 can read the secret volumes |
+| #611 | `emptyDir` at `/var/log/dendrite` (log file hook; `/var/log` is root-owned)  |
+| #612 | `emptyDir` at `/var/dendrite/jetstream` (JetStream storage; root-owned)      |
+
+The media PVC needed no extra fix beyond the existing `fsGroup: 1000` and a
+`chown-media` initContainer (uid 1000) that chowned the existing media to the
+`zendrite` user.
+
+**Verified live:**
+
+- `zendrite` Deployment **1/1 Ready**, serving `matrix.garage.neo-tix.com`
+  (HTTPRoute → service `zendrite` 8008/8448).
+- `/_matrix/client/versions` returns the full Matrix API version list.
+- Media PVC chowned to `zendrite:zendrite` (uid 1000) by the initContainer.
+- `mautrix-whatsapp` bridge **1/1 Ready**: `config.yaml` `homeserver.address`
+  updated to `http://zendrite.matrix.svc.cluster.local:8008`, pod restarted,
+  reconnected to WhatsApp and registered its bridge state against the Zendrite
+  homeserver.
+- Flux `cluster-apps` Kustomization: `True`.
 
 ## Rollback
 
