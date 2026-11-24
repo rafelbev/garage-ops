@@ -33,6 +33,9 @@ spec:
           baseUrl: http://litellm.litellm.svc.cluster.local:4000/v1
           apiKey:
             env: LITELLM_API_KEY
+          # The local embedding model (granite-embedding) is slow on
+          # first-use batches; the default 5m timeout is not enough.
+          timeout: 15m
       # Review model: <provider>/<model>. The `litellm` provider is the
       # in-cluster LiteLLM gateway (see providers.litellm above); the model
       # id is what the gateway serves (verified via /v1/models).
