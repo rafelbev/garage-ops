@@ -38,6 +38,12 @@ spec:
       # id is what the gateway serves (verified via /v1/models).
       review:
         model: "litellm/garage/qwen3.8:27B"
+      # Embedder for similar-code indexing. Uses the same LiteLLM gateway
+      # provider; the model id is what the gateway serves (verified via
+      # /v1/models). dims must match the model's output dimension.
+      embedding:
+        model: "litellm/garage/granite-embedding"
+        dims: 768
     database:
       owner:
         existingSecret: kritika-postgres-credentials
