@@ -40,7 +40,7 @@ spec:
         # required; LOCALAI_API_KEY is a placeholder env var.
         localai:
           type: openai
-          baseUrl: http://172.20.17.130:8000/v1
+          baseUrl: https://local-ai.garage.neo-tix.com/v1
           apiKey:
             env: LOCALAI_API_KEY
           timeout: 15m
@@ -84,7 +84,7 @@ spec:
               protocol: TCP
         - to:
             - ipBlock:
-                cidr: 172.20.17.130/32
+                cidr: 172.20.17.137/32
           ports:
-            - port: 8000
+            - port: 443
               protocol: TCP
