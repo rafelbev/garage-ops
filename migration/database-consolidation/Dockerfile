@@ -15,7 +15,7 @@
 # over this path (ro), which takes precedence and lets the SQL evolve without
 # rebuilding the image.
 
-FROM postgres:18
+FROM postgres:19
 
 ENV DEBIAN_FRONTEND=noninteractive
 
