@@ -54,15 +54,54 @@ spec:
           secretKeyRef:
             name: open-webui
             key: webui-secret-key
+      # --- PostgreSQL backend (was SQLite) ---
+      # DATABASE_URL / PGVECTOR_DB_URL come from the sops-encrypted `open-webui`
+      # secret (key `database-url`) so the Postgres password is never committed.
+      # The app connects to the consolidated Postgres on 172.20.17.150:5432.
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: open-webui
+            key: database-url
+      # Use pgvector for the vector DB so both replicas share it (ChromaDB is
+      # local-to-the-container and cannot be shared across replicas).
+      - name: VECTOR_DB
+        value: pgvector
+      - name: PGVECTOR_DB_URL
+        valueFrom:
+          secretKeyRef:
+            name: open-webui
+            key: database-url
+      # Migrations already applied to the database (see README); keep the
+      # database in sync by running migrations on exactly one replica at a time
+      # during upgrades.
+      - name: ENABLE_DB_MIGRATIONS
+        value: "false"
+      # Tuned connection pools for a shared database (per the Open Web UI docs).
+      - name: DATABASE_POOL_SIZE
+        value: "15"
+      - name: DATABASE_POOL_MAX_OVERFLOW
+        value: "20"
+      - name: THREAD_POOL_SIZE
+        value: "2000"
     persistence:
+      # Shared ReadWriteMany NFS volume so both replicas share uploads + model
+      # caches. The database no longer lives on this volume (it is in Postgres).
+      # Note: the storage class cannot be changed on an existing PVC — the old
+      # truenas-iscsi PVC must be deleted (after copying uploads + cache) so the
+      # chart provisions a fresh truenas-nfs PVC. See README.
       accessModes:
-        - ReadWriteOnce
+        - ReadWriteMany
       enabled: true
-      size: 8Gi
-      storageClass: truenas-iscsi
+      size: 10Gi
+      storageClass: truenas-nfs
     ingress:
       enabled: false
-    replicaCount: 1
+    workload:
+      # Deployment instead of StatefulSet: the app is now stateless (all state
+      # lives in Postgres + the shared NFS volume), so replicas are interchangeable.
+      kind: Deployment
+    replicaCount: 2
     revisionHistoryLimit: 10
     resources:
       limits:
