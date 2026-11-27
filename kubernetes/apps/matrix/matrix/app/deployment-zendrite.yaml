@@ -39,7 +39,7 @@ spec:
       # Idempotent: after the first run the files are already 1000:1000.
       initContainers:
         - name: chown-media
-          image: pats22/zendrite:3.9.1
+          image: pats22/zendrite:3.10.1
           securityContext:
             runAsUser: 0
           command: ["chown", "-R", "1000:1000", "/var/dendrite/media"]
@@ -48,7 +48,7 @@ spec:
               mountPath: /var/dendrite/media
       containers:
         - name: zendrite
-          image: pats22/zendrite:3.9.1
+          image: pats22/zendrite:3.10.1
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
