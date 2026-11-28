@@ -106,7 +106,7 @@ jobs:
           # Enables the per-repo JSON extraction cache; the file-based package
           # cache (docker lookups) is always written to the cache dir above.
           RENOVATE_REPOSITORY_CACHE: ${{ github.event.inputs.repoCache || 'enabled' }}
-        uses: renovatebot/github-action@acdd6bda8b035c99ce59d5675816af2aa65a1774 # v46.3.14
+        uses: renovatebot/github-action@ebcbb513d07ead4d9c0c2139064301db05e84a3e # v46.3.15
 
       - name: Save Renovate cache
         # Skip the save when the restore was an exact hit (cache-hit=true): the
