@@ -9,7 +9,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: kritika
-      version: "0.0.127"
+      version: "0.0.128"
   interval: 1h
   values:
     config:
