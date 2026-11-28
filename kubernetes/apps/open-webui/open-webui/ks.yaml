@@ -6,7 +6,7 @@ metadata:
 spec:
   healthChecks:
     - apiVersion: apps/v1
-      kind: StatefulSet
+      kind: Deployment
       name: open-webui
       namespace: open-webui
   interval: 1h
